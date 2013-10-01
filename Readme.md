@@ -11,6 +11,7 @@
     <http://planetcassandra.org/Download/StartDownload>
   * Using cqlsh, create the keyspace and tables as documented in
     cassandra-revisions.cql
+  * Assuming you have node and npm installed, all that is left to do is:
 
 ```sh 
       npm install
