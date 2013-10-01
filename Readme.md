@@ -14,8 +14,8 @@
       npm install
       node storoid.js
       # add a new revision
-      curl -d "_timestamp=`date -Iseconds`&_rev=1234&wikitext=some wikitext \
-        `date -Iseconds`" http://localhost:8000/enwiki/page/Foo?rev/
+      curl -d "_timestamp=`date -Iseconds`&_rev=1234&wikitext=some wikitext `date -Iseconds`"\
+        http://localhost:8000/enwiki/page/Foo?rev/
       # fetch the latest revision
       curl http://localhost:8000/enwiki/page/Foo?rev/latest/wikitext
 ```
