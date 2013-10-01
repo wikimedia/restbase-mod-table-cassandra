@@ -1,0 +1,17 @@
+{
+	"handlers": {
+		"/enwiki/page/": {
+			"backend": {
+				"type": "cassandra",
+				"options": {
+					"hosts": ["localhost:9160"],
+					"keyspace": "testdb",
+					"user": "test",
+					"password": "test",
+					"timeout": 3000,
+					"cqlVersion": "3.0.0"
+				}
+			}
+		}
+	}
+}
