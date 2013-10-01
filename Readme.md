@@ -9,6 +9,8 @@
 ## Setup and usage
   * Download cassandra from
     <http://planetcassandra.org/Download/StartDownload>
+  * Using cqlsh, create the keyspace and tables as documented in
+    cassandra-revisions.cql
 
 ```sh 
       npm install
