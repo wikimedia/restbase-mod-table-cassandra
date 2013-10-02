@@ -100,16 +100,18 @@ app.post(/^(\/[^\/]+\/page\/)(.+)$/, function ( req, res ) {
 				},
 				store = handlers[req.params[0]];
 			if (!store) {
-				return res.end(JSON.stringify({error: 'Invalid entry point'}), 400);
+				res.writeHead(400);
+				return res.end(JSON.stringify({error: 'Invalid entry point'}));
 			}
 			store.addRevision(revision,
 				function (err, result) {
 					if (err) {
 						// XXX: figure out whether this was a user or system
 						// error
-						res.end(JSON.stringify({'error': err}), 500);
+						res.writeHead(500);
+						return res.end(JSON.stringify({'error': err}));
 					}
-					res.end(JSON.stringify({'status': 'Added revision.'}), 200);
+					res.end(JSON.stringify({'status': 'Added revision ' + result.tid}));
 				});
 		} else {
 				res.end('Page request');
@@ -124,24 +126,28 @@ app.get(/^(\/[^\/]+\/page\/)([^?]+)$/, function ( req, res ) {
 
 	// First some rudimentary input validation
 	if (queryKeys.length !== 1) {
-		return res.end(JSON.stringify({error: "Exactly one query parameter expected."}), 400);
+		res.writeHead(400);
+		return res.end(JSON.stringify({error: "Exactly one query parameter expected."}));
 	}
 	if (!handlers[req.params[0]]) {
-		return res.end(JSON.stringify({error: 'Invalid entry point'}), 400);
+		res.writeHead(400);
+		return res.end(JSON.stringify({error: 'Invalid entry point'}));
 	}
 
 	var store = handlers[req.params[0]],
 		query = queryKeys[0];
 	if (/^rev\/latest\/wikitext$/.test(query)) {
-		console.log(query);
+		//console.log(query);
 		store.getLatest(req.params[1], 'wikitext', function (err, results) {
 			if (err) {
-				return res.end(JSON.stringify({error: err.toString()}), 400);
+				res.writeHead(400);
+				return res.end(JSON.stringify({error: err.toString()}));
 			}
-			if (results.count !== 1) {
-				return res.end(JSON.stringify({error: 'Not found'}), 404);
+			if (results.rows.length === 0) {
+				res.writeHead(404);
+				return res.end(JSON.stringify({error: 'Not found'}));
 			}
-			return res.end(results[0][0].value, 200);
+			return res.end(results.rows[0][0]);
 		});
 		return;
 	}

@@ -7,6 +7,7 @@
 		"querystring": "0.x.x",
 		"async": "0.x.x",
 		"express": "2.5.x",
-		"helenus": "git://github.com/gwicke/helenus.git#7f02b3e11c6f7c2e792ed06db087637d57b3ae3f"
+		"node-uuid": "1.x.x",
+		"node-cassandra-cql": "git://github.com/jorgebay/node-cassandra-cql.git#5b52dca200eba3c5e388a132c9a5e88b911dc64a"
 	}
 }

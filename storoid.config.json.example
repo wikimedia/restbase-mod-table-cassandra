@@ -4,12 +4,11 @@
 			"backend": {
 				"type": "cassandra",
 				"options": {
-					"hosts": ["localhost:9160"],
+					"hosts": ["localhost"],
 					"keyspace": "testdb",
-					"user": "test",
+					"username": "test",
 					"password": "test",
-					"timeout": 3000,
-					"cqlVersion": "3.0.0"
+					"poolSize": 1
 				}
 			}
 		}

@@ -11,7 +11,9 @@
 
 var util = require('util'),
 	events = require('events'),
-	helenus = require('helenus');
+	cass = require('node-cassandra-cql'),
+	consistencies = cass.types.consistencies,
+	uuid = require('node-uuid');
 
 function CassandraRevisionStore (name, config, cb) {
 	// call super
@@ -19,26 +21,33 @@ function CassandraRevisionStore (name, config, cb) {
 
 	this.name = name;
 	this.config = config;
-	var options = new Object(config.backend.options);
-	options.consistencylevel = helenus.ConsistencyLevel.ONE;
-
-	this.pool = new helenus.ConnectionPool(options);
-	this.pool.on('error', function(err){
-		console.error(err.name, err.message);
-		// emit error event so that the store can remove the backend or the
-		// like
-		this.emit('error', err);
-	});
-	this.pool.connect(cb);
+	this.client = new cass.Client(config.backend.options);
+	//this.client.on('log', function(level, message) {
+	//	console.log('log event: %s -- %j', level, message);
+	//});
+	cb();
 }
 
 util.inherits(CassandraRevisionStore, events.EventEmitter);
 
 var CRSP = CassandraRevisionStore.prototype;
 
+/**
+ * Add a new revision with several properties
+ */
 CRSP.addRevision = function (revision, cb) {
-	// Create a new timestamp
-	var tid = new helenus.TimeUUID.fromTimestamp(new Date(revision.timestamp));
+	var tid;
+	if(revision.timestamp) {
+		// Create a new, deterministic timestamp
+		tid = uuid.v1({
+			node: [0x01, 0x23, 0x45, 0x67, 0x89, 0xab],
+			clockseq: 0x1234,
+			msecs: new Date(revision.timestamp).getTime(),
+			nsecs: 0
+		});
+	} else {
+		tid = uuid.v1();
+	}
 	// Build up the CQL
 	// Simple revison table insertion only for now
 	var cql = 'BEGIN BATCH ',
@@ -63,14 +72,22 @@ CRSP.addRevision = function (revision, cb) {
 			revision.props[prop].value]);
 	});
 	cql += 'APPLY BATCH;';
-	this.pool.cql(cql, args, cb);
+	function tidPasser(err, res) {
+		cb(err, {tid: tid});
+	}
+	this.client.execute(cql, args, consistencies.one, tidPasser);
 };
 
+/**
+ * Get the latest version of a given property of a page
+ *
+ * Takes advantage of the latest-first clustering order.
+ */
 CRSP.getLatest = function (name, prop, cb) {
 	// Build the CQL
 	var cql = 'select value from revisions where name = ? and prop = ? limit 1;',
 		args = [name, prop];
-	this.pool.cql(cql, args, cb);
+	this.client.execute(cql, args, consistencies.one, cb);
 };
 
 module.exports = CassandraRevisionStore;
