@@ -1,7 +1,7 @@
 /*
- * Storoid worker.
+ * Rashomon worker.
  *
- * Configure in storoid.config.json.
+ * Configure in rashomon.config.json.
  */
 
 // global includes
@@ -16,23 +16,13 @@ var config;
 
 // Get the config
 try {
-	config = JSON.parse(fs.readFileSync('./storoid.config.json', 'utf8'));
+	config = JSON.parse(fs.readFileSync('./rashomon.config.json', 'utf8'));
 } catch ( e ) {
 	// Build a skeleton localSettings to prevent errors later.
-	console.error("Please set up your storoid.config.js from the example " +
-			"storoid.config.json.example");
+	console.error("Please set up your rashomon.config.js from the example " +
+			"rashomon.config.json.example");
 	process.exit(1);
 }
-
-/**
- * The name of this instance.
- * @property {string}
- */
-var instanceName = cluster.isWorker ? 'worker(' + process.pid + ')' : 'master';
-
-console.log( ' - ' + instanceName + ' loading...' );
-
-
 
 /*
  * Backend setup
@@ -72,7 +62,7 @@ app.use( express.limit( '25mb' ) );
 
 app.get('/', function(req, res){
 	res.write('<html><body>\n');
-	res.write('Welcome to Storoid.');
+	res.write('Welcome to Rashomon.');
 	res.end('</body></html>');
 });
 
@@ -158,8 +148,6 @@ app.get(/^(\/[^\/]+\/page\/)([^?]+)$/, function ( req, res ) {
 	// var res = store.get(req.params[1], req.query);
 });
 
-
-console.log( ' - ' + instanceName + ' ready' );
 
 module.exports = app;
 

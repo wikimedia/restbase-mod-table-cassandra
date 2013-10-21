@@ -1,4 +1,4 @@
-# Storoid
+# Rashomon
   
 Prototype storage front-end implementing a part of
 <https://www.mediawiki.org/wiki/User:GWicke/Notes/Storage>
@@ -8,7 +8,7 @@ Prototype storage front-end implementing a part of
 Early prototype. Minimal storage and retrieval of revisioned blobs in Cassandra.
 
 ### Performance
-Initial testing with ab, storoid and cassandra on an aging laptop gives these results:
+Initial testing with ab, rashomon and cassandra on an aging laptop gives these results:
 
 * 1800req/s for very small revisions
 * 2Gbit throughput for large wikitext revisions like Barack Obama
@@ -27,7 +27,7 @@ Tests were performed using
 
 ```sh 
       npm install
-      node storoid.js
+      node rashomon.js
       # add a new revision
       curl -d "_timestamp=`date -Iseconds`&_rev=1234&wikitext=some wikitext `date -Iseconds`"\
         http://localhost:8000/enwiki/page/Foo?rev/
