@@ -6,7 +6,6 @@
 
 // global includes
 var express = require('express'),
-	helenus = require('helenus'),
 	async = require('async'),
 	cluster = require('cluster'),
 	fs = require('fs'),
