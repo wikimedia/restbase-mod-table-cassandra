@@ -1,0 +1,10 @@
+{
+	"name": "RashomonDumpImporter",
+	"description": "Mediawiki storage API test",
+	"version": "0.0.1",
+	"dependencies": {
+		"request": "2.x.x",
+		"libxmljs": "x.x.x",
+		"form-data": "x.x.x"
+	}
+}

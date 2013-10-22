@@ -71,13 +71,14 @@ app.get(/^\/robots.txt$/, function ( req, res ) {
 });
 
 app.post(/^(\/[^\/]+\/page\/)(.+)$/, function ( req, res ) {
-	console.log('post');
+	var title = req.params[1];
+	console.log(title);
 	if (req.query['rev/'] !== undefined) {
 		// Atomically create a new revision with several properties
 		if (req.body._rev && req.body._timestamp) {
 			var revision = {
 					page: {
-						title: req.params[1]
+						title: title
 					},
 					id: Number(req.body._rev),
 					timestamp: req.body._timestamp,
