@@ -80,7 +80,7 @@ CREATE TABLE revisions_staging (
     headers map<text, text>, -- optional headers: used for format versioning etc
     value blob, 
     PRIMARY KEY (tid, name, prop)
-) WITH CLUSTERING ORDER BY (prop asc, tid desc);
+);
 
 -- CAS entry point for writes
 CREATE TABLE pages (
