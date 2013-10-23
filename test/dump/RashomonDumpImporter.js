@@ -17,6 +17,9 @@ function testCassandra () {
 	http.globalAgent.maxSockets = maxConcurrency;
 
 	reader.on( 'revision', function ( revision ) {
+		// Up to 10 retries
+		var retries = 10;
+
 		requests++;
 		if (requests > maxConcurrency) {
 			process.stdin.pause();
@@ -32,8 +35,13 @@ function testCassandra () {
 			form.append('_rev', revision.id);
 			form.append('wikitext', revision.text);
 		reqOptions.headers = form.getHeaders();
-		form.pipe(request(reqOptions, function(err, response, body) {
+		function requestCB (err, response, body) {
 			if (err) {
+				if (--retries) {
+					// retry
+					return form.pipe(request(reqOptions, requestCB));
+				}
+
 				console.error(err.toString());
 				process.exit(1);
 			}
@@ -43,8 +51,9 @@ function testCassandra () {
 				// continue reading
 				process.stdin.resume();
 			}
-		}));
-	} );
+		}
+		form.pipe(request(reqOptions, requestCB));
+	});
 
 	process.stdin.on('data', reader.push.bind(reader) );
 	process.stdin.setEncoding('utf8');
