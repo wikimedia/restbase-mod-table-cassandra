@@ -25,24 +25,17 @@ function testCassandra () {
 			process.stdin.pause();
 		}
 		var timestamp = new Date(revision.timestamp).toISOString(),
-			name = encodeURIComponent(revision.page.title.replace(/ /g, '_')),
-			form = new FormData(),
-			reqOptions = {
-				method: 'POST',
-				uri: 'http://localhost:8000/enwiki/page/' + name + '?rev/',
-			};
-			form.append('_timestamp', timestamp);
-			form.append('_rev', revision.id);
-			form.append('wikitext', revision.text);
-		reqOptions.headers = form.getHeaders();
+			name = encodeURIComponent(revision.page.title.replace(/ /g, '_'));
+
 		function requestCB (err, response, body) {
 			if (err) {
+				console.error(err.toString());
 				if (--retries) {
 					// retry
-					return form.pipe(request(reqOptions, requestCB));
+					doPost(requestCB);
+					return;
 				}
 
-				console.error(err.toString());
 				process.exit(1);
 			}
 			console.log(name);
@@ -52,7 +45,22 @@ function testCassandra () {
 				process.stdin.resume();
 			}
 		}
-		form.pipe(request(reqOptions, requestCB));
+
+		function doPost (cb) {
+			var form = new FormData(),
+				reqOptions = {
+					method: 'POST',
+					uri: 'http://localhost:8000/enwiki/page/' + name + '?rev/',
+				};
+			form.append('_timestamp', timestamp);
+			form.append('_rev', revision.id);
+			form.append('wikitext', revision.text);
+			reqOptions.headers = form.getHeaders();
+			form.pipe(request(reqOptions, requestCB));
+		}
+
+		// send it off
+		doPost(requestCB);
 	});
 
 	process.stdin.on('data', reader.push.bind(reader) );
