@@ -75,7 +75,7 @@ CRSP.addRevision = function (revision, cb) {
 	function tidPasser(err, res) {
 		cb(err, {tid: tid});
 	}
-	this.client.execute(cql, args, consistencies.one, tidPasser);
+	this.client.execute(cql, args, consistencies.quorum, tidPasser);
 };
 
 /**

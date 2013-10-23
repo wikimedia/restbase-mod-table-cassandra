@@ -11,13 +11,14 @@ var dumpReader = require('./dumpReader.js'),
 
 function testCassandra () {
 	var reader = new dumpReader.DumpReader(),
-		i = 0;
+		requests = 0,
+		maxConcurrency = 20;
 
 	reader.on( 'revision', function ( revision ) {
-		// insert revision.text
-		//if (revision.text.length < 30000) {
-		i++;
-		process.stdin.pause();
+		requests++;
+		if (requests > maxConcurrency) {
+			process.stdin.pause();
+		}
 		var timestamp = new Date(revision.timestamp).toISOString(),
 			name = encodeURIComponent(revision.page.title.replace(/ /g, '_')),
 			form = new FormData(),
@@ -35,7 +36,11 @@ function testCassandra () {
 				process.exit(1);
 			}
 			console.log(name);
-			process.stdin.resume();
+			requests--;
+			if (requests < maxConcurrency) {
+				// continue reading
+				process.stdin.resume();
+			}
 		}));
 	} );
 
