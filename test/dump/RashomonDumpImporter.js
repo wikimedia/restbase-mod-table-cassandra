@@ -7,12 +7,14 @@
 
 var dumpReader = require('./dumpReader.js'),
 	request = require('request'),
-	FormData = require('form-data');
+	FormData = require('form-data'),
+	http = require('http');
 
 function testCassandra () {
 	var reader = new dumpReader.DumpReader(),
 		requests = 0,
 		maxConcurrency = 300;
+	http.globalAgent.maxSockets = maxConcurrency;
 
 	reader.on( 'revision', function ( revision ) {
 		requests++;
