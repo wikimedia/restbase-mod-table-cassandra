@@ -35,12 +35,12 @@ if (cluster.isMaster) {
 			workers[id].destroy();
 		});
 		console.log('Done killing workers, bye');
-		process.exit(1);
+		process.exit(0);
 	} );
 } else {
 	process.on('SIGTERM', function() {
 		console.log('Worker shutting down');
-		process.exit(1);
+		process.exit(0);
 	});
 	var instanceName = cluster.isWorker ? 'worker(' + process.pid + ')' : 'master';
 	console.log( ' - ' + instanceName + ' loading...' );
