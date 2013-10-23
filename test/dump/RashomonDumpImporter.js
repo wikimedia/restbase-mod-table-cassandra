@@ -12,7 +12,7 @@ var dumpReader = require('./dumpReader.js'),
 function testCassandra () {
 	var reader = new dumpReader.DumpReader(),
 		requests = 0,
-		maxConcurrency = 100;
+		maxConcurrency = 300;
 
 	reader.on( 'revision', function ( revision ) {
 		requests++;
