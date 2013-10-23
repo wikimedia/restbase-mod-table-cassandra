@@ -31,8 +31,8 @@ function testCassandra () {
 			if (err) {
 				console.error(err.toString());
 				if (--retries) {
-					// retry
-					doPost(requestCB);
+					// retry after 10 seconds
+					setTimeout(doPost, 10000);
 					return;
 				}
 
@@ -46,7 +46,7 @@ function testCassandra () {
 			}
 		}
 
-		function doPost (cb) {
+		function doPost () {
 			var form = new FormData(),
 				reqOptions = {
 					method: 'POST',
@@ -60,7 +60,7 @@ function testCassandra () {
 		}
 
 		// send it off
-		doPost(requestCB);
+		doPost();
 	});
 
 	process.stdin.on('data', reader.push.bind(reader) );
