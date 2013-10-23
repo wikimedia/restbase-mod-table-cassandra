@@ -12,13 +12,16 @@ var dumpReader = require('./dumpReader.js'),
 
 function testCassandra () {
 	var reader = new dumpReader.DumpReader(),
+		revisions = 0,
+		intervalDate = new Date(),
 		requests = 0,
 		maxConcurrency = 100;
 	http.globalAgent.maxSockets = maxConcurrency;
 
 	reader.on( 'revision', function ( revision ) {
-		// Up to 10 retries
-		var retries = 10;
+
+		// Up to 50 retries
+		var retries = 50;
 
 		requests++;
 		if (requests > maxConcurrency) {
@@ -38,7 +41,16 @@ function testCassandra () {
 
 				process.exit(1);
 			}
-			console.log(name);
+			revisions++;
+			var interval = 1000;
+			if(revisions % interval === 0) {
+
+				var newIntervalDate = new Date(),
+					rate = interval / (newIntervalDate - intervalDate) * 1000;
+				console.log(revisions + ' ' + rate + '/s');
+				intervalDate = newIntervalDate;
+			}
+
 			requests--;
 			if (requests < maxConcurrency) {
 				// continue reading
