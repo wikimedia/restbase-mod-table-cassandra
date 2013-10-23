@@ -12,8 +12,10 @@ var dumpReader = require('./dumpReader.js'),
 
 function testCassandra () {
 	var reader = new dumpReader.DumpReader(),
+		totalSize = 0,
 		revisions = 0,
 		intervalDate = new Date(),
+		startDate = intervalDate,
 		requests = 0,
 		maxConcurrency = 100;
 	http.globalAgent.maxSockets = maxConcurrency;
@@ -41,13 +43,16 @@ function testCassandra () {
 
 				process.exit(1);
 			}
+			totalSize += revision.text.length;
 			revisions++;
 			var interval = 1000;
 			if(revisions % interval === 0) {
 
 				var newIntervalDate = new Date(),
-					rate = interval / (newIntervalDate - intervalDate) * 1000;
-				console.log(revisions + ' ' + rate + '/s');
+					rate = interval / (newIntervalDate - intervalDate) * 1000,
+					totalRate = revisions / (newIntervalDate - startDate) * 1000;
+				console.log(revisions + ' ' + Math.round(rate) + '/s; ' +
+						'avg ' + Math.round(totalRate) + '/s');
 				intervalDate = newIntervalDate;
 			}
 
@@ -73,6 +78,14 @@ function testCassandra () {
 
 		// send it off
 		doPost();
+	});
+	reader.on('end', function() {
+		console.log('####################');
+		var delta = Math.round((new Date() - startDate) * 1000);
+		console.log('Processed ' + revisions + ' revisions in ' + delta + 's, at a rate of ' +
+			revisions / delta + '/s');
+		console.log('Total size: ' + totalSize);
+		process.exit();
 	});
 
 	process.stdin.on('data', reader.push.bind(reader) );
