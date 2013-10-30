@@ -26,19 +26,19 @@ Tests were performed using
 * Assuming you have node and npm installed, all that is left to do is:
 
 ```sh 
-      npm install
-      node rashomon.js
-      # add a new revision
-      curl -d "_timestamp=`date -Iseconds`&_rev=1234&wikitext=some wikitext `date -Iseconds`"\
-        http://localhost:8000/enwiki/page/Foo?rev/
-      # fetch the latest revision
-      curl http://localhost:8000/enwiki/page/Foo?rev/latest/wikitext
-      # fetch a specific MediaWiki revision ID:
-      curl http://localhost:8000/enwiki/page/Foo?rev/1234/wikitext
-      # fetch the wikitext at or before a given date
-      curl http://localhost:8000/enwiki/page/Foo?rev/`date -Iseconds`/wikitext
-      # fetch a specific uuid (adjust to uid returned when you added the revision)
-      curl http://localhost:8000/enwiki/page/Foo?rev/6c745300-eb62-11e0-9234-0123456789ab/wikitext
+npm install
+node rashomon.js
+# add a new revision
+curl -d "_timestamp=`date -Iseconds`&_rev=1234&wikitext=some wikitext `date -Iseconds`"\
+  http://localhost:8000/enwiki/page/Foo?rev/
+# fetch the latest revision
+curl http://localhost:8000/enwiki/page/Foo?rev/latest/wikitext
+# fetch a specific MediaWiki revision ID:
+curl http://localhost:8000/enwiki/page/Foo?rev/1234/wikitext
+# fetch the wikitext at or before a given date
+curl http://localhost:8000/enwiki/page/Foo?rev/`date -Iseconds`/wikitext
+# fetch a specific uuid (adjust to uid returned when you added the revision)
+curl http://localhost:8000/enwiki/page/Foo?rev/6c745300-eb62-11e0-9234-0123456789ab/wikitext
 ```
 
 ### Troubleshooting
