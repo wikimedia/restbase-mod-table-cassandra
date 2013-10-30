@@ -15,6 +15,13 @@ var util = require('util'),
 	consistencies = cass.types.consistencies,
 	uuid = require('node-uuid');
 
+var conf = {
+		consistencies: {
+			read: consistencies.one,
+			write: consistencies.one
+		}
+};
+
 function CassandraRevisionStore (name, config, cb) {
 	// call super
 	events.EventEmitter.call(this);
@@ -32,6 +39,16 @@ util.inherits(CassandraRevisionStore, events.EventEmitter);
 
 var CRSP = CassandraRevisionStore.prototype;
 
+function tidFromDate(date) {
+	// Create a new, deterministic timestamp
+	return uuid.v1({
+		node: [0x01, 0x23, 0x45, 0x67, 0x89, 0xab],
+		clockseq: 0x1234,
+		msecs: date.getTime(),
+		nsecs: 0
+	});
+}
+
 /**
  * Add a new revision with several properties
  */
@@ -39,12 +56,8 @@ CRSP.addRevision = function (revision, cb) {
 	var tid;
 	if(revision.timestamp) {
 		// Create a new, deterministic timestamp
-		tid = uuid.v1({
-			node: [0x01, 0x23, 0x45, 0x67, 0x89, 0xab],
-			clockseq: 0x1234,
-			msecs: new Date(revision.timestamp).getTime(),
-			nsecs: 0
-		});
+		// XXX: pass in a date directly
+		tid = tidFromDate(new Date(revision.timestamp));
 	} else {
 		tid = uuid.v1();
 	}
@@ -53,6 +66,7 @@ CRSP.addRevision = function (revision, cb) {
 	var cql = 'BEGIN BATCH ',
 		args = [],
 		props = Object.keys(revision.props);
+	// Insert the _rev metadata
 	cql += 'insert into revisions (name, prop, tid, revtid, value) ' +
 			'values(?, ?, ?, ?, ?);\n';
 	args = args.concat([
@@ -61,6 +75,16 @@ CRSP.addRevision = function (revision, cb) {
 			tid,
 			tid,
 			new Buffer(JSON.stringify({rev:revision.id}))]);
+
+	// Insert the revid -> timeuuid index
+	cql += 'insert into idx_revisions_by_revid (revid, name, tid) ' +
+			'values(?, ?, ?);\n';
+	args = args.concat([
+			revision.id,
+			revision.page.title,
+			tid]);
+
+	// Now insert each revision property
 	props.forEach(function(prop) {
 		cql += 'insert into revisions (name, prop, tid, revtid, value) ' +
 			'values(?, ?, ?, ?, ?);\n';
@@ -71,11 +95,13 @@ CRSP.addRevision = function (revision, cb) {
 			tid,
 			revision.props[prop].value]);
 	});
+
+	// And finish it off
 	cql += 'APPLY BATCH;';
 	function tidPasser(err, res) {
 		cb(err, {tid: tid});
 	}
-	this.client.execute(cql, args, consistencies.quorum, tidPasser);
+	this.client.execute(cql, args, conf.consistencies.write, tidPasser);
 };
 
 /**
@@ -83,11 +109,63 @@ CRSP.addRevision = function (revision, cb) {
  *
  * Takes advantage of the latest-first clustering order.
  */
-CRSP.getLatest = function (name, prop, cb) {
-	// Build the CQL
-	var cql = 'select value from revisions where name = ? and prop = ? limit 1;',
+CRSP.getRevision = function (name, rev, prop, cb) {
+	var queryCB = function (err, results) {
+			if (err) {
+				cb(err);
+			} else if (!results || !results.rows || results.rows.length === 0) {
+				cb(null, []);
+			} else {
+				cb(null, results.rows);
+			}
+		},
+		client = this.client,
+		cql = '',
+		args = [], tid;
+
+	if (rev === 'latest') {
+		// Build the CQL
+		cql = 'select value from revisions where name = ? and prop = ? limit 1;';
 		args = [name, prop];
-	this.client.execute(cql, args, consistencies.one, cb);
+		this.client.execute(cql, args, conf.consistencies.read, queryCB);
+	} else if (/^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(rev)) {
+		// By UUID
+		cql = 'select value from revisions where name = ? and prop = ? and tid = ? limit 1;';
+		args = [name, prop, rev];
+		this.client.execute(cql, args, conf.consistencies.read, queryCB);
+	} else {
+		switch(rev.constructor) {
+			case Number:
+				// By MediaWiki oldid
+
+				// First look up the timeuuid from the revid
+				cql = 'select tid from idx_revisions_by_revid where revid = ? limit 1;';
+				args = [rev];
+				client.execute(cql, args, conf.consistencies.read, function (err, results) {
+							if (err) {
+								cb(err);
+							}
+							if (!results.rows.length) {
+								cb('Revision not found'); // XXX: proper error
+							} else {
+								// Now retrieve the revision using the tid
+								tid = results.rows[0][0];
+								cql = 'select value from revisions where ' +
+									'name = ? and prop = ? and tid = ? limit 1;';
+								args = [name, prop, tid];
+								client.execute(cql, args, conf.consistencies.read, queryCB);
+							}
+						});
+				break;
+			case Date:
+				// By date
+				tid = tidFromDate(rev);
+				cql = 'select value from revisions where name = ? and prop = ? and tid <= ? limit 1;';
+				args = [name, prop, tid];
+				this.client.execute(cql, args, conf.consistencies.read, queryCB);
+				break;
+		}
+	}
 };
 
 module.exports = CassandraRevisionStore;

@@ -2,7 +2,7 @@
 /*jslint node: true */
 "use strict";
 /**
- * Cassandra write test.
+ * Rashomon write test.
  */
 
 var dumpReader = require('./dumpReader.js'),
@@ -10,7 +10,7 @@ var dumpReader = require('./dumpReader.js'),
 	FormData = require('form-data'),
 	http = require('http');
 
-function testCassandra () {
+function testWrites () {
 	var reader = new dumpReader.DumpReader(),
 		totalSize = 0,
 		revisions = 0,
@@ -23,7 +23,8 @@ function testCassandra () {
 	reader.on( 'revision', function ( revision ) {
 
 		// Up to 50 retries
-		var retries = 50;
+		var retries = 50,
+			retryDelay = 10; // start with 10 seconds
 
 		requests++;
 		if (requests > maxConcurrency) {
@@ -32,15 +33,16 @@ function testCassandra () {
 		var timestamp = new Date(revision.timestamp).toISOString(),
 			name = encodeURIComponent(revision.page.title.replace(/ /g, '_'));
 
-		function requestCB (err, response, body) {
+		function handlePostResponse (err, response, body) {
 			if (err) {
 				console.error(err.toString());
 				if (--retries) {
-					// retry after 10 seconds
-					setTimeout(doPost, 10000);
+					// retry after retryDelay seconds
+					setTimeout(doPost, retryDelay * 1000);
+					// Exponential back-off
+					retryDelay = retryDelay * 2;
 					return;
 				}
-
 				process.exit(1);
 			}
 			totalSize += revision.text.length;
@@ -73,7 +75,7 @@ function testCassandra () {
 			form.append('_rev', revision.id);
 			form.append('wikitext', revision.text);
 			reqOptions.headers = form.getHeaders();
-			form.pipe(request(reqOptions, requestCB));
+			form.pipe(request(reqOptions, handlePostResponse));
 		}
 
 		// send it off
@@ -81,10 +83,10 @@ function testCassandra () {
 	});
 	reader.on('end', function() {
 		console.log('####################');
-		var delta = Math.round((new Date() - startDate) * 1000);
-		console.log('Processed ' + revisions + ' revisions in ' + delta + 's, at a rate of ' +
-			revisions / delta + '/s');
-		console.log('Total size: ' + totalSize);
+		var delta = Math.round((new Date() - startDate) / 1000);
+		console.log(revisions + ' revisions in ' + delta +
+			's (' + revisions / delta + '/s); ' +
+			'Total size: ' + totalSize);
 		process.exit();
 	});
 
@@ -93,4 +95,4 @@ function testCassandra () {
 	process.stdin.resume();
 }
 
-testCassandra();
+testWrites();

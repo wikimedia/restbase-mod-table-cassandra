@@ -9,7 +9,8 @@ var express = require('express'),
 	async = require('async'),
 	cluster = require('cluster'),
 	fs = require('fs'),
-	CassandraRevisionStore = require('./CassandraRevisionStore');
+	CassandraRevisionStore = require('./CassandraRevisionStore'),
+	uuid = require('node-uuid');
 
 var config;
 
@@ -125,21 +126,52 @@ app.get(/^(\/[^\/]+\/page\/)([^?]+)$/, function ( req, res ) {
 	}
 
 	var store = handlers[req.params[0]],
-		query = queryKeys[0];
-	if (/^rev\/latest\/wikitext$/.test(query)) {
-		//console.log(query);
-		store.getLatest(req.params[1], 'wikitext', function (err, results) {
-			if (err) {
-				res.writeHead(400);
-				return res.end(JSON.stringify({error: err.toString()}));
+		page = req.params[1],
+		query = queryKeys[0],
+		queryComponents = query.split(/\//g);
+	if (/^rev\//.test(query)) {
+		if (queryComponents.length >= 2) {
+			var revString = queryComponents[1],
+				// sanitized / parsed rev
+				rev = null,
+				// 'wikitext', 'html' etc
+				prop = queryComponents[2] || null;
+
+			if (revString === 'latest') {
+				// latest revision
+				rev = revString;
+			} else if (/^\d+$/.test(revString)) {
+				// oldid
+				rev = Number(revString);
+			} else if (/^\d{4}-\d{2}-\d{2}/.test(revString)) {
+				// timestamp
+				rev = new Date(revString);
+				if (isNaN(rev.valueOf())) {
+					// invalid date
+					res.writeHead(400);
+					return res.end(JSON.stringify({error: 'Invalid date'}));
+				}
+			} else if (/^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(revString)) {
+				// uuid
+				rev = revString;
 			}
-			if (results.rows.length === 0) {
-				res.writeHead(404);
-				return res.end(JSON.stringify({error: 'Not found'}));
+
+			if (page && prop && rev) {
+				//console.log(query);
+				store.getRevision(page, rev, prop, function (err, results) {
+					if (err) {
+						res.writeHead(400);
+						return res.end(JSON.stringify({error: err.toString()}));
+					}
+					if (!results.length) {
+						res.writeHead(404);
+						return res.end(JSON.stringify({error: 'Not found'}));
+					}
+					return res.end(results[0][0]);
+				});
+				return;
 			}
-			return res.end(results.rows[0][0]);
-		});
-		return;
+		}
 	}
 
 
