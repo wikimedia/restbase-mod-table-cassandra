@@ -6,7 +6,7 @@
 		"request": "2.x.x",
 		"querystring": "0.x.x",
 		"async": "0.x.x",
-		"express": ">=3.0.0",
+		"restify": "2.x.x",
 		"node-uuid": "1.x.x",
 		"node-cassandra-cql": "git+https://github.com/jorgebay/node-cassandra-cql#5b52dca200eba3c5e388a132c9a5e88b911dc64a"
 	}

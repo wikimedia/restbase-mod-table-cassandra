@@ -5,8 +5,8 @@
  */
 
 // global includes
-var express = require('express'),
-	async = require('async'),
+var async = require('async'),
+	restify = require('restify'),
 	cluster = require('cluster'),
 	fs = require('fs'),
 	CassandraRevisionStore = require('./CassandraRevisionStore');
@@ -53,26 +53,28 @@ function handleCors (req, res) {
 	return true;
 }
 
-var app = express();
+var server = restify.createServer();
 
-app.use(express.compress());
+server.use(restify.gzipResponse());
 
 // Increase the form field size limit from the 2M default.
-app.use(express.urlencoded({limit: 25 * 1024 * 1024}));
-app.disable('x-powered-by');
+server.use(restify.queryParser());
+server.use(restify.bodyParser());
 
-app.get('/', function(req, res){
+server.get('/', function(req, res, next){
 	res.write('<html><body>\n');
 	res.write('Welcome to Rashomon.');
 	res.end('</body></html>');
+	next();
 });
 
 // robots.txt: no indexing.
-app.get(/^\/robots.txt$/, function ( req, res ) {
+server.get(/^\/robots.txt$/, function (req, res, next) {
 	res.end( "User-agent: *\nDisallow: /\n" );
+	next();
 });
 
-app.post(/^(\/[^\/]+\/page\/)(.+)$/, function ( req, res ) {
+server.post(/^(\/[^\/]+\/page\/)(.+)$/, function (req, res, next) {
 	var title = req.params[1];
 	console.log(title);
 	if (req.query['rev/'] !== undefined) {
@@ -92,38 +94,38 @@ app.post(/^(\/[^\/]+\/page\/)(.+)$/, function ( req, res ) {
 				},
 				store = handlers[req.params[0]];
 			if (!store) {
-				res.writeHead(400);
-				return res.end(JSON.stringify({error: 'Invalid entry point'}));
+				return next(new restify.ResourceNotFoundError('Store ' +
+							req.params[1] + ' not found.'));
 			}
 			store.addRevision(revision,
 				function (err, result) {
 					if (err) {
 						// XXX: figure out whether this was a user or system
 						// error
-						res.writeHead(500);
-						return res.end(JSON.stringify({'error': err}));
+						return next(new restify.InternalError('Something when wrong ' +
+								'while adding the revsion: ' + err));
 					}
-					res.end(JSON.stringify({'status': 'Added revision ' + result.tid}));
+					res.json({'message': 'Added revision ' + result.tid, id: result.tid});
+					return next();
 				});
 		} else {
-				res.end('Page request');
+			// We don't support _rev or _timestamp-less revisions yet
+			return next(new restify.MissingParameterError('_rev or _timestamp are missing!'));
 		}
 	} else {
-			res.end('Page request');
+		return next(new restify.ResourceNotFoundError());
 	}
 });
 
-app.get(/^(\/[^\/]+\/page\/)([^?]+)$/, function ( req, res ) {
+server.get(/^(\/[^\/]+\/page\/)([^?]+)$/, function (req, res, next) {
 	var queryKeys = Object.keys(req.query);
 
 	// First some rudimentary input validation
 	if (queryKeys.length !== 1) {
-		res.writeHead(400);
-		return res.end(JSON.stringify({error: "Exactly one query parameter expected."}));
+		return next(new restify.MissingParameterError('Exactly one query parameter expected.'));
 	}
 	if (!handlers[req.params[0]]) {
-		res.writeHead(400);
-		return res.end(JSON.stringify({error: 'Invalid entry point'}));
+		return next(new restify.ResourceNotFoundError());
 	}
 
 	var store = handlers[req.params[0]],
@@ -150,7 +152,8 @@ app.get(/^(\/[^\/]+\/page\/)([^?]+)$/, function ( req, res ) {
 				if (isNaN(rev.valueOf())) {
 					// invalid date
 					res.writeHead(400);
-					return res.end(JSON.stringify({error: 'Invalid date'}));
+					res.end(JSON.stringify({error: 'Invalid date'}));
+					return next();
 				}
 			} else if (/^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(revString)) {
 				// uuid
@@ -161,27 +164,23 @@ app.get(/^(\/[^\/]+\/page\/)([^?]+)$/, function ( req, res ) {
 				//console.log(query);
 				store.getRevision(page, rev, prop, function (err, results) {
 					if (err) {
-						res.writeHead(400);
-						return res.end(JSON.stringify({error: err.toString()}));
+						return next(new restify.InternalError('Ouch: ' + err.toString()));
 					}
 					if (!results.length) {
-						res.writeHead(404);
-						return res.end(JSON.stringify({error: 'Not found'}));
+						return next(new restify.ResourceNotFoundError());
 					}
 					res.writeHead(200, {'Content-type': 'text/plain'});
-					return res.end(results[0][0]);
+					res.end(results[0][0]);
+					return next();
 				});
 				return;
 			}
 		}
 	}
 
-
-	res.end('Unhandled page request', 400);
-	// Get the storage backend for req.params[0], '/page/'
-	// var res = store.get(req.params[1], req.query);
+	return next(new restify.ResourceNotFoundError());
 });
 
 
-module.exports = app;
+module.exports = server;
 
