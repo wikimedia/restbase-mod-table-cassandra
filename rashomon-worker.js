@@ -151,9 +151,7 @@ server.get(/^(\/[^\/]+\/page\/)([^?]+)$/, function (req, res, next) {
 				rev = new Date(revString);
 				if (isNaN(rev.valueOf())) {
 					// invalid date
-					res.writeHead(400);
-					res.end(JSON.stringify({error: 'Invalid date'}));
-					return next();
+					return next(new restify.InvalidArgumentError('Invalid date'));
 				}
 			} else if (/^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(revString)) {
 				// uuid
