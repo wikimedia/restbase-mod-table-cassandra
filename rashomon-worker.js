@@ -9,8 +9,7 @@ var express = require('express'),
 	async = require('async'),
 	cluster = require('cluster'),
 	fs = require('fs'),
-	CassandraRevisionStore = require('./CassandraRevisionStore'),
-	uuid = require('node-uuid');
+	CassandraRevisionStore = require('./CassandraRevisionStore');
 
 var config;
 
@@ -54,11 +53,13 @@ function handleCors (req, res) {
 	return true;
 }
 
-var app = express.createServer();
+var app = express();
+
+app.use(express.compress());
 
 // Increase the form field size limit from the 2M default.
-app.use(express.bodyParser({maxFieldsSize: 25 * 1024 * 1024}));
-app.use( express.limit( '25mb' ) );
+app.use(express.urlencoded({limit: 25 * 1024 * 1024}));
+app.disable('x-powered-by');
 
 app.get('/', function(req, res){
 	res.write('<html><body>\n');
@@ -167,6 +168,7 @@ app.get(/^(\/[^\/]+\/page\/)([^?]+)$/, function ( req, res ) {
 						res.writeHead(404);
 						return res.end(JSON.stringify({error: 'Not found'}));
 					}
+					res.writeHead(200, {'Content-type': 'text/plain'});
 					return res.end(results[0][0]);
 				});
 				return;
