@@ -15,19 +15,19 @@ var util = require('util'),
 	consistencies = cass.types.consistencies,
 	uuid = require('node-uuid');
 
-var conf = {
-		consistencies: {
-			read: consistencies.quorum,
-			write: consistencies.quorum
-		}
-};
-
 function CassandraRevisionStore (name, config, cb) {
 	// call super
 	events.EventEmitter.call(this);
 
 	this.name = name;
 	this.config = config;
+	// convert consistencies from string to the numeric constants
+	var confConsistencies = config.backend.options.consistencies;
+	this.consistencies = {
+		read: consistencies[confConsistencies.read],
+		write: consistencies[confConsistencies.write]
+	};
+
 	this.client = new cass.Client(config.backend.options);
 	//this.client.on('log', function(level, message) {
 	//	console.log('log event: %s -- %j', level, message);
@@ -101,7 +101,7 @@ CRSP.addRevision = function (revision, cb) {
 	function tidPasser(err, res) {
 		cb(err, {tid: tid});
 	}
-	this.client.execute(cql, args, conf.consistencies.write, tidPasser);
+	this.client.execute(cql, args, this.consistencies.write, tidPasser);
 };
 
 /**
@@ -127,12 +127,12 @@ CRSP.getRevision = function (name, rev, prop, cb) {
 		// Build the CQL
 		cql = 'select value from revisions where name = ? and prop = ? limit 1;';
 		args = [name, prop];
-		this.client.execute(cql, args, conf.consistencies.read, queryCB);
+		this.client.execute(cql, args, this.consistencies.read, queryCB);
 	} else if (/^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(rev)) {
 		// By UUID
 		cql = 'select value from revisions where name = ? and prop = ? and tid = ? limit 1;';
 		args = [name, prop, rev];
-		this.client.execute(cql, args, conf.consistencies.read, queryCB);
+		this.client.execute(cql, args, this.consistencies.read, queryCB);
 	} else {
 		switch(rev.constructor) {
 			case Number:
@@ -141,7 +141,7 @@ CRSP.getRevision = function (name, rev, prop, cb) {
 				// First look up the timeuuid from the revid
 				cql = 'select tid from idx_revisions_by_revid where revid = ? limit 1;';
 				args = [rev];
-				client.execute(cql, args, conf.consistencies.read, function (err, results) {
+				client.execute(cql, args, this.consistencies.read, function (err, results) {
 							if (err) {
 								cb(err);
 							}
@@ -153,7 +153,7 @@ CRSP.getRevision = function (name, rev, prop, cb) {
 								cql = 'select value from revisions where ' +
 									'name = ? and prop = ? and tid = ? limit 1;';
 								args = [name, prop, tid];
-								client.execute(cql, args, conf.consistencies.read, queryCB);
+								client.execute(cql, args, this.consistencies.read, queryCB);
 							}
 						});
 				break;
@@ -162,7 +162,7 @@ CRSP.getRevision = function (name, rev, prop, cb) {
 				tid = tidFromDate(rev);
 				cql = 'select value from revisions where name = ? and prop = ? and tid <= ? limit 1;';
 				args = [name, prop, tid];
-				this.client.execute(cql, args, conf.consistencies.read, queryCB);
+				this.client.execute(cql, args, this.consistencies.read, queryCB);
 				break;
 		}
 	}
