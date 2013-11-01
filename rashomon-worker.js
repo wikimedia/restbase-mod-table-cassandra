@@ -8,6 +8,7 @@
 var async = require('async'),
 	restify = require('restify'),
 	cluster = require('cluster'),
+	busboy = require('connect-busboy'),
 	fs = require('fs'),
 	CassandraRevisionStore = require('./CassandraRevisionStore');
 
@@ -41,6 +42,12 @@ async.forEach(Object.keys(config.handlers), function(prefix, cb) {
 	handlers[prefix] = setups[backend.type](prefix, backend, cb);
 });
 
+function getHandler(prefix, bucket) {
+	var storeKey = '/' + prefix + '/' + bucket + '/';
+	return handlers[storeKey];
+}
+
+
 /* -------------------- Web service --------------------- */
 
 /**
@@ -59,7 +66,27 @@ server.use(restify.gzipResponse());
 
 // Increase the form field size limit from the 2M default.
 server.use(restify.queryParser());
-server.use(restify.bodyParser());
+//server.use(restify.bodyParser());
+
+// form parsing
+server.use(busboy({
+	immediate: true,
+	// Increase the form field size limit from the 1M default.
+	limits: { fieldSize: 15 * 1024 * 1024 }
+}));
+
+server.use(function (req, res, next) {
+	if ( !req.busboy ) {
+		return next();
+	}
+	req.body = req.body || {};
+	req.busboy.on('field', function ( field, val ) {
+		req.body[field] = val;
+	});
+	req.busboy.on('end', function () {
+		next();
+	});
+});
 
 server.get('/', function(req, res, next){
 	res.write('<html><body>\n');
@@ -74,9 +101,12 @@ server.get(/^\/robots.txt$/, function (req, res, next) {
 	next();
 });
 
-server.post(/^(\/[^\/]+\/page\/)(.+)$/, function (req, res, next) {
-	var title = req.params[1];
-	console.log(title);
+server.post({
+	path: '/:user/:bucket/:title',
+	// Accept () too
+	urlParamPattern: '[^\/]+'
+}, function (req, res, next) {
+	var title = req.params.title;
 	if (req.query['rev/'] !== undefined) {
 		// Atomically create a new revision with several properties
 		if (req.body._rev && req.body._timestamp) {
@@ -92,10 +122,9 @@ server.post(/^(\/[^\/]+\/page\/)(.+)$/, function (req, res, next) {
 						}
 					}
 				},
-				store = handlers[req.params[0]];
+				store = getHandler(req.params.user, req.params.bucket);
 			if (!store) {
-				return next(new restify.ResourceNotFoundError('Store ' +
-							req.params[1] + ' not found.'));
+				return next(new restify.ResourceNotFoundError('Store not found.'));
 			}
 			store.addRevision(revision,
 				function (err, result) {
@@ -113,23 +142,27 @@ server.post(/^(\/[^\/]+\/page\/)(.+)$/, function (req, res, next) {
 			return next(new restify.MissingParameterError('_rev or _timestamp are missing!'));
 		}
 	} else {
+	console.log(title, req.params);
 		return next(new restify.ResourceNotFoundError());
 	}
 });
 
-server.get(/^(\/[^\/]+\/page\/)([^?]+)$/, function (req, res, next) {
+server.get({
+	path: '/:user/:bucket/:title',
+	urlParamPattern: '[^\/]+'
+}, function (req, res, next) {
 	var queryKeys = Object.keys(req.query);
 
 	// First some rudimentary input validation
 	if (queryKeys.length !== 1) {
 		return next(new restify.MissingParameterError('Exactly one query parameter expected.'));
 	}
-	if (!handlers[req.params[0]]) {
+	var store = getHandler(req.params.user, req.params.bucket);
+	if (!store) {
 		return next(new restify.ResourceNotFoundError());
 	}
 
-	var store = handlers[req.params[0]],
-		page = req.params[1],
+	var page = req.params.title,
 		query = queryKeys[0],
 		queryComponents = query.split(/\//g);
 	if (/^rev\//.test(query)) {

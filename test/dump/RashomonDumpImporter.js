@@ -45,6 +45,15 @@ function testWrites () {
 				}
 				process.exit(1);
 			}
+			if (response.statusCode !== 200) {
+				console.log(response.statusCode, body);
+				requests--;
+				if (requests < maxConcurrency) {
+					// continue reading
+					process.stdin.resume();
+				}
+				return;
+			}
 			totalSize += revision.text.length;
 			revisions++;
 			var interval = 1000;
