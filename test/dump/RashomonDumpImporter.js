@@ -14,6 +14,7 @@ function testWrites () {
 	var reader = new dumpReader.DumpReader(),
 		totalSize = 0,
 		revisions = 0,
+		totalRetries = 0,
 		intervalDate = new Date(),
 		startDate = intervalDate,
 		requests = 0,
@@ -36,9 +37,10 @@ function testWrites () {
 		function handlePostResponse (err, response, body) {
 			if (err || response.statusCode !== 200) {
 				if (!err) {
-					err = body;
+					err = response.statusCode + ' ' + body;
 				}
-				console.error(response.statusCode, err.toString());
+				console.error(err.toString());
+				totalRetries++;
 				if (--retries) {
 					// retry after retryDelay seconds
 					setTimeout(doPost, retryDelay * 1000);
@@ -90,6 +92,7 @@ function testWrites () {
 		console.log(revisions + ' revisions in ' + delta +
 			's (' + revisions / delta + '/s); ' +
 			'Total size: ' + totalSize);
+		console.log(totalRetries, 'retries total');
 		process.exit();
 	});
 
