@@ -104,7 +104,7 @@ server.get(/^\/robots.txt$/, function (req, res, next) {
 server.post({
 	path: '/:user/:bucket/:title',
 	// Accept () too
-	urlParamPattern: '[^\/]+'
+	urlParamPattern: '[^\/]*'
 }, function (req, res, next) {
 	var title = req.params.title;
 	if (req.query['rev/'] !== undefined) {
@@ -149,7 +149,7 @@ server.post({
 
 server.get({
 	path: '/:user/:bucket/:title',
-	urlParamPattern: '[^\/]+'
+	urlParamPattern: '[^\/]*'
 }, function (req, res, next) {
 	var queryKeys = Object.keys(req.query);
 

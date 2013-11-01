@@ -17,8 +17,8 @@ var util = require('util'),
 
 var conf = {
 		consistencies: {
-			read: consistencies.one,
-			write: consistencies.one
+			read: consistencies.quorum,
+			write: consistencies.quorum
 		}
 };
 
