@@ -34,8 +34,11 @@ function testWrites () {
 			name = encodeURIComponent(revision.page.title.replace(/ /g, '_'));
 
 		function handlePostResponse (err, response, body) {
-			if (err) {
-				console.error(err.toString());
+			if (err || response.statusCode !== 200) {
+				if (!err) {
+					err = body;
+				}
+				console.error(response.statusCode, err.toString());
 				if (--retries) {
 					// retry after retryDelay seconds
 					setTimeout(doPost, retryDelay * 1000);
@@ -44,15 +47,6 @@ function testWrites () {
 					return;
 				}
 				process.exit(1);
-			}
-			if (response.statusCode !== 200) {
-				console.log(response.statusCode, body);
-				requests--;
-				if (requests < maxConcurrency) {
-					// continue reading
-					process.stdin.resume();
-				}
-				return;
 			}
 			totalSize += revision.text.length;
 			revisions++;
