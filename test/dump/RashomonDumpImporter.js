@@ -19,7 +19,7 @@ function testWrites () {
 		startDate = intervalDate,
 		requests = 0,
 		maxConcurrency = 50;
-	http.globalAgent.maxSockets = maxConcurrency;
+	http.globalAgent = false;
 
 	reader.on( 'revision', function ( revision ) {
 
