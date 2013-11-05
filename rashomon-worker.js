@@ -131,7 +131,7 @@ server.post({
 					if (err) {
 						// XXX: figure out whether this was a user or system
 						// error
-						return next(new restify.InternalError(err));
+						return next(new restify.InternalError(err.toString()));
 					}
 					res.json({'message': 'Added revision ' + result.tid, id: result.tid});
 					return next();
