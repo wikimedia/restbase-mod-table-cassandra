@@ -8,7 +8,11 @@
 					"keyspace": "testdb",
 					"username": "test",
 					"password": "test",
-					"poolSize": 1
+					"poolSize": 1,
+					"consistencies": {
+						"read": "quorum",
+						"write": "quorum"
+					}
 				}
 			}
 		}
