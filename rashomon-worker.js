@@ -76,10 +76,10 @@ server.use(busboy({
 }));
 
 server.use(function (req, res, next) {
+	req.body = req.body || {};
 	if ( !req.busboy ) {
 		return next();
 	}
-	req.body = req.body || {};
 	req.busboy.on('field', function ( field, val ) {
 		req.body[field] = val;
 	});
