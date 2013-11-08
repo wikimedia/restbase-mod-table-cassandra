@@ -10,8 +10,8 @@
 					"password": "test",
 					"poolSize": 1,
 					"consistencies": {
-						"read": "quorum",
-						"write": "quorum"
+						"read": "one",
+						"write": "one"
 					}
 				}
 			}
