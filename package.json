@@ -10,5 +10,8 @@
 		"connect-busboy": "git+https://github.com/gwicke/connect-busboy.git#master",
 		"node-uuid": "1.x.x",
 		"node-cassandra-cql": "0.3.0"
+	},
+	"scripts": {
+		"start": "node rashomon.js"
 	}
 }

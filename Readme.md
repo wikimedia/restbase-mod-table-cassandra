@@ -41,6 +41,8 @@ curl http://localhost:8000/enwiki/page/Foo?rev/`date -Iseconds`/wikitext
 curl http://localhost:8000/enwiki/page/Foo?rev/6c745300-eb62-11e0-9234-0123456789ab/wikitext
 ```
 
+(note: `date -Iseconds` is `date -u +%FT%T%z`)
+
 ### Troubleshooting
 #### The server connection to Cassandra hangs when testing on localhost
 On Debian, open /etc/cassandra/cassandra-env.sh and uncomment/edit this line

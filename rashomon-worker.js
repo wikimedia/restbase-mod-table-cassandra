@@ -201,7 +201,6 @@ server.get({
 					}
 					res.writeHead(200, {'Content-type': 'text/plain'});
 					res.end(results[0][0]);
-					return next();
 				});
 				return;
 			}
