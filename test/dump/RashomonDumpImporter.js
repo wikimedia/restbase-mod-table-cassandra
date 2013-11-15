@@ -25,7 +25,7 @@ function testWrites () {
 
 		// Up to 50 retries
 		var retries = 50,
-			retryDelay = 10; // start with 10 seconds
+			retryDelay = 0.5; // start with 0.5 seconds
 
 		requests++;
 		if (requests > maxConcurrency) {
