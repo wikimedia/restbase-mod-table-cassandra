@@ -9,6 +9,6 @@
 		"restify": "2.x.x",
 		"connect-busboy": "git+https://github.com/gwicke/connect-busboy.git#master",
 		"node-uuid": "1.x.x",
-		"node-cassandra-cql": "git+https://github.com/jorgebay/node-cassandra-cql#5b52dca200eba3c5e388a132c9a5e88b911dc64a"
+		"node-cassandra-cql": "0.3.0"
 	}
 }
