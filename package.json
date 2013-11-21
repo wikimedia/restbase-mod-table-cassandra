@@ -4,7 +4,6 @@
 	"version": "0.0.1",
 	"dependencies": {
 		"request": "2.x.x",
-		"querystring": "0.x.x",
 		"async": "0.x.x",
 		"restify": "2.x.x",
 		"connect-busboy": "git+https://github.com/gwicke/connect-busboy.git#master",
