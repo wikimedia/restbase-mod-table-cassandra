@@ -8,7 +8,7 @@
 		"restify": "2.x.x",
 		"connect-busboy": "git+https://github.com/gwicke/connect-busboy.git#master",
 		"node-uuid": "1.x.x",
-		"node-cassandra-cql": "0.3.0"
+		"node-cassandra-cql": "git+https://github.com/gwicke/node-cassandra-cql#476811163edc4d5f477e4ccd3d1593ed30b6835a"
 	},
 	"scripts": {
 		"start": "node rashomon.js"
