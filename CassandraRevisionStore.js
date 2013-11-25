@@ -19,6 +19,8 @@ function CassandraRevisionStore (name, config, cb) {
 	// call super
 	events.EventEmitter.call(this);
 
+	var self = this;
+
 	this.name = name;
 	this.config = config;
 	// convert consistencies from string to the numeric constants
@@ -28,7 +30,19 @@ function CassandraRevisionStore (name, config, cb) {
 		write: consistencies[confConsistencies.write]
 	};
 
-	this.client = new cass.Client(config.backend.options);
+	self.client = new cass.Client(config.backend.options);
+
+	var reconnectCB = function(err) {
+		if (err) {
+			// keep trying each 500ms
+			console.error('pool connection error, scheduling retry!');
+			setTimeout(self.client.connect.bind(self.client, reconnectCB), 500);
+		}
+	};
+	this.client.on('connection', reconnectCB);
+	this.client.connect();
+
+
 	//this.client.on('log', function(level, message) {
 	//	console.log('log event: %s -- %j', level, message);
 	//});

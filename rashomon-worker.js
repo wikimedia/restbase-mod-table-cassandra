@@ -131,6 +131,7 @@ server.post({
 					if (err) {
 						// XXX: figure out whether this was a user or system
 						// error
+						//console.error('Internal error', err.toString(), err.stack);
 						return next(new restify.InternalError(err.toString()));
 					}
 					res.json({'message': 'Added revision ' + result.tid, id: result.tid});
@@ -194,7 +195,8 @@ server.get({
 				//console.log(query);
 				store.getRevision(page, rev, prop, function (err, results) {
 					if (err) {
-						return next(new restify.InternalError('Ouch: ' + err.toString()));
+						//console.error('ERROR', err.toString(), err.stack);
+						return next(new restify.InternalError(err.toString()));
 					}
 					if (!results.length) {
 						return next(new restify.ResourceNotFoundError());
