@@ -56,5 +56,26 @@ SELECT * from system.schema_keyspaces;
 - List tables in a keyspace
 
 ```sql
-SELECT * from system.schema_columns where keyspace_name = 'testreducedb';
+cqlsh> SELECT * from system.schema_columns where keyspace_name = 'testreducedb';
+                                                                                                                                                                                                    
+ keyspace_name | columnfamily_name | column_name | component_index | index_name | index_options | index_type | type           | validator                                                           
+---------------+-------------------+-------------+-----------------+------------+---------------+------------+----------------+----------------------------------------------                       
+  testreducedb |           commits |        hash |            null |       null |          null |       null |  partition_key |    org.apache.cassandra.db.marshal.BytesType                        
+  testreducedb |           commits |    keyframe |               0 |       null |          null |       null |        regular |  org.apache.cassandra.db.marshal.BooleanType                        
+  testreducedb |           commits |         tid |               0 |       null |          null |       null |        regular | org.apache.cassandra.db.marshal.TimeUUIDType                        
+  testreducedb |           results |      result |               1 |       null |          null |       null |        regular |     org.apache.cassandra.db.marshal.UTF8Type                        
+  testreducedb |           results |        test |            null |       null |          null |       null |  partition_key |    org.apache.cassandra.db.marshal.BytesType                        
+  testreducedb |           results |         tid |               0 |       null |          null |       null | clustering_key | org.apache.cassandra.db.marshal.TimeUUIDType                        
+  testreducedb |  revision_summary |      errors |               0 |       null |          null |       null |        regular |    org.apache.cassandra.db.marshal.Int32Type                        
+  testreducedb |  revision_summary |       fails |               0 |       null |          null |       null |        regular |    org.apache.cassandra.db.marshal.Int32Type                        
+  testreducedb |  revision_summary |    numtests |               0 |       null |          null |       null |        regular |    org.apache.cassandra.db.marshal.Int32Type                        
+  testreducedb |  revision_summary |    revision |            null |       null |          null |       null |  partition_key |    org.apache.cassandra.db.marshal.BytesType                        
+  testreducedb |  revision_summary |       skips |               0 |       null |          null |       null |        regular |    org.apache.cassandra.db.marshal.Int32Type                        
+  testreducedb |     test_by_score |      commit |            null |       null |          null |       null |  partition_key |    org.apache.cassandra.db.marshal.BytesType                        
+  testreducedb |     test_by_score |       delta |               0 |       null |          null |       null | clustering_key |    org.apache.cassandra.db.marshal.Int32Type                        
+  testreducedb |     test_by_score |       score |               2 |       null |          null |       null |        regular |    org.apache.cassandra.db.marshal.Int32Type                        
+  testreducedb |     test_by_score |        test |               1 |       null |          null |       null | clustering_key |    org.apache.cassandra.db.marshal.BytesType                        
+  testreducedb |             tests |        test |            null |       null |          null |       null |  partition_key |    org.apache.cassandra.db.marshal.BytesType                        
+                                                                                                                                                                                                    
+(16 rows)
 ```
