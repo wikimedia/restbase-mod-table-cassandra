@@ -7,11 +7,17 @@ use testdb;
 CREATE TABLE revisions (   
     name text,
     prop text,
+    -- timestamp uuid for this part
     tid timeuuid,
+    -- the revision timestamp uuid, so that we can list all properties or the
+    -- latest value for a given property
+    -- Example: select prop from revisions where name = 'Animal_Farm' and
+    -- revtid = 6c745300-eb62-11e0-9234-0123456789ab;
     revtid timeuuid,
-    props set<text>,
-    headers map<text, text>, -- optional HTTP headers: used for format versioning etc
-    value blob, -- static prop value
+    value blob, -- prop value
+    -- optional HTTP headers: used for format versioning etc
+    -- Concent-type: application/json;schema=mediawiki.org..
+    headers map<text, text>,
     PRIMARY KEY (name, prop, tid)
 ) WITH 
 compression = { 
@@ -93,3 +99,25 @@ CREATE TABLE pages (
     lastrevs set<timeuuid>,
     PRIMARY KEY (name)
 );
+
+-- ###########################################
+-- Global tables
+-- ###########################################
+
+CREATE TABLE accounts (
+    -- The account name.
+    name text,
+    -- Buckets <name, internal_name/type_version>
+    buckets map<text, text>
+);
+
+
+-- Bucket metadata
+CREATE TABLE bucket (
+    account text,
+    name text,
+    internal_name text,
+    type text
+);
+
+
