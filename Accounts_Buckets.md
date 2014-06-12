@@ -36,7 +36,11 @@
 - keyspace is unit of replication
     - so map buckets onto keyspaces
 - dedicated `accounts` keyspace
-- keyspace name: `a/<account>/<bucket>`
+- keyspace name: `B<account>_<bucket>`, i.e. `Benwiki_pages`
+    - "Keyspace names are 32 or fewer alpha-numeric characters and
+      underscores, the first of which is an alpha character."
+    - Account max 15 ascii chars `[a-zA-Z0-9]`
+    - Bucket max 15 ascii chars `[a-zA-Z0-9]`
 
 - List keyspaces
 
