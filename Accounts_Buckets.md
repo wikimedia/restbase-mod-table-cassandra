@@ -36,11 +36,24 @@
 - keyspace is unit of replication
     - so map buckets onto keyspaces
 - dedicated `accounts` keyspace
-- keyspace name: `B<account>_<bucket>`, i.e. `Benwiki_pages`
+- keyspace name
     - "Keyspace names are 32 or fewer alpha-numeric characters and
       underscores, the first of which is an alpha character."
-    - Account `[a-zA-Z0-9]{1,15}`
-    - Bucket `[a-zA-Z0-9]{1,15}`
+    - But would like to allow longer account / bucket names
+      (MySQL for example allows 64 byte db names)
+    - use hash of full name `B<account>_<bucket>`, i.e. `Benwiki_pages`
+```javascript
+// Results in a 27 byte string [a-zA-Z0-9_], starting with 'B' to ensure that
+// it starts with a letter as required by Cassandra (and as mnemonic)
+'B' + crypto.Hash('sha1')
+    .update(Math.random().toString())
+    .digest()
+    .toString('base64')
+    // Replace [+/] from base64 with _ (illegal in Cassandra)
+    .replace(/[+\/]/g, '_')
+    // Remove base64 padding, has no entropy
+    .replace(/=+$/, '')
+```
 
 - List keyspaces
 
@@ -83,3 +96,22 @@ cqlsh> SELECT * from system.schema_columns where keyspace_name = 'testreducedb';
                                                                                                                                                                                                     
 (16 rows)
 ```
+
+## Account information
+
+- names and types of non-cassandra buckets (queues in particular)
+    - `buckets map<text, text>` with value being type/version like 'revisions_1.0'
+	- can be updated atomically during upgrade
+    - need map [<account, <bucket name>] -> <type> in front-end
+    - load on start-up or cache
+- description
+- later: bucket creation rights
+    - by type?
+    - quota ?
+
+## Bucket metadata
+
+- type
+
+
+## Format
