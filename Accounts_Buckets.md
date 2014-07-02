@@ -34,7 +34,7 @@
 ### Table naming scheme / mapping onto Cassandra
 
 - keyspace is unit of replication
-    - so map buckets onto keyspaces
+    - so map buckets onto keyspaces for per-bucket replication control
 - dedicated `accounts` keyspace
 - keyspace name
     - "Keyspace names are 32 or fewer alpha-numeric characters and
@@ -46,7 +46,7 @@
 // Results in a 27 byte string [a-zA-Z0-9_], starting with 'B' to ensure that
 // it starts with a letter as required by Cassandra (and as mnemonic)
 'B' + crypto.Hash('sha1')
-    .update(Math.random().toString())
+    .update(Math.random().toString()) // would normally use the bucket path + version
     .digest()
     .toString('base64')
     // Replace [+/] from base64 with _ (illegal in Cassandra)
@@ -101,7 +101,8 @@ cqlsh> SELECT * from system.schema_columns where keyspace_name = 'testreducedb';
 
 - names and types of non-cassandra buckets (queues in particular)
     - `buckets map<text, text>` with value being type/version like 'revisions_1.0'
-	- can be updated atomically during upgrade
+        - can be updated atomically during upgrade; clients reload read
+          mapping on 'bucket does not exist', writes go to both during upgrade
     - need map [<account, <bucket name>] -> <type> in front-end
     - load on start-up or cache
 - description
@@ -112,6 +113,28 @@ cqlsh> SELECT * from system.schema_columns where keyspace_name = 'testreducedb';
 ## Bucket metadata
 
 - type
-
+- ACL
+    - action <- group + service signature(s)
+```json
+{
+    read: [
+        {
+            userGroups: {
+                oneOf: [ '*', 'user', 'admin' ]
+            }
+        }
+    ],
+    write: [
+        {
+            userGroups: {
+                oneOf: [ 'user', 'admin' ]
+            },
+            serviceSignatures: {
+                oneOf: [ 'b7821dbca23b6f36db2bdcc3ba10075521999e6b' ]
+            }
+        }
+    ]
+}
+```
 
 ## Format
