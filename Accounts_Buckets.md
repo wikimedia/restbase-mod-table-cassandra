@@ -115,7 +115,7 @@ cqlsh> SELECT * from system.schema_columns where keyspace_name = 'testreducedb';
 - type
 - ACL
     - action <- group + service signature(s)
-```json
+```javascript
 {
     read: [
         {
