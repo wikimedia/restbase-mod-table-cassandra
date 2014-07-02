@@ -118,21 +118,26 @@ cqlsh> SELECT * from system.schema_columns where keyspace_name = 'testreducedb';
 ```javascript
 {
     read: [
-        {
-            userGroups: {
-                oneOf: [ '*', 'user', 'admin' ]
+        // A publicly readable bucket
+        [
+            {
+                type: "userGroup",
+                anyOf: [ '*', 'user', 'admin' ]
             }
-        }
+        ]
     ],
     write: [
-        {
-            userGroups: {
-                oneOf: [ 'user', 'admin' ]
+        // Require both the user group & the service signature for writes
+        [
+            {
+                type: "userGroup",
+                anyOf: [ 'user', 'admin' ]
             },
-            serviceSignatures: {
-                oneOf: [ 'b7821dbca23b6f36db2bdcc3ba10075521999e6b' ]
+            {
+                type: "serviceSignature",
+                anyOf: [ 'b7821dbca23b6f36db2bdcc3ba10075521999e6b' ]
             }
-        }
+        ]
     ]
 }
 ```
