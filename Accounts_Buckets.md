@@ -121,7 +121,7 @@ cqlsh> SELECT * from system.schema_columns where keyspace_name = 'testreducedb';
         // A publicly readable bucket
         [
             {
-                type: "userGroup",
+                type: "role",
                 anyOf: [ '*', 'user', 'admin' ]
             }
         ]
@@ -130,7 +130,7 @@ cqlsh> SELECT * from system.schema_columns where keyspace_name = 'testreducedb';
         // Require both the user group & the service signature for writes
         [
             {
-                type: "userGroup",
+                type: "role",
                 anyOf: [ 'user', 'admin' ]
             },
             {
