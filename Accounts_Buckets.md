@@ -209,13 +209,12 @@ handlers['revisioned-blob'](req, res, bucketOptions, backends['cassandra/default
 - no special consistency protection; app-level idempotence encouraged (in jobs
   etc)
 
-## Access to buckets
-- Full bucket name in reverse DNS: `org.wikipedia.store.v1.pages`
+## Access to buckets / bucket naming
+- bucket creation / access per user restricted to specific domains
+    - similar to [Google's domain verification policy](https://developers.google.com/storage/docs/bucketnaming#verification)
+- bucket names: no `.` allowed, so that we can map them to single domain
+  components later
 
-- DNS
-    - Storage: `<bucket>.v1.storoid.en.wikipedia.org`; ex: `pages.v1.storoid.en.wikipedia.org`
-        - internal: `<bucket.enwiki>.v1.storoid.wmnet`
-    - Other services: `citations.v1.svc.en.wikipedia.org`
-- Path: `en.wikipedia.org/store/v1/<bucket>`
-
-
+- Path: `en.wikipedia.org/api/v1/<bucket>` -> `/v1/en.wikipedia.org/<bucket>`
+  in storage backend
+- DNS (optional, maybe later): `<bucket>.en.wikipedia.org`; ex: `pages.en.wikipedia.org`
