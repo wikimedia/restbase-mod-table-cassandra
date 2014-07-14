@@ -1,5 +1,4 @@
-# Design notes for account & bucket support
-
+# Design notes for account & bucket support 
 ## Goals
 
 ### Account goals
@@ -16,9 +15,8 @@
 - Can be created inside an account
 - Provide a unit of storage of a specific `type`
 - Namespace items to avoid naming conflicts
-- Define globally per bucket:
-    - ownership (can delete when the owner is gone)
-    - access rights
+- Define per bucket:
+    - ACLs
     - quotas (perhaps)
 
 ## Implementation ideas
@@ -29,7 +27,8 @@
 - Check that bucket exists (cached), load metadata (access rights)
     - Type of bucket
     - Check access rights
-- access bucket table(s)
+- call handler for bucket
+    - access bucket table(s) / backend
 
 ### Table naming scheme / mapping onto Cassandra
 
@@ -114,12 +113,16 @@ cqlsh> SELECT * from system.schema_columns where keyspace_name = 'testreducedb';
 
 - type
 - ACL
-    - action <- group + service signature(s)
 ```javascript
 {
     read: [
         // A publicly readable bucket
         [
+            // Any path in bucket (default: anything - so can be omitted)
+            {
+                type: "pathRegExp",
+                re: '*'
+            },
             {
                 type: "role",
                 anyOf: [ '*', 'user', 'admin' ]
@@ -135,11 +138,84 @@ cqlsh> SELECT * from system.schema_columns where keyspace_name = 'testreducedb';
             },
             {
                 type: "serviceSignature",
-                anyOf: [ 'b7821dbca23b6f36db2bdcc3ba10075521999e6b' ]
+                // Can require several service signatures here, for example to
+                // ensure that a request was sanitized by all of them.
+                allOf: [ 'b7821dbca23b6f36db2bdcc3ba10075521999e6b' ]
             }
         ]
     ]
 }
 ```
+### Data format
+- store per item for spec versioning (headers)
+- compresses rather well
 
-## Format
+## Metadata updates
+- Option 1: poll every <n> seconds
+- Option 2: subscribe to system queue
+    - requires Kafka or other queue backend
+
+## Structure
+### File system
+```txt
+buckets
+    revisioned-blob
+        index.js // HTTP handlers
+        cassandra/index.js // Cassandra backend
+backends
+    cassandra
+        index.js // Cassandra connection code
+```
+### Data
+```javascript
+var bucketType = 'revisioned-blob/cassandra';
+var defaultUUID = new uuid();
+var backends = {
+    'cassandra/'+defaultUUID: new CassandraBackend(cassandraOptions),
+};
+// Alias default uuid
+backends['cassandra/default'] = backends['cassandra/'+defaultUUID];
+
+var handlers = {
+    'revisioned-blob': require('./buckets/revisioned-blob/index')
+};
+// bucketMeta has acls, type etc
+handlers['revisioned-blob'](req, res, bucketOptions, backends['cassandra/default'])
+```
+
+### Bucket creation
+- default value by bucket type: 
+  `cassandra -> defaultBackends.cassandra -> 'cassandra/<uuid>'`
+- request parameter for explicit selection
+    - although it probably makes more sense to map this in the front-end,
+      using a different domain / front-end API
+
+## Consistency
+
+### Writes to single objects
+- tid for each CAS entry point (objects), even non-revisioned ones
+    - return as ETAG
+    - might want separate meta tid for metadata updates (ACLs, headers etc)
+        - <content tid>/<meta tid>
+- CAS updates on tid
+
+### Renames
+- CAS on destination tid
+- batch entry of revision in source
+    - if other revision wins on source, rename entry will still be in history
+      (tid is unique)
+
+### Queues
+- no special consistency protection; app-level idempotence encouraged (in jobs
+  etc)
+
+## Access to buckets
+- Full bucket name in reverse DNS: `org.wikipedia.store.v1.pages`
+
+- DNS
+    - Storage: `<bucket>.v1.storoid.en.wikipedia.org`; ex: `pages.v1.storoid.en.wikipedia.org`
+        - internal: `<bucket.enwiki>.v1.storoid.wmnet`
+    - Other services: `citations.v1.svc.en.wikipedia.org`
+- Path: `en.wikipedia.org/store/v1/<bucket>`
+
+
