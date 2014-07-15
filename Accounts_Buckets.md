@@ -146,6 +146,24 @@ cqlsh> SELECT * from system.schema_columns where keyspace_name = 'testreducedb';
     ]
 }
 ```
+
+### Using buckets for metadata storage
+- domains, buckets: need listings, ideally without paging
+- need cheap poll (global / per-bucket tids)
+    - static column
+```
+storoid/
+    domains -- array of domain & domain tids
+    en.wikipedia.org -- metadata on domain incl. bucket info
+```
+- poll domains with if-none-match
+    - if response, figure out which domain changed & retrieve it (or all)
+- update via if-match on individual domain, with update to 'domains' following
+    - would want reliable dependent update / batch mechanism
+        - POST to primary bucket, add-on requests
+        - transaction JSON structure, or multipart/related
+
+
 ### Data format
 - store per item for spec versioning (headers)
 - compresses rather well
@@ -219,6 +237,47 @@ handlers['revisioned-blob'](req, res, bucketOptions, backends['cassandra/default
 ### Queues
 - no special consistency protection; app-level idempotence encouraged (in jobs
   etc)
+
+### HTTP transactions
+Idea: encode primary & secondary requests in a single JSON structure
+- if primary fails, none of the dependents are executed
+```javascript
+{
+    type: 'transaction',
+    primary: {
+        method: 'PUT',
+        uri: '/foo',
+        headers: {
+            'If-Match': 'abcde',
+            'Concent-type': 'text/html'
+        },
+        // string body by default
+        body: "<html>...</html>"
+    },
+    dependents: [
+        {
+            method: 'PUT',
+            uri: '/bar',
+            headers: {
+                'Content-type':
+                  'application/json;profile=https://mediawiki.org/specs/foo'
+            },
+            // inline json support?
+            body_json: {..}
+        },
+        {
+            method: 'PUT',
+            uri: '/bar/image.png',
+            headers: {
+                'Content-type': 'image/png'
+            },
+            // binary
+            body_base64: {..}
+            // inline json support?
+            // body_json: {..}
+        }
+    ]
+```
 
 ## Access to buckets / bucket naming
 - bucket creation / access per user restricted to specific domains
