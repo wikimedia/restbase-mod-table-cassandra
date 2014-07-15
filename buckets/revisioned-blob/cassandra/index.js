@@ -1,3 +1,4 @@
+"use strict";
 /**
  * Simple Cassandra-based revisioned storage implementation
  *
@@ -15,38 +16,16 @@ var util = require('util'),
 	consistencies = cass.types.consistencies,
 	uuid = require('node-uuid');
 
-function CassandraRevisionStore (name, config, cb) {
-	// call super
-	events.EventEmitter.call(this);
-
+function CassandraRevisionStore (client) {
 	var self = this;
 
-	this.name = name;
-	this.config = config;
 	// convert consistencies from string to the numeric constants
-	var confConsistencies = config.backend.options.consistencies;
 	this.consistencies = {
-		read: consistencies[confConsistencies.read],
-		write: consistencies[confConsistencies.write]
+		read: 1,
+		write: 1
 	};
 
-	self.client = new cass.Client(config.backend.options);
-
-	var reconnectCB = function(err) {
-		if (err) {
-			// keep trying each 500ms
-			console.error('pool connection error, scheduling retry!');
-			setTimeout(self.client.connect.bind(self.client, reconnectCB), 500);
-		}
-	};
-	this.client.on('connection', reconnectCB);
-	this.client.connect();
-
-
-	//this.client.on('log', function(level, message) {
-	//	console.log('log event: %s -- %j', level, message);
-	//});
-	cb();
+	self.client = client;
 }
 
 util.inherits(CassandraRevisionStore, events.EventEmitter);
@@ -66,7 +45,7 @@ function tidFromDate(date) {
 /**
  * Add a new revision with several properties
  */
-CRSP.addRevision = function (revision, cb) {
+CRSP.addRevision = function (revision) {
 	var tid;
 	if(revision.timestamp) {
 		// Create a new, deterministic timestamp
@@ -112,10 +91,21 @@ CRSP.addRevision = function (revision, cb) {
 
 	// And finish it off
 	cql += 'APPLY BATCH;';
+
+    var resolve, reject;
+    var pr = new Promise(function(res, rej) {
+        resolve = res;
+        reject = rej;
+    });
 	function tidPasser(err, res) {
-		cb(err, {tid: tid});
+        if (err) {
+            reject(err);
+        } else {
+            resolve({tid: tid});
+        }
 	}
 	this.client.execute(cql, args, this.consistencies.write, tidPasser);
+    return pr;
 };
 
 /**
@@ -123,14 +113,19 @@ CRSP.addRevision = function (revision, cb) {
  *
  * Takes advantage of the latest-first clustering order.
  */
-CRSP.getRevision = function (name, rev, prop, cb) {
+CRSP.getRevision = function (name, rev, prop) {
+    var resolve, reject;
+    var pr = new Promise(function(res, rej) {
+        resolve = res;
+        reject = rej;
+    });
 	var queryCB = function (err, results) {
 			if (err) {
-				cb(err);
+				reject(err);
 			} else if (!results || !results.rows || results.rows.length === 0) {
-				cb(null, []);
+				resolve([]);
 			} else {
-				cb(null, results.rows);
+				resolve(results.rows);
 			}
 		},
 		consistencies = this.consistencies,
@@ -158,10 +153,10 @@ CRSP.getRevision = function (name, rev, prop, cb) {
 				args = [rev];
 				client.execute(cql, args, consistencies.read, function (err, results) {
 							if (err) {
-								cb(err);
+								reject(err);
 							}
 							if (!results.rows.length) {
-								cb('Revision not found'); // XXX: proper error
+								resolve('Revision not found'); // XXX: proper error
 							} else {
 								// Now retrieve the revision using the tid
 								tid = results.rows[0][0];
@@ -181,6 +176,7 @@ CRSP.getRevision = function (name, rev, prop, cb) {
 				break;
 		}
 	}
+    return pr;
 };
 
 module.exports = CassandraRevisionStore;

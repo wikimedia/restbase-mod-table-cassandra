@@ -7,21 +7,55 @@
 var async = require('async');
 var prfun = require('prfun');
 var fs = require('fs');
-var CassandraRevisionStore = require('./CassandraRevisionStore');
 
-
-// XXX: load accounts from Cassandra
-// Accounts.load()
-// .then(newAccounts) {
-//     accounts = newAccounts;
-// }
-
+var fakeRegistry = {
+    "en.wikipedia.org": {
+        buckets: {
+            "pages": {
+                "type": "revisioned-blob",
+                "backend": "cassandra",
+                "backendID": "store/default",
+                "acl": {
+                    read: [
+                        // A publicly readable bucket
+                        [
+                            // Any path in bucket (default: anything - so can be omitted)
+                            {
+                                type: "pathRegExp",
+                                re: '*'
+                            },
+                            {
+                                type: "role",
+                                anyOf: [ '*', 'user', 'admin' ]
+                            }
+                        ]
+                    ],
+                    write: [
+                        // Require both the user group & the service signature for writes
+                        [
+                            {
+                                type: "role",
+                                anyOf: [ 'user', 'admin' ]
+                            },
+                            {
+                                type: "serviceSignature",
+                                // Can require several service signatures here, for example to
+                                // ensure that a request was sanitized by all of them.
+                                allOf: [ 'b7821dbca23b6f36db2bdcc3ba10075521999e6b' ]
+                            }
+                        ]
+                    ]
+                }
+            }
+        }
+    }
+};
 
 function Rashomon (options) {
     this.config = options.config;
     this.log = options.log;
     this.setup = this.setup.bind(this);
-    this.handler = {};
+    this.handlers = {};
     this.backends = {};
     this.handler = {
         routes: [
@@ -31,7 +65,7 @@ function Rashomon (options) {
                     all: {
                         handler: this.handleAll.bind(this),
                         doc: { /* swagger docs */
-                            "summary": "Retrieves the html of a specific revision",
+                            "summary": "Retrieves the html of a specific revision through Rashomon",
                             "notes": "Returns HTML+RDFa.",
                             "type": "html",
                             "produces": ["text/html;spec=mediawiki.org/specs/html/1.0"],
@@ -49,25 +83,41 @@ function Rashomon (options) {
     };
 }
 
+
+Rashomon.prototype.loadMetaData = function (env) {
+    var sysHandler = this.handlers['revisioned-blob']['store/default'];
+    // list domains
+    sysHandler(env, {
+        uri: '/v1/system/',
+        method: 'GET'
+    })
+    // get domain metadata for each
+    .then(function(domains) {
+        //
+    });
+    // list buckets
+    // get bucket metadata for each
+};
+
+
 /*
  * Setup / startup
  *
  * @return {Promise<registry>}
  */
-Rashomon.prototype.setup = function setup (resolve, reject) {
+Rashomon.prototype.setup = function setup () {
     var self = this;
-    var setupCB = function(err, res) {
-        if (err) { reject(err); }
-        else { resolve(err); }
-    };
     // Set up all backends, including the default storage backend
     var backendNames = Object.keys(this.config.backends);
-    var backendPromises = backendNames.map(function(name) {
+    var backendPromises = backendNames.map(function(key) {
+            var backendConf = self.config.backends[key];
             try {
-                var backend = require('./backends/' + name);
-                return backend(self.config.backends[name]);
+                var moduleName = __dirname + '/backends/' + backendConf.type;
+                console.log(moduleName);
+                var backend = require(moduleName);
+                return backend(backendConf);
             } catch (e) {
-                self.log('warning/setup/backend', e);
+                self.log('warning/setup/backend/' + key, e);
                 Promise.resolve(null);
             }
     });
@@ -83,32 +133,30 @@ Rashomon.prototype.setup = function setup (resolve, reject) {
 
     // Load bucket handlers
     .then(function() {
-        return prfun.promisify(fs.readfile)('./buckets');
+        return Promise.promisify(fs.readdir)(__dirname + '/buckets');
     })
 
     .then(function(handlerNames) {
         var handlers = [];
         handlerNames.forEach(function (fileName) {
-            if (/.js$/.test(fileName)) {
-                var name = fileName.replace(/.js$/, '');
-                try {
-                    // Instantiate one for each configured backend?
-                    var handlerFn = require('./buckets/' + fileName);
-                    self.handlers[name] = {};
-                    self.backends.forEach(function(backendID) {
-                        var handler = handlerFn({
-                            config: self.config.handlers[name],
-                            backend: self.backends[backendID]
-                        });
-                        if (handler) {
-                            // ex:
-                            // self.handlers["revisioned-blob"]["store/default"]
-                            self.handlers[name][backendID] = handler;
-                        }
+            try {
+                // Instantiate one for each configured backend?
+                var handlerFn = require(__dirname + '/buckets/' + fileName);
+                self.handlers[fileName] = {};
+                Object.keys(self.backends).forEach(function(backendID) {
+                    var handler = handlerFn({
+                        config: self.config.handlers[fileName],
+                        backend: self.backends[backendID]
                     });
-                } catch (e) {
-                    self.log('warning/setup/handlers', e);
-                }
+                    if (handler) {
+                        // ex:
+                        // self.handlers["revisioned-blob"]["store/default"]
+                        self.handlers[fileName][backendID] = handler;
+                        self.log('notice/setup/bucket', fileName);
+                    }
+                });
+            } catch (e) {
+                self.log('warning/setup/handlers', e, e.stack);
             }
         });
     })
@@ -118,48 +166,15 @@ Rashomon.prototype.setup = function setup (resolve, reject) {
         // bucket & backend
         // this.handlers['revisioned-blob'](req, this.backends['store/default'])
         // Fake it for now:
-        self.registry = {
-            "en.wikipedia.org": {
-                buckets: {
-                    "pages": {
-                        "type": "revisioned-blob",
-                        "backend": "cassandra",
-                        "backendID": "store/default",
-                        "acl": {
-                            read: [
-                                // A publicly readable bucket
-                                [
-                                    // Any path in bucket (default: anything - so can be omitted)
-                                    {
-                                        type: "pathRegExp",
-                                        re: '*'
-                                    },
-                                    {
-                                        type: "role",
-                                        anyOf: [ '*', 'user', 'admin' ]
-                                    }
-                                ]
-                            ],
-                            write: [
-                                // Require both the user group & the service signature for writes
-                                [
-                                    {
-                                        type: "role",
-                                        anyOf: [ 'user', 'admin' ]
-                                    },
-                                    {
-                                        type: "serviceSignature",
-                                        // Can require several service signatures here, for example to
-                                        // ensure that a request was sanitized by all of them.
-                                        allOf: [ 'b7821dbca23b6f36db2bdcc3ba10075521999e6b' ]
-                                    }
-                                ]
-                            ]
-                        }
-                    }
-                }
-            }
-        };
+        self.registry = fakeRegistry;
+    })
+
+    // Finally return the handler
+    .then(function() {
+        return self.handler;
+    })
+    .catch(function(e) {
+        this.log('error/rashomon/setup', e, e.stack);
     });
 };
 
@@ -171,20 +186,21 @@ Rashomon.prototype.setup = function setup (resolve, reject) {
  */
 Rashomon.prototype.handleAll = function (env, req) {
     // XXX: validate params[0] & 1
-    var domain = this.registry[req.params[0]];
+    var domain = this.registry[req.params.domain];
     if (domain) {
-        var bucket = domain.buckets[req.params[1]];
+        var bucket = domain.buckets[req.params.bucket];
         if (bucket) {
             // XXX: authenticate against bucket ACLs
+            console.log(bucket);
             var handlerObj = this.handlers[bucket.type][bucket.backendID];
-            var handler = handlerObj[req.method];
+            var handler = handlerObj.verbs[req.method];
             if (handler) {
 
                 // Yay! All's well. Go for it!
                 // Drop the non-bucket parts of the path / url
                 req.path = req.params[2];
                 req.url = req.params[2];
-                req.params = req.params.slice(2);
+                //req.params = req.params.slice(2);
                 return handler(env, req);
             } else {
                 // Options request
@@ -231,23 +247,22 @@ function makeRashomon (options) {
     options.config = {
         backends: {
             "store/default": {
-                default: {
-                    "type": "cassandra",
-                    "hosts": ["localhost"],
-                    "id": "<uuid>",
-                    "keyspace": "testdb",
-                    "username": "test",
-                    "password": "test",
-                    "poolSize": 1
-                }
+                "type": "cassandra",
+                "hosts": ["localhost"],
+                "id": "<uuid>",
+                "keyspace": "testdb",
+                "username": "test",
+                "password": "test",
+                "poolSize": 1
             }
             // "queue/default": {}
         },
+        handlers: {}
         // bucket type -> handlers & their configs
     };
 
     var rashomon = new Rashomon(options);
-    return new Promise(rashomon.setup);
+    return rashomon.setup();
 }
 
 module.exports = makeRashomon;

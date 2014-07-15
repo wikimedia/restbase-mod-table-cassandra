@@ -14,6 +14,8 @@ CREATE TABLE revisions (
     -- Example: select prop from revisions where name = 'Animal_Farm' and
     -- revtid = 6c745300-eb62-11e0-9234-0123456789ab;
     revtid timeuuid,
+    -- CAS point for edit conflict detection
+    latest_revtid timeuuid static, 
     value blob, -- prop value
     -- optional HTTP headers: used for format versioning etc
     -- Concent-type: application/json;schema=mediawiki.org..
@@ -51,10 +53,10 @@ compression = {
 -- Used for default content-types and other headers. Example: Make sure
 -- Content-disposition is set explicitly on wikitext responses. See 
 -- https://bugzilla.wikimedia.org/show_bug.cgi?id=28235#c6
-CREATE TABLE props (
-    for text,
-    prop text,
-    inherits boolean, -- whether a new revision inherits older values
-    headers map<text, text>, -- Content-type etc
-    PRIMARY KEY(for, prop)
-);
+--CREATE TABLE props (
+--    for text,
+--    prop text,
+--    inherits boolean, -- whether a new revision inherits older values
+--    headers map<text, text>, -- Content-type etc
+--    PRIMARY KEY(for, prop)
+--);
