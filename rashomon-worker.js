@@ -47,6 +47,24 @@ function getHandler(prefix, bucket) {
 	return handlers[storeKey];
 }
 
+/**
+ * Global store accounts
+ */
+var accounts = new Map({
+    enwiki: {
+        buckets: new Map({
+            pages: {
+                type: 'revision'
+            }
+        })
+    }
+});
+
+// XXX: load accounts from Cassandra
+// Accounts.load()
+// .then(newAccounts) {
+//     accounts = newAccounts;
+// }
 
 /* -------------------- Web service --------------------- */
 
@@ -101,116 +119,60 @@ server.get(/^\/robots.txt$/, function (req, res, next) {
 	next();
 });
 
-server.post({
-	path: '/:user/:bucket/:title',
-	// Accept () too
-	urlParamPattern: '[^\/]*'
-}, function (req, res, next) {
-	var title = req.params.title;
-	if (req.query['rev/'] !== undefined) {
-		// Atomically create a new revision with several properties
-		if (req.body._rev && req.body._timestamp) {
-			var revision = {
-					page: {
-						title: title
-					},
-					id: Number(req.body._rev),
-					timestamp: req.body._timestamp,
-					props: {
-						wikitext: {
-							value: new Buffer(req.body.wikitext)
-						}
-					}
-				},
-				store = getHandler(req.params.user, req.params.bucket);
-			if (!store) {
-				return next(new restify.ResourceNotFoundError('Store not found.'));
-			}
-			store.addRevision(revision,
-				function (err, result) {
-					if (err) {
-						// XXX: figure out whether this was a user or system
-						// error
-						//console.error('Internal error', err.toString(), err.stack);
-						return next(new restify.InternalError(err.toString()));
-					}
-					res.json({'message': 'Added revision ' + result.tid, id: result.tid});
-					return next();
-				});
-		} else {
-			// We don't support _rev or _timestamp-less revisions yet
-			return next(new restify.MissingParameterError('_rev or _timestamp are missing!'));
-		}
-	} else {
-	console.log(title, req.params);
-		return next(new restify.ResourceNotFoundError());
-	}
-});
+var bucketPattern = /\/v1\/([^\/]+)\/([^\/]+)(\/[^\/]+)*$/;
 
-server.get({
-	path: '/:user/:bucket/:title',
-	urlParamPattern: '[^\/]*'
-}, function (req, res, next) {
-	var queryKeys = Object.keys(req.query);
+// Hook up the bucket handlers for all methods
+server.get(bucketPattern, bucketHandler);
+server.post(bucketPattern, bucketHandler);
+server.head(bucketPattern, bucketHandler);
+server.put(bucketPattern, bucketHandler);
+server.del(bucketPattern, bucketHandler);
+server.opts(bucketPattern, bucketHandler);
+server.patch(bucketPattern, bucketHandler);
 
-	// First some rudimentary input validation
-	if (queryKeys.length !== 1) {
-		return next(new restify.MissingParameterError('Exactly one query parameter expected.'));
-	}
-	var store = getHandler(req.params.user, req.params.bucket);
-	if (!store) {
-		return next(new restify.ResourceNotFoundError());
-	}
+/**
+ * Universal bucket handler
+ *
+ * Looks up account & bucket, authenticates the request and calls the bucket
+ * handler for the method if found.
+ */
+function bucketHandler (req, res, next) {
+    var account = accounts.get(req.params[0]);
+    if (account) {
+        var bucket = account.buckets.get(req.params[1]);
+        if (bucket) {
+            // XXX: authenticate against bucket ACLs
+            var handler = bucket.handlers[req.method];
+            if (handler) {
 
-	var page = req.params.title,
-		query = queryKeys[0],
-		queryComponents = query.split(/\//g);
-	if (/^rev\//.test(query)) {
-		if (queryComponents.length >= 2) {
-			var revString = queryComponents[1],
-				// sanitized / parsed rev
-				rev = null,
-				// 'wikitext', 'html' etc
-				prop = queryComponents[2] || null;
+                // Yay! All's well. Go for it!
+                // Drop the non-bucket parts of the path / url
+                req.path = req.params[2];
+                req.url = req.params[2];
+                req.params = req.params.slice(2);
+                return handler(req, res, next);
+            } else {
+                res.setHeader('Allow', Object.keys(bucket.handlers).join(' '));
+                res.json('405', {
+                    "code":"MethodNotAllowedError",
+                    "message":req.method + " is not allowed"
+                });
+            }
+        } else {
+            res.json('404', {
+                "code":"NotFoundError",
+                "message": "Bucket " + req.params[1] + " not found"
+            });
+        }
+    } else {
+        res.json('404', {
+            "code":"NotFoundError",
+            "message": "Account " + req.params[0] + " not found"
+        });
+    }
+};
 
-			if (revString === 'latest') {
-				// latest revision
-				rev = revString;
-			} else if (/^\d+$/.test(revString)) {
-				// oldid
-				rev = Number(revString);
-			} else if (/^\d{4}-\d{2}-\d{2}/.test(revString)) {
-				// timestamp
-				rev = new Date(revString);
-				if (isNaN(rev.valueOf())) {
-					// invalid date
-					return next(new restify.InvalidArgumentError('Invalid date'));
-				}
-			} else if (/^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(revString)) {
-				// uuid
-				rev = revString;
-			}
 
-			if (page && prop && rev) {
-				//console.log(query);
-				store.getRevision(page, rev, prop, function (err, results) {
-					if (err) {
-						//console.error('ERROR', err.toString(), err.stack);
-						return next(new restify.InternalError(err.toString()));
-					}
-					if (!results.length) {
-						return next(new restify.ResourceNotFoundError());
-					}
-					res.writeHead(200, {'Content-type': 'text/plain'});
-					res.end(results[0][0]);
-				});
-				return;
-			}
-		}
-	}
-
-	return next(new restify.ResourceNotFoundError());
-});
 
 
 module.exports = server;

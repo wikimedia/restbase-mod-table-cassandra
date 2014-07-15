@@ -179,9 +179,20 @@ backends['cassandra/default'] = backends['cassandra/'+defaultUUID];
 var handlers = {
     'revisioned-blob': require('./buckets/revisioned-blob/index')
 };
+
+// Set up backends on start-up -> need handler factory or the like
+
+// On request
 // bucketMeta has acls, type etc
 handlers['revisioned-blob'](req, res, bucketOptions, backends['cassandra/default'])
 ```
+
+### Handler factory in RestFace
+- static handler: module exports object
+- constructor: module exports constructor
+    - new Handler({ conf: handlerConf, registerHandler: fn, log: fn })
+        - exports same data structures as object
+    - could use ability to change registration later (cb in options)
 
 ### Bucket creation
 - default value by bucket type: 
