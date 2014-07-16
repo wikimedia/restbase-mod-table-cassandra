@@ -15,7 +15,7 @@ function RevisionedBlob (backend) {
 
 RevisionedBlob.prototype.handlePOST = function (env, req) {
 	var title = req.params.title;
-	if (req.query['rev/'] !== undefined) {
+	if (req.params.title !== undefined) {
 		// Atomically create a new revision with several properties
 		if (req.body._rev && req.body._timestamp) {
 			var revision = {
@@ -95,10 +95,9 @@ RevisionedBlob.prototype.handleGET = function (env, req) {
         }
 
         if (page && prop && rev) {
-            console.log(page, prop, rev);
+            //console.log(page, prop, rev);
             return this.store.getRevision(page, rev, prop)
             .then(function (results) {
-                console.log('results', results);
                 if (!results.length) {
                     return {
                         status: 404,

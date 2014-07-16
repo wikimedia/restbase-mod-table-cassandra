@@ -4,10 +4,10 @@
  */
 
 // global includes
-var async = require('async');
 var prfun = require('prfun');
 var fs = require('fs');
 
+// TODO: retrieve dynamically from storage!
 var fakeRegistry = {
     "en.wikipedia.org": {
         buckets: {
@@ -60,13 +60,33 @@ function Rashomon (options) {
     this.handler = {
         routes: [
             {
-                path: '/v1/{domain}/{bucket}/{title}/rev/{rev}/html',
+                path: '/v1/{domain}/{bucket}/{title}/rev/{rev}/{prop}',
                 methods: {
-                    all: {
+                    get: {
                         handler: this.handleAll.bind(this),
                         doc: { /* swagger docs */
-                            "summary": "Retrieves the html of a specific revision through Rashomon",
-                            "notes": "Returns HTML+RDFa.",
+                            "summary": "Retrieves the property of a specific revision through Rashomon",
+                            "notes": "See <link> for information on properties and content types.",
+                            "type": "html",
+                            "produces": ["text/html;spec=mediawiki.org/specs/html/1.0"],
+                            "responseMessages": [
+                                {
+                                    "code": 404,
+                                    "message": "No HTML for page & revision found"
+                                }
+                            ]
+                        }
+                    }
+                }
+            },
+            {
+                path: '/v1/{domain}/{bucket}/{title}/rev/',
+                methods: {
+                    post: {
+                        handler: this.handleAll.bind(this),
+                        doc: { /* swagger docs */
+                            "summary": "Saves a new revision to Rashomon",
+                            "notes": "Some notes.",
                             "type": "html",
                             "produces": ["text/html;spec=mediawiki.org/specs/html/1.0"],
                             "responseMessages": [
@@ -185,21 +205,20 @@ Rashomon.prototype.setup = function setup () {
  * handler for the method if found.
  */
 Rashomon.prototype.handleAll = function (env, req) {
-    // XXX: validate params[0] & 1
     var domain = this.registry[req.params.domain];
     if (domain) {
         var bucket = domain.buckets[req.params.bucket];
         if (bucket) {
             // XXX: authenticate against bucket ACLs
-            console.log(bucket);
+            //console.log(bucket);
             var handlerObj = this.handlers[bucket.type][bucket.backendID];
             var handler = handlerObj.verbs[req.method];
             if (handler) {
 
                 // Yay! All's well. Go for it!
                 // Drop the non-bucket parts of the path / url
-                req.path = req.params[2];
-                req.url = req.params[2];
+                req.uri = req.uri.replace(/^(?:\/[^\/]+){3}/, '');
+                // XXX: shift params?
                 //req.params = req.params.slice(2);
                 return handler(env, req);
             } else {
@@ -243,7 +262,7 @@ Rashomon.prototype.handleAll = function (env, req) {
  * object
  */
 function makeRashomon (options) {
-    // XXX: move
+    // XXX: move to global config
     options.config = {
         backends: {
             "store/default": {
@@ -253,12 +272,12 @@ function makeRashomon (options) {
                 "keyspace": "testdb",
                 "username": "test",
                 "password": "test",
-                "poolSize": 1
+                "poolSize": 70
             }
             // "queue/default": {}
         },
         handlers: {}
-        // bucket type -> handlers & their configs
+        // bucket type -> handler config
     };
 
     var rashomon = new Rashomon(options);
