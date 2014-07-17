@@ -133,8 +133,8 @@ module.exports = function(options) {
         //create: createBucket,
         //delete: deleteBucket,
         verbs: {
-            get: revBlob.handleGET.bind(revBlob),
-            post: revBlob.handlePOST.bind(revBlob)
+            GET: revBlob.handleGET.bind(revBlob),
+            POST: revBlob.handlePOST.bind(revBlob)
         }
     };
 };

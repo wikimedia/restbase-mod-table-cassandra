@@ -62,7 +62,7 @@ function Rashomon (options) {
             {
                 path: '/v1/{domain}/{bucket}/{title}/rev/{rev}/{prop}',
                 methods: {
-                    get: {
+                    GET: {
                         handler: this.handleAll.bind(this),
                         doc: { /* swagger docs */
                             "summary": "Retrieves the property of a specific revision through Rashomon",
@@ -77,7 +77,7 @@ function Rashomon (options) {
                             ]
                         }
                     },
-                    post: {
+                    POST: {
                         handler: this.handleAll.bind(this),
                         doc: { /* swagger docs */
                             "summary": "Saves a new revision to Rashomon",
