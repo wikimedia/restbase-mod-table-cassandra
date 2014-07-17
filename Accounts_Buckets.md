@@ -221,6 +221,8 @@ handlers['revisioned-blob'](req, res, bucketOptions, backends['cassandra/default
 
 ## Consistency
 
+See also [the RestFace implemention notes](https://github.com/gwicke/restface/blob/master/doc/Implementation.md#lightweight-http-transaction-requests).
+
 ### Writes to single objects
 - tid for each CAS entry point (objects), even non-revisioned ones
     - return as ETAG
@@ -240,44 +242,9 @@ handlers['revisioned-blob'](req, res, bucketOptions, backends['cassandra/default
 
 ### HTTP transactions
 Idea: encode primary & secondary requests in a single JSON structure
+- `multipart/related` doesn't clearly support full HTTP headers per entity,
+  and is harder to use from clients
 - if primary fails, none of the dependents are executed
-```javascript
-{
-    type: 'transaction',
-    primary: {
-        method: 'PUT',
-        uri: '/foo',
-        headers: {
-            'If-Match': 'abcde',
-            'Concent-type': 'text/html'
-        },
-        // string body by default
-        body: "<html>...</html>"
-    },
-    dependents: [
-        {
-            method: 'PUT',
-            uri: '/bar',
-            headers: {
-                'Content-type':
-                  'application/json;profile=https://mediawiki.org/specs/foo'
-            },
-            // inline json support?
-            body_json: {..}
-        },
-        {
-            method: 'PUT',
-            uri: '/bar/image.png',
-            headers: {
-                'Content-type': 'image/png'
-            },
-            // binary
-            body_base64: {..}
-            // inline json support?
-            // body_json: {..}
-        }
-    ]
-```
 
 ## Access to buckets / bucket naming
 - bucket creation / access per user restricted to specific domains
