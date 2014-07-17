@@ -76,12 +76,7 @@ function Rashomon (options) {
                                 }
                             ]
                         }
-                    }
-                }
-            },
-            {
-                path: '/v1/{domain}/{bucket}/{title}/rev/',
-                methods: {
+                    },
                     post: {
                         handler: this.handleAll.bind(this),
                         doc: { /* swagger docs */
@@ -211,7 +206,8 @@ Rashomon.prototype.handleAll = function (env, req) {
         if (bucket) {
             // XXX: authenticate against bucket ACLs
             //console.log(bucket);
-            var handlerObj = this.handlers[bucket.type][bucket.backendID];
+            var bucketTypeHandlers = this.handlers[bucket.type];
+            var handlerObj = bucketTypeHandlers && bucketTypeHandlers[bucket.backendID];
             var handler = handlerObj.verbs[req.method];
             if (handler) {
 

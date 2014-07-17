@@ -18,18 +18,19 @@ RevisionedBlob.prototype.handlePOST = function (env, req) {
 	if (req.params.title !== undefined) {
 		// Atomically create a new revision with several properties
 		if (req.body._rev && req.body._timestamp) {
-			var revision = {
-					page: {
-						title: title
-					},
-					id: Number(req.body._rev),
-					timestamp: req.body._timestamp,
-					props: {
-						wikitext: {
-							value: new Buffer(req.body.wikitext)
-						}
-					}
-				};
+            var props = {};
+            props[req.params.prop] = {
+                value: new Buffer(req.body[req.params.prop])
+            };
+            //console.log(props);
+            var revision = {
+                page: {
+                    title: title
+                },
+                id: Number(req.body._rev),
+                timestamp: req.body._timestamp,
+                props: props
+            };
 			return this.store.addRevision(revision)
             .then(function (result) {
                 return {
