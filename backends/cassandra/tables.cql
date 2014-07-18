@@ -1,8 +1,5 @@
--- ###########################################
--- Global tables
--- ###########################################
 
-CREATE TABLE domains (
+CREATE TABLE IF NOT EXISTS domains (
     app text, -- normally fixed as 'storoid'
     -- The domain name.
     name text,

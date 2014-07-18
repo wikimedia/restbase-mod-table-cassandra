@@ -189,7 +189,7 @@ Rashomon.prototype.setup = function setup () {
         return self.handler;
     })
     .catch(function(e) {
-        this.log('error/rashomon/setup', e, e.stack);
+        self.log('error/rashomon/setup', e, e.stack);
     });
 };
 
@@ -268,7 +268,7 @@ function makeRashomon (options) {
                 "keyspace": "testdb",
                 "username": "test",
                 "password": "test",
-                "poolSize": 70
+                "poolSize": 60
             }
             // "queue/default": {}
         },

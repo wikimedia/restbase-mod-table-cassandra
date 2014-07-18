@@ -92,20 +92,10 @@ CRSP.addRevision = function (revision) {
 	// And finish it off
 	cql += 'APPLY BATCH;';
 
-    var resolve, reject;
-    var pr = new Promise(function(res, rej) {
-        resolve = res;
-        reject = rej;
+	return this.client.executeAsPrepared_p(cql, args, this.consistencies.write)
+    .then(function() {
+        return {tid: tid};
     });
-	function tidPasser(err, res) {
-        if (err) {
-            reject(err);
-        } else {
-            resolve({tid: tid});
-        }
-	}
-	this.client.execute(cql, args, this.consistencies.write, tidPasser);
-    return pr;
 };
 
 /**
@@ -142,7 +132,7 @@ CRSP.getRevision = function (name, rev, prop) {
 		// By UUID
 		cql = 'select value from revisions where name = ? and prop = ? and tid = ? limit 1;';
 		args = [name, prop, rev];
-		client.execute(cql, args, consistencies.read, queryCB);
+		return client.executeAsPrepared(cql, args, consistencies.read, queryCB);
 	} else {
 		switch(rev.constructor) {
 			case Number:
