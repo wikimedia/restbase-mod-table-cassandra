@@ -108,7 +108,7 @@ RevisionedBlob.prototype.handleGET = function (env, req) {
                 return {
                     status: 200,
                     headers: {'Content-type': 'text/plain'},
-                    body: results[0][0]
+                    body: results[0].value
                 };
             })
             .catch(function(err) {

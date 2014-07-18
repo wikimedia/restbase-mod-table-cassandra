@@ -16,56 +16,54 @@ function useKeyspace(execute, keyspace) {
 function promisifyClient (client) {
     var methods = ['connect', 'executeAsPrepared', 'execute', 'executeBatch'];
     methods.forEach(function(method) {
-        client[method + '_p'] = Promise.promisify(client[method], false, client);
+        //console.log(method, client[method]);
+        client[method + '_p'] = Promise.promisify(client[method].bind(client));
     });
+    /*
+     * client.connect_p = function() {
+        return new Promise(function(resolve, reject) {
+            client.connect(function(err) {
+                if (err) { reject(err); }
+                else { resolve(); }
+            })
+        });
+    };*/
     return client;
 }
 
-function makeClient (options) {
-    var client = new cass.Client(options);
-    var resolve, reject;
-    var pr = new Promise(function (res, rej) {
-        resolve = res;
-        reject = rej;
-    });
+function createTables(options) {
+    console.log('Creating keyspace and storoid tables..');
+    var origKeyspace = options.keyspace;
+    options.keyspace = 'system';
+    var tmpClient = promisifyClient(new cass.Client(options));
+    options.keyspace = origKeyspace;
+    return tmpClient.connect_p()
+    .return(tmpClient.execute_p(util.format(keyspaceCQL, origKeyspace), [], 'one'))
+    .then(function() {
+        console.log('tmpClient connected');
+        return tmpClient.execute_p(util.format('use %s', origKeyspace));
+    })
+    .return( tmpClient.execute_p(tableCQL, [], 'one') );
+}
 
-    var firstRun = true;
+function makeClient (options) {
+    var client = promisifyClient(new cass.Client(options));
+
 	var reconnectCB = function(err) {
 		if (err) {
-			// keep trying each 500ms
-            if (firstRun) {
-                firstRun = false;
-                var keySpace = options.keyspace;
-                options.keyspace = 'system';
-                var tmpClient = new cass.Client(options);
-                var execute = Promise.promisify(tmpClient.execute.bind(tmpClient));
-                tmpClient.on('connection', function(err) {
-                    console.error('Creating keyspace and storoid tables..');
-                    execute(util.format(keyspaceCQL, keySpace), [], 'one')
-                    .then(function() {
-                        return execute(util.format('use %s', keySpace));
-                    })
-                    .then(function() {
-                        return execute(tableCQL, [], 'one');
-                    })
-                    .catch(function(err) {
-                        reject(err);
-                    });
-                });
-                tmpClient.connect();
-            } else {
-			    console.error('Cassandra connection error @',
-                        options.hosts, ':', err, '\nretrying..');
-            }
+            // keep trying each 500ms
+            console.error('Cassandra connection error @',
+                    options.hosts, ':', err, '\nretrying..');
 			setTimeout(client.connect.bind(client, reconnectCB), 500);
-		} else {
-            resolve(promisifyClient(client));
-        }
+		}
 	};
 	client.on('connection', reconnectCB);
-	client.connect();
 
-    return pr;
+    return client.connect_p()
+    .catch(function(err) {
+        return createTables(options);
+    })
+    .return(client)
 }
 
 module.exports = makeClient;

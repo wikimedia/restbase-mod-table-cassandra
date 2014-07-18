@@ -132,7 +132,7 @@ Rashomon.prototype.setup = function setup () {
                 var backend = require(moduleName);
                 return backend(backendConf);
             } catch (e) {
-                self.log('warning/setup/backend/' + key, e);
+                self.log('error/setup/backend/' + key, e, e.stack);
                 Promise.resolve(null);
             }
     });
@@ -268,7 +268,7 @@ function makeRashomon (options) {
                 "keyspace": "testdb",
                 "username": "test",
                 "password": "test",
-                "poolSize": 60
+                "poolSize": 1
             }
             // "queue/default": {}
         },
