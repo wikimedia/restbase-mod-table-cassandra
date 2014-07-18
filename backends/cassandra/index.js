@@ -14,20 +14,11 @@ function useKeyspace(execute, keyspace) {
 }
 
 function promisifyClient (client) {
-    var methods = ['connect', 'executeAsPrepared', 'execute', 'executeBatch'];
+    var methods = ['connect', 'shutdown', 'executeAsPrepared', 'execute', 'executeBatch'];
     methods.forEach(function(method) {
         //console.log(method, client[method]);
         client[method + '_p'] = Promise.promisify(client[method].bind(client));
     });
-    /*
-     * client.connect_p = function() {
-        return new Promise(function(resolve, reject) {
-            client.connect(function(err) {
-                if (err) { reject(err); }
-                else { resolve(); }
-            })
-        });
-    };*/
     return client;
 }
 
@@ -38,12 +29,15 @@ function createTables(options) {
     var tmpClient = promisifyClient(new cass.Client(options));
     options.keyspace = origKeyspace;
     return tmpClient.connect_p()
-    .return(tmpClient.execute_p(util.format(keyspaceCQL, origKeyspace), [], 'one'))
+    .return(tmpClient.execute_p(util.format(keyspaceCQL, origKeyspace), [], 1))
     .then(function() {
         console.log('tmpClient connected');
         return tmpClient.execute_p(util.format('use %s', origKeyspace));
     })
-    .return( tmpClient.execute_p(tableCQL, [], 'one') );
+    .then(function() {
+        var newTableCQL = tableCQL.replace('domains', origKeyspace + '.domains');
+        return tmpClient.execute_p(newTableCQL, [], 2);
+    });
 }
 
 function makeClient (options) {
@@ -61,9 +55,15 @@ function makeClient (options) {
 
     return client.connect_p()
     .catch(function(err) {
-        return createTables(options);
+        client.removeAllListeners('connection');
+        client.shutdown_p()
+        return createTables(options)
+        .then(function() {
+            client = promisifyClient(new cass.Client(options));
+            return client.connect_p();
+        });
     })
-    .return(client)
+    .return(client);
 }
 
 module.exports = makeClient;

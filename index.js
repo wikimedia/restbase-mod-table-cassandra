@@ -208,7 +208,7 @@ Rashomon.prototype.handleAll = function (env, req) {
             //console.log(bucket);
             var bucketTypeHandlers = this.handlers[bucket.type];
             var handlerObj = bucketTypeHandlers && bucketTypeHandlers[bucket.backendID];
-            var handler = handlerObj.verbs[req.method];
+            var handler = handlerObj.verbs[req.method] || handlerObj.verbs.ALL;
             if (handler) {
 
                 // Yay! All's well. Go for it!
