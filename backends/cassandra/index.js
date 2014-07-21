@@ -62,7 +62,10 @@ function makeClient (options) {
             return client.connect_p();
         });
     })
-    .return(client);
+    .return({
+        type: 'cassandra',
+        client: client
+    });
 }
 
 module.exports = makeClient;

@@ -11,15 +11,19 @@ var backend;
 var config;
 
 function RevisionedBlob (backend) {
-    this.store = new RevisionBackend(backend);
+    // XXX: create store based on backend.type
+    // console.log('backend.type', backend.type);
+    this.store = new RevisionBackend(backend.client);
+    this.router = new RouteSwitch([{
+        pattern: '/{title}/rev/{rev}/{prop}',
+        methods: {
+            GET: function(){}
+        }
+    }]);
 }
 
-var revisionSwitch = new RouteSwitch([{
-    pattern: '/{title}/rev/{rev}/{prop}'
-}]);
-
 RevisionedBlob.prototype.handlePOST = function (env, req) {
-    var match = revisionSwitch.match(req.uri);
+    var match = this.router.match(req.uri);
 
     var title = match.params.title;
     if (title !== undefined) {
@@ -72,7 +76,7 @@ RevisionedBlob.prototype.handlePOST = function (env, req) {
 
 
 RevisionedBlob.prototype.handleGET = function (env, req) {
-    var match = revisionSwitch.match(req.uri);
+    var match = this.router.match(req.uri);
 
     var page = match.params.title;
     if (page && match.params.rev) {
@@ -80,7 +84,7 @@ RevisionedBlob.prototype.handleGET = function (env, req) {
             // sanitized / parsed rev
             rev = null,
             // 'wikitext', 'html' etc
-            prop = 'wikitext'; //queryComponents[2] || null;
+            prop = match.params.prop; //queryComponents[2] || null;
 
         if (revString === 'latest') {
             // latest revision
