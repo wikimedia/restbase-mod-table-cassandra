@@ -244,7 +244,7 @@ Rashomon.prototype.handleAll = function (env, req) {
             status: 404,
             body: {
                 "code":"NotFoundError",
-                "message": "Account " + req.params[0] + " not found"
+                "message": "Domain " + req.params[0] + " not found"
             }
         });
     }
