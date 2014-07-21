@@ -235,7 +235,8 @@ Rashomon.prototype.handleAll = function (env, req) {
                 status: 404,
                 body: {
                     "code": "NotFoundError",
-                    "message": "Bucket " + req.params[1] + " not found"
+                    "message": "Bucket " + req.params.domain + '/'
+                                + req.params.bucket + " not found for " + req.uri
                 }
             });
         }
@@ -244,7 +245,8 @@ Rashomon.prototype.handleAll = function (env, req) {
             status: 404,
             body: {
                 "code":"NotFoundError",
-                "message": "Domain " + req.params[0] + " not found"
+                "message": "Domain " + req.params.domain + " not found for "
+                            + req.uri
             }
         });
     }
