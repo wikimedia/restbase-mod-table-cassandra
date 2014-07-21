@@ -5,6 +5,7 @@
  */
 
 var RevisionBackend = require('./cassandra');
+var RouteSwitch = require('routeswitch');
 
 var backend;
 var config;
@@ -13,14 +14,20 @@ function RevisionedBlob (backend) {
     this.store = new RevisionBackend(backend);
 }
 
+var revisionSwitch = new RouteSwitch([{
+    pattern: '/{title}/rev/{rev}/{prop}'
+}]);
+
 RevisionedBlob.prototype.handlePOST = function (env, req) {
-	var title = req.params.title;
-	if (req.params.title !== undefined) {
-		// Atomically create a new revision with several properties
-		if (req.body._rev && req.body._timestamp) {
+    var match = revisionSwitch.match(req.uri);
+
+    var title = match.params.title;
+    if (title !== undefined) {
+        // Atomically create a new revision with several properties
+        if (req.body._rev && req.body._timestamp) {
             var props = {};
-            props[req.params.prop] = {
-                value: new Buffer(req.body[req.params.prop])
+            props[match.params.prop] = {
+                value: new Buffer(req.body[match.params.prop])
             };
             //console.log(props);
             var revision = {
@@ -31,13 +38,13 @@ RevisionedBlob.prototype.handlePOST = function (env, req) {
                 timestamp: req.body._timestamp,
                 props: props
             };
-			return this.store.addRevision(revision)
+            return this.store.addRevision(revision)
             .then(function (result) {
                 return {
                     status: 200,
                     body: {'message': 'Added revision ' + result.tid, id: result.tid}
                 };
-			})
+            })
             .catch(function(err) {
                 // XXX: figure out whether this was a user or system
                 // error
@@ -47,28 +54,29 @@ RevisionedBlob.prototype.handlePOST = function (env, req) {
                     body: err.toString()
                 };
             });
-		} else {
-			// We don't support _rev or _timestamp-less revisions yet
-			return Promise.resolve({
+        } else {
+            // We don't support _rev or _timestamp-less revisions yet
+            return Promise.resolve({
                 status: 400,
                 body: '_rev or _timestamp are missing!'
             });
-		}
-	} else {
-	console.log(title, req.params);
-		return Promise.resolve({
+        }
+    } else {
+        console.log(title, req.params, match.params);
+        return Promise.resolve({
             status: 404,
             body: 'Not found'
         });
-	}
+    }
 };
 
 
 RevisionedBlob.prototype.handleGET = function (env, req) {
+    var match = revisionSwitch.match(req.uri);
 
-	var page = req.params.title;
-	if (page && req.params.rev) {
-        var revString = req.params.rev,
+    var page = match.params.title;
+    if (page && match.params.rev) {
+        var revString = match.params.rev,
             // sanitized / parsed rev
             rev = null,
             // 'wikitext', 'html' etc
@@ -119,9 +127,9 @@ RevisionedBlob.prototype.handleGET = function (env, req) {
                     };
             });
         }
-	}
+    }
 
-	return Promise.resolve({
+    return Promise.resolve({
         status: 404,
         body: 'Not found'
     });

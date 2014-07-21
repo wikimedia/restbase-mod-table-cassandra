@@ -55,7 +55,6 @@ function makeClient (options) {
 
     return client.connect_p()
     .catch(function(err) {
-        client.removeAllListeners('connection');
         client.shutdown_p()
         return createTables(options)
         .then(function() {

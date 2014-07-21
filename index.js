@@ -60,7 +60,7 @@ function Rashomon (options) {
     this.handler = {
         routes: [
             {
-                path: '/v1/{domain}/{bucket}/{title}/rev/{rev}/{prop}',
+                path: '/v1/{domain}/{bucket}/{+path}',
                 methods: {
                     GET: {
                         handler: this.handleAll.bind(this),
@@ -268,7 +268,7 @@ function makeRashomon (options) {
                 "keyspace": "testdb",
                 "username": "test",
                 "password": "test",
-                "poolSize": 1
+                "poolSize": 70
             }
             // "queue/default": {}
         },
