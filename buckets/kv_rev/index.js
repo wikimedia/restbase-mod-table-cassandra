@@ -38,12 +38,12 @@ function KVRevBucket (backend, log) {
                 PUT: this.createBucket.bind(this)
             }
         },
-        //{
-        //    pattern: '/',
-        //    methods: {
-        //        GET: this.listBucket.bind(this),
-        //    }
-        //},
+        {
+            pattern: '/',
+            methods: {
+                GET: this.listBucket.bind(this),
+            }
+        },
         {
             pattern: '/{key}',
             methods: {
@@ -101,6 +101,32 @@ KVRevBucket.prototype.createBucket = function(env, req) {
     if (!opts.keyType) { opts.keyType = 'text'; }
     if (!opts.valueType) { opts.valueType = 'blob'; }
     return this.store.createBucket(env, req);
+};
+
+KVRevBucket.prototype.listBucket = function(env, req) {
+    // XXX: check params!
+    return this.store.listBucket(env, req)
+    .then(function(results) {
+        var listing = results.map(function(row) {
+            return row.key;
+        });
+        return {
+            status: 200,
+            headers: {
+                'content-type': 'application/json'
+            },
+            body: listing
+        };
+    })
+    .catch(function(error) {
+        console.error(error);
+        return {
+            status: 404,
+            body: {
+                message: "Not found."
+            }
+        };
+    });
 };
 
 KVRevBucket.prototype.getLatest = function(env, req) {

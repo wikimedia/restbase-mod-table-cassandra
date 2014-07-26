@@ -6,13 +6,16 @@
 // global includes
 var prfun = require('prfun');
 var fs = require('fs');
+var util = require('util');
 
 // TODO: retrieve dynamically from storage!
 var fakeRegistry = {
     "en.wikipedia.org": {
+        prefix: 'enwiki',
         buckets: {
-            "pages": {
-                "type": "revisioned-blob",
+            "foo": {
+                "type": "kv_rev",
+                // XXX: is this actually needed?
                 "backend": "cassandra",
                 "backendID": "store/default",
                 "acl": {
@@ -51,6 +54,57 @@ var fakeRegistry = {
     }
 };
 
+//            {
+//                path: '/v1/{domain}/{bucket}/{+path}',
+//                methods: {
+//                    GET: {
+//                        handler: this.handleAll.bind(this),
+//                        doc: { /* swagger docs */
+//                            "summary": "Retrieves the property of a specific revision through Rashomon",
+//                            "notes": "See <link> for information on properties and content types.",
+//                            "type": "html",
+//                            "produces": ["text/html;spec=mediawiki.org/specs/html/1.0"],
+//                            "responseMessages": [
+//                                {
+//                                    "code": 404,
+//                                    "message": "No HTML for page & revision found"
+//                                }
+//                            ]
+//                        }
+//                    },
+//                    PUT: {
+//                        handler: this.handleAll.bind(this),
+//                        doc: { /* swagger docs */
+//                            "summary": "Adds a new version of an object",
+//                            "notes": "See <link> for information on properties and content types.",
+//                            "type": "html",
+//                            "produces": ["text/html;spec=mediawiki.org/specs/html/1.0"],
+//                            "responseMessages": [
+//                                {
+//                                    "code": 404,
+//                                    "message": "No HTML for page & revision found"
+//                                }
+//                            ]
+//                        }
+//                    },
+//                    POST: {
+//                        handler: this.handleAll.bind(this),
+//                        doc: { /* swagger docs */
+//                            "summary": "Saves a new revision to Rashomon",
+//                            "notes": "Some notes.",
+//                            "type": "html",
+//                            "produces": ["text/html;spec=mediawiki.org/specs/html/1.0"],
+//                            "responseMessages": [
+//                                {
+//                                    "code": 404,
+//                                    "message": "No HTML for page & revision found"
+//                                }
+//                            ]
+//                        }
+//                    }
+//                }
+//            },
+
 function Rashomon (options) {
     this.config = options.config;
     this.log = options.log;
@@ -60,59 +114,53 @@ function Rashomon (options) {
     this.handler = {
         routes: [
             {
-                path: '/v1/{domain}/{bucket}/{+path}',
+                // domain creation
+                path: '/v1/{domain}',
                 methods: {
-                    GET: {
-                        handler: this.handleAll.bind(this),
-                        doc: { /* swagger docs */
-                            "summary": "Retrieves the property of a specific revision through Rashomon",
-                            "notes": "See <link> for information on properties and content types.",
-                            "type": "html",
-                            "produces": ["text/html;spec=mediawiki.org/specs/html/1.0"],
-                            "responseMessages": [
-                                {
-                                    "code": 404,
-                                    "message": "No HTML for page & revision found"
-                                }
-                            ]
-                        }
-                    },
-                    POST: {
-                        handler: this.handleAll.bind(this),
-                        doc: { /* swagger docs */
-                            "summary": "Saves a new revision to Rashomon",
-                            "notes": "Some notes.",
-                            "type": "html",
-                            "produces": ["text/html;spec=mediawiki.org/specs/html/1.0"],
-                            "responseMessages": [
-                                {
-                                    "code": 404,
-                                    "message": "No HTML for page & revision found"
-                                }
-                            ]
-                        }
+                    PUT: {
+                        handler: this.putDomain.bind(this)
                     }
                 }
-            }
+            },
+            {
+                path: '/v1/{domain}/{bucket}/',
+                methods: {
+                    GET: {
+                        handler: this.listBucket.bind(this)
+                    }
+                }
+            },
+            {
+                // bucket creation
+                path: '/v1/{domain}/{bucket}',
+                methods: {
+                    PUT: {
+                        handler: this.putBucket.bind(this)
+                    }
+                }
+            },
+            {
+                path: '/v1/{domain}/{bucket}/{key}',
+                methods: {
+                    PUT: {
+                        handler: this.handleAll.bind(this)
+                    },
+                    GET: {
+                        handler: this.handleAll.bind(this)
+                    }
+                }
+            },
+            //{
+            //    path: '/v1/{domain}/{bucket}/{key}/{rev}',
+            //    methods: {
+            //        PUT: {
+            //            handler: this.putItem.bind(this)
+            //        }
+            //    }
+            //}
         ]
     };
 }
-
-
-Rashomon.prototype.loadMetaData = function (env) {
-    var sysHandler = this.handlers['revisioned-blob']['store/default'];
-    // list domains
-    sysHandler(env, {
-        uri: '/v1/system/',
-        method: 'GET'
-    })
-    // get domain metadata for each
-    .then(function(domains) {
-        //
-    });
-    // list buckets
-    // get bucket metadata for each
-};
 
 
 /*
@@ -162,7 +210,7 @@ Rashomon.prototype.setup = function setup () {
                     var handler = handlerFn({
                         config: self.config.handlers[fileName],
                         backend: self.backends[backendID]
-                    });
+                    }, self.log);
                     if (handler) {
                         // ex:
                         // self.handlers["revisioned-blob"]["store/default"]
@@ -177,9 +225,11 @@ Rashomon.prototype.setup = function setup () {
     })
 
     .then(function() {
-        // XXX: Retrieve the global config using the default revisioned blob
-        // bucket & backend
-        // this.handlers['revisioned-blob'](req, this.backends['store/default'])
+        return self.createSystemBucket();
+    })
+
+    .then(function(res) {
+        console.log(res);
         // Fake it for now:
         self.registry = fakeRegistry;
     })
@@ -190,6 +240,55 @@ Rashomon.prototype.setup = function setup () {
     })
     .catch(function(e) {
         self.log('error/rashomon/setup', e, e.stack);
+    });
+};
+
+Rashomon.prototype.createSystemBucket = function() {
+    // XXX: Retrieve the global config using the default revisioned blob
+    // bucket & backend
+    var sysprefix = this.config.backends['store/default'].sysprefix;
+
+    var rootHandler = this.handlers.kv_rev['store/default'];
+
+    var rootRequest = {
+        method: 'GET',
+        uri: '',
+        params: {
+            prefix: sysprefix,
+            domain: sysprefix,
+            bucket: 'system'
+        }
+    };
+
+    return rootHandler({}, rootRequest)
+    .then(function(res) {
+        if (res.status === 200) {
+            return res;
+        } else {
+
+            var rootReq = {
+                method: 'PUT',
+                uri: '',
+                params: {
+                    prefix: sysprefix,
+                    domain: sysprefix,
+                    bucket: 'system'
+                },
+                body: {
+                    type: 'kv_rev',
+                    options: {
+                        keyType: 'text',
+                        valueType: 'blob'
+                    }
+                }
+            };
+
+            // XXX: change the registry to not use verbs here
+            return rootHandler({}, rootReq)
+            .then(function() {
+                return rootHandler({}, rootRequest);
+            });
+        }
     });
 };
 
@@ -207,13 +306,14 @@ Rashomon.prototype.handleAll = function (env, req) {
             // XXX: authenticate against bucket ACLs
             //console.log(bucket);
             var bucketTypeHandlers = this.handlers[bucket.type];
-            var handlerObj = bucketTypeHandlers && bucketTypeHandlers[bucket.backendID];
-            var handler = handlerObj.verbs[req.method] || handlerObj.verbs.ALL;
+            var handler = bucketTypeHandlers && bucketTypeHandlers[bucket.backendID];
             if (handler) {
 
                 // Yay! All's well. Go for it!
                 // Drop the non-bucket parts of the path / url
                 req.uri = req.uri.replace(/^(?:\/[^\/]+){3}/, '');
+                req.params.prefix = domain.prefix;
+                console.log(req);
                 // XXX: shift params?
                 //req.params = req.params.slice(2);
                 return handler(env, req);
@@ -252,6 +352,128 @@ Rashomon.prototype.handleAll = function (env, req) {
     }
 };
 
+Rashomon.prototype.putDomain = function (env, req) {
+    if (/^\/v1\/[a-zA-Z]+(?:\.[a-zA-Z\.]+)*$/.test(req.uri)) {
+        // Insert the domain
+        // Verify the domain metadata
+        var exampleBody = {
+            prefix: 'enwiki',
+            buckets: [
+            {
+                name: 'pages', // path
+                type: 'kv_rev', // used for handler selection
+                keyspace: 'storoid1_enwiki' // auto-generated from name
+            }
+            ]
+        };
+
+        var sysprefix = this.config.backends['store/default'].sysprefix;
+        var domainReq = {
+            method: 'PUT',
+            uri: '/' + req.params.domain,
+            headers: req.headers,
+            params: {
+                prefix: sysprefix,
+                domain: sysprefix,
+                bucket: 'system'
+            },
+            body: exampleBody // req.body
+        };
+        var rootHandler = this.handlers.kv_rev['store/default'];
+        return rootHandler({}, domainReq);
+
+    } else {
+        return Promise.resolve({
+            status: 400,
+            body: {
+                message: 'Invalid domain requested'
+            }
+        });
+    }
+};
+
+Rashomon.prototype.putBucket = function (env, req) {
+    // check if the domain exists
+    if (!this.registry[req.params.domain]) {
+        return Promise.resolve({
+            status: 400,
+            body: {
+                message: 'Domain does not exist'
+            }
+        });
+    }
+    // XXX: fake the body
+    req.body = {
+        type: 'kv_rev',
+        options: {
+            keyType: 'text',
+            valueType: 'blob'
+        }
+    };
+    // Check whether we have a backend for the requested type
+    if (req.body && req.body.constructor === Object
+            && req.body.type
+            && this.handlers[req.body.type])
+    {
+        // XXX: Use a generic default here rather than store/default?
+        var handler = this.handlers[req.body.type]['store/default'];
+        var domOptions = this.registry[req.params.domain];
+
+        //XXX: Fake the registry entry for now
+        domOptions = {
+            prefix: 'enwiki',
+            buckets: {}
+        };
+        req.params.prefix = domOptions.prefix;
+        req.uri = '';
+        return handler(env, req);
+    } else {
+        return Promise.resolve({
+            status: 400,
+            body: {
+                message: 'Invalid domain requested'
+            }
+        });
+    }
+};
+
+Rashomon.prototype.listBucket = function (env, req) {
+    // check if the domain exists
+    if (!this.registry[req.params.domain]) {
+        return Promise.resolve({
+            status: 400,
+            body: {
+                message: 'Domain does not exist'
+            }
+        });
+    }
+    var domainInfo = this.registry[req.params.domain];
+    var bucketInfo = domainInfo.buckets[req.params.bucket];
+    if (!bucketInfo) {
+        return Promise.resolve({
+            status: 400,
+            body: {
+                message: 'Domain does not exist'
+            }
+        });
+    }
+
+    var handler = this.handlers[bucketInfo.type]['store/default'];
+    if (handler) {
+        console.log(bucketInfo);
+        req.uri = '/';
+        req.params.prefix = domainInfo.prefix;
+        return handler(env, req);
+    } else {
+        return Promise.resolve({
+            status: 400,
+            body: {
+                message: 'No bucket handler found'
+            }
+        });
+    }
+};
+
 
 /**
  * Factory
@@ -267,10 +489,12 @@ function makeRashomon (options) {
                 "type": "cassandra",
                 "hosts": ["localhost"],
                 "id": "<uuid>",
-                "keyspace": "testdb",
+                "keyspace": "system",
                 "username": "test",
                 "password": "test",
-                "poolSize": 70
+                "poolSize": 1,
+                // The Storoid root bucket prefix
+                "sysprefix": "storoid1"
             }
             // "queue/default": {}
         },

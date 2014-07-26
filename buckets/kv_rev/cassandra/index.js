@@ -97,6 +97,18 @@ CRSP.createBucket = function(env, req) {
     });
 };
 
+// Create a new bucket
+CRSP.listBucket = function(env, req) {
+    var self = this;
+    var params = req.params;
+    var keyspaceName = this.client.keyspaceName(params.prefix, params.bucket);
+    var listCQL = util.format('select distinct key from %s.kv_rev', keyspaceName);
+    return this.client.executeAsPrepared_p(listCQL, [], this.consistencies.read)
+    .then(function(result) {
+        return result[0].rows;
+    });
+};
+
 // Get the latest revision of an object
 CRSP.getLatest = function(env, req) {
     var keyspaceName = this.client.keyspaceName(req.params.prefix, req.params.bucket);

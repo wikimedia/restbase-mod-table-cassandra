@@ -23,9 +23,11 @@
 
 ### Item read request flow
 
-- Check that account exists (in-memory)
-- Check that bucket exists (cached), load metadata (access rights)
-    - Type of bucket
+- Check that domain exists (in-memory or primary bucket)
+- Check that bucket exists (cached or primary bucket), load metadata (access rights)
+    - Type of bucket: need to know type before accessing it to select handler
+        - detailed config can then be retrieved through handler (options in
+          particular, access rights)
     - Check access rights
 - call handler for bucket
     - access bucket table(s) / backend
@@ -151,7 +153,7 @@ cqlsh> SELECT * from system.schema_columns where keyspace_name = 'testreducedb';
 - domains, buckets: need listings, ideally without paging
 - need cheap poll (global / per-bucket tids)
     - static column
-```
+```txt
 storoid/
     domains -- array of domain & domain tids
     en.wikipedia.org -- metadata on domain incl. bucket info
@@ -163,6 +165,21 @@ storoid/
         - POST to primary bucket, add-on requests
         - transaction JSON structure, or multipart/related
 
+#### Creating a new domain
+```
+PUT /v1/en.wikipedia.org
+```
+- normally ```If-None-Match: \*```
+- send some default config
+    - validate that
+    - insert it into the domains bucket
+
+#### Creating a new bucket in a domain
+```PUT /v1/en.wikipedia.org/bucket```
+- Call bucket handler to create the bucket (PUT ''; If-None-Match: *)
+    - rashomon needs to look at the type in the request body to figure out the
+      handler
+- Insert the bucket into the domain; include the type in metadata
 
 ### Data format
 - store per item for spec versioning (headers)
@@ -255,3 +272,5 @@ Idea: encode primary & secondary requests in a single JSON structure
 - Path: `en.wikipedia.org/api/v1/<bucket>` -> `/v1/en.wikipedia.org/<bucket>`
   in storage backend
 - DNS (optional, maybe later): `<bucket>.en.wikipedia.org`; ex: `pages.en.wikipedia.org`
+
+
