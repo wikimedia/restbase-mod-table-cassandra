@@ -1,0 +1,426 @@
+"use strict";
+
+var crypto = require('crypto');
+var cass = require('node-cassandra-cql');
+var defaultConsistency = cass.types.consistencies.one;
+
+function cassID (name) {
+    return '"' + name.replace(/"/g, '""') + '"';
+}
+
+function buildCondition (pred) {
+    var params = [];
+    var conjunctions = [];
+    for (var predKey in pred) {
+        var cql = '';
+        var predObj = pred[predKey];
+        cql += cassID(predKey);
+        if (predObj.constructor === String) {
+            cql += ' = ?';
+            params.push(predObj);
+        } else if (predObj.constructor === Object
+                && Object.keys(predObj).length === 1)
+        {
+            var predOp = Object.keys(predObj)[0];
+            var predArg = predObj[predOp];
+            switch (predOp) {
+            case '==': cql += ' = ?'; params.push(predArg); break;
+            case '<=': cql += ' <= ?'; params.push(predArg); break;
+            case '!=': cql += ' != ?'; params.push(predArg); break;
+            case 'NOT': cql += ' <= ?'; params.push(predArg); break;
+            case 'BETWEEN':
+                    cql += ' >= ?' + ' AND '; params.push(predArg[0]);
+                    cql += cassID(predKey) + ' <= ?'; params.push(predArg[1]);
+                    break;
+            default: throw new Error ('Operator ' + predObj[0] + ' not yet implemented!');
+            }
+
+        } else {
+            throw new Error ('Invalid predicate ' + JSON.stringify(pred));
+        }
+        conjunctions.push(cql);
+    }
+    return {
+        cql: conjunctions.join(' AND '),
+        params: params
+    };
+}
+
+// Hash a key into a valid Cassandra key name
+function hashKey (key) {
+    return crypto.Hash('sha1')
+        .update(key)
+        .digest()
+        .toString('base64')
+        // Replace [+/] from base64 with _ (illegal in Cassandra)
+        .replace(/[+\/]/g, '_')
+        // Remove base64 padding, has no entropy
+        .replace(/=+$/, '');
+}
+
+function getValidPrefix (key) {
+    var prefixMatch = /^[a-zA-Z0-9_]+/.exec(key);
+    if (prefixMatch) {
+        return prefixMatch[0];
+    } else {
+        return '';
+    }
+}
+
+function makeValidKey (key, length) {
+    var origKey = key;
+    key = key.replace(/_/g, '__')
+                .replace(/\./g, '_');
+    if (!/^[a-zA-Z0-9_]+$/.test(key)) {
+        // Create a new 28 char prefix
+        var validPrefix = getValidPrefix(key).substr(0, length * 2 / 3);
+        return validPrefix + hashKey(origKey).substr(0, length - validPrefix.length);
+    } else if (key.length > length) {
+        return key.substr(0, length * 2 / 3) + hashKey(origKey).substr(0, length / 3);
+    } else {
+        return key;
+    }
+}
+
+
+/**
+ * Derive a valid keyspace name from a random bucket name. Try to use valid
+ * chars as far as possible, but fall back to a sha1 if not possible. Also
+ * respect Cassandra's limit of 48 or fewer alphanum chars & first char being
+ * an alpha char.
+ *
+ * @param {string} reverseDomain, a domain in reverse dot notation
+ * @param {string} key, the bucket name to derive the key of
+ * @return {string} Valid Cassandra keyspace key
+ */
+function keyspaceName (reverseDomain, key) {
+    var prefix = makeValidKey(reverseDomain, Math.max(26, 48 - key.length - 3));
+    return prefix
+        // 6 chars _hash_ to prevent conflicts between domains & table names
+        + '_T_' + makeValidKey(key, 48 - prefix.length - 3);
+}
+
+
+function DB (client) {
+    this.client = client;
+}
+
+DB.prototype.getSchema = function (reverseDomain, tableName) {
+    var keyspace = keyspaceName(reverseDomain, tableName);
+
+    // consistency
+    var consistency = defaultConsistency;
+    var query = {
+        attributes: {
+            key: 'schema'
+        }
+    };
+    return this._get(keyspace, {}, consistency, 'meta');
+};
+
+DB.prototype.get = function (reverseDomain, req) {
+    var keyspace = keyspaceName(reverseDomain, req.table);
+
+    // consistency
+    var consistency = defaultConsistency;
+    if (req.consistency && req.consistency in {all:1, localQuorum:1}) {
+        consistency = cass.types.consistencies[req.consistency];
+    }
+    return this._get(keyspace, req, consistency);
+};
+
+
+DB.prototype._get = function (keyspace, req, consistency, table) {
+    if (!table) {
+        table = 'data';
+    }
+    var proj = '*';
+    if (req.proj) {
+        if (Array.isArray(req.proj)) {
+            proj = req.proj.map(cassID).join(',');
+        } else if (req.proj.constructor === String) {
+            proj = cassID(req.proj);
+        }
+    }
+    if (req.index) {
+        table = 'i_' + req.index;
+    }
+
+    if (req.distinct) {
+        proj = 'distinct ' + proj;
+    }
+    var cql = 'select ' + proj + ' from '
+        + cassID(keyspace) + '.' + cassID(table);
+
+    var params = [];
+    // Build up the condition
+    if (req.attributes) {
+        cql += ' where ';
+        var condResult = buildCondition(req.attributes);
+        cql += condResult.cql;
+        params = condResult.params;
+    }
+
+    //if (req.order) {
+    //    // XXX: need to know range column!
+    //}
+
+    if (req.limit && req.limit.constructor === Number) {
+        cql += ' limit ' + req.limit;
+    }
+
+    return this.client.executeAsPrepared_p(cql, params, consistency)
+    .then(function(result) {
+        var rows = result[0].rows;
+        return {
+            count: rows.length,
+            items: rows
+        };
+    });
+};
+
+
+DB.prototype.put = function (reverseDomain, req) {
+    var keyspace = keyspaceName(reverseDomain, req.table);
+
+    // consistency
+    var consistency = defaultConsistency;
+    if (req.consistency && req.consistency in {all:1, localQuorum:1}) {
+        consistency = cass.types.consistencies[req.consistency];
+    }
+    return this._put(keyspace, req, consistency);
+};
+
+
+DB.prototype._put = function(keyspace, req, consistency, table) {
+    // Get the type info for the table & verify types & ops per index
+    // var schema = this.getSchema(keyspace, req.table);
+    if (!table) {
+        table = 'data';
+    }
+
+    var keys = Object.keys(req.attributes);
+    var proj = keys.map(cassID).join(',');
+    var cql = 'insert into ' + cassID(keyspace) + '.' + cassID(table)
+            + ' (' + proj + ') values (';
+    var params = [], placeholders = [];
+    for (var key in req.attributes) {
+        params.push(req.attributes[key]);
+        placeholders.push('?');
+    }
+    cql += placeholders.join(',') + ')';
+
+    // Build up the condition
+    if (req.if) {
+        cql += ' if ';
+        var condResult = buildCondition(req.if);
+        cql += condResult.cql;
+        params = params.concat(condResult.params);
+    }
+
+    // TODO: update indexes
+
+    return this.client.executeAsPrepared_p(cql, params, consistency)
+    .then(function(result) {
+        var rows = result[0].rows;
+        return {
+            // XXX: check if condition failed!
+            status: 401
+        };
+    });
+
+};
+
+
+DB.prototype.delete = function (reverseDomain, req) {
+    var keyspace = keyspaceName(reverseDomain, req.table);
+
+    // consistency
+    var consistency = defaultConsistency;
+    if (req.consistency && req.consistency in {all:1, localQuorum:1}) {
+        consistency = cass.types.consistencies[req.consistency];
+    }
+    return this._delete(keyspace, req, consistency);
+};
+
+DB.prototype._delete = function (keyspace, req, consistency, table) {
+    if (!table) {
+        table = 'data';
+    }
+    var cql = 'delete from '
+        + cassID(keyspace) + '.' + cassID(table);
+
+    var params = [];
+    // Build up the condition
+    if (req.attributes) {
+        cql += ' where ';
+        var condResult = buildCondition(req.attributes);
+        cql += condResult.cql;
+        params = condResult.params;
+    }
+
+    // TODO: delete from indexes too!
+
+    return this.client.executeAsPrepared_p(cql, params, consistency);
+};
+
+DB.prototype._createKeyspace = function (keyspace, consistency) {
+    var cql = 'create keyspace ' + cassID(keyspace)
+        + " WITH REPLICATION = {'class': 'SimpleStrategy', 'replication_factor': 3}";
+    return this.client.execute_p(cql, [], consistency || defaultConsistency);
+};
+
+DB.prototype.createTable = function (reverseDomain, req) {
+    var self = this;
+    if (!req.table) {
+        throw new Error('Table name required.');
+    }
+    var keyspace = keyspaceName(reverseDomain, req.table);
+
+    // consistency
+    var consistency = defaultConsistency;
+    if (req.consistency && req.consistency in {all:1, localQuorum:1}) {
+        consistency = cass.types.consistencies[req.consistency];
+    }
+
+    // Info table schema
+    var infoSchema = {
+        name: 'meta',
+        attributes: {
+            key: 'string',
+            value: 'string'
+        },
+        index: {
+            hash: 'key'
+        }
+    };
+
+    return this._createKeyspace(keyspace, consistency)
+    .then(function() {
+        return Promise.all([
+            self._createTable(keyspace, req, 'data', consistency),
+            self._createTable(keyspace, infoSchema, 'meta', consistency)
+        ]);
+    })
+    .then(function() {
+        return self._put(keyspace, {
+            attributes: {
+                key: 'schema',
+                value: JSON.stringify(req)
+            }
+        }, consistency, 'meta');
+    });
+};
+
+DB.prototype._createTable = function (keyspace, req, tableName, consistency) {
+    var self = this;
+
+    if (!req.attributes) {
+        throw new Error('No AttributeDefinitions for table!');
+    }
+
+    // Figure out which columns are supposed to be static
+    var statics = {};
+    if (req.index && req.index.static) {
+        var s = req.index.static;
+        if (Array.isArray(s)) {
+            s.forEach(function(k) {
+                statics[k] = true;
+            });
+        } else {
+            statics[s] = true;
+        }
+    }
+
+    var cql = 'create table '
+        + cassID(keyspace) + '.' + cassID(tableName) + ' (';
+    for (var attr in req.attributes) {
+        var type = req.attributes[attr];
+        cql += cassID(attr) + ' ';
+        switch (type) {
+        case 'blob': cql += 'blob'; break;
+        case 'set<blob>': cql += 'set<blob>'; break;
+        case 'number': cql += 'decimal'; break;
+        case 'set<number>': cql += 'set<decimal>'; break;
+        case 'boolean': cql += 'boolean'; break;
+        case 'set<boolean>': cql += 'set<boolean>'; break;
+        case 'varint': cql += 'varint'; break;
+        case 'set<varint>': cql += 'set<varint>'; break;
+        case 'string': cql += 'text'; break;
+        case 'set<string>': cql += 'set<text>'; break;
+        case 'timeuuid': cql += 'timeuuid'; break;
+        case 'set<timeuuid>': cql += 'set<timeuuid>'; break;
+        case 'uuid': cql += 'uuid'; break;
+        case 'set<uuid>': cql += 'set<uuid>'; break;
+        case 'timestamp': cql += 'timestamp'; break;
+        case 'set<timestamp>': cql += 'set<timestamp>'; break;
+        default: throw new Error('Invalid type ' + type
+                     + ' for attribute ' + attr);
+        }
+        if (statics[attr]) {
+            cql += ' static';
+        }
+        cql += ', ';
+    }
+
+    if (!req.index || !req.index.hash) {
+        console.log(req);
+        throw new Error("Missing index or hash key in table schema");
+    }
+
+    cql += 'primary key (';
+    cql += cassID(req.index.hash) + (req.index.range ? ', ' + cassID(req.index.range) : '');
+    cql += '));';
+
+    // XXX: Handle secondary indexes
+    var tasks = [];
+    if (req.secondaryIndexes) {
+        for (var indexName in req.secondaryIndexes) {
+            var index = req.secondaryIndexes[indexName];
+            // create the index
+            var attributes = {};
+            // copy over type info
+            attributes[index.hash] = req.attributes[index.hash];
+            if (index.range) {
+                attributes[index.range] = req.attributes[index.range];
+            }
+            // include main index attributes unconditionally
+            if (!attributes[req.index.hash]) {
+                attributes[req.index.hash] = req.attributes[req.index.hash];
+            }
+            if (req.index.range && !attributes[req.index.range]) {
+                attributes[req.index.range] = req.attributes[req.index.range];
+            }
+
+            // now deal with projections
+            if (index.proj && Array.isArray(index.proj)) {
+                index.proj.forEach(function(attr) {
+                    if (!attributes[attr]) {
+                        attributes[attr] = req.attributes[attr];
+                    }
+                });
+            }
+
+            var indexSchema = {
+                name: indexName,
+                attributes: attributes,
+                index: index,
+                consistency: defaultConsistency
+            };
+
+            tasks.push(this._createTable(keyspace, indexSchema, 'i_' + indexName));
+        }
+        tasks.push(this.client.execute_p(cql, [], consistency));
+        return Promise.all(tasks);
+    } else {
+        return this.client.execute_p(cql, [], consistency);
+    }
+};
+
+DB.prototype.dropTable = function (reverseDomain, table) {
+    var keyspace = keyspaceName(reverseDomain, table);
+    return this.client.execute_p('drop keyspace ' + cassID(keyspace), [], defaultConsistency);
+};
+
+
+module.exports = DB;

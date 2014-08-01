@@ -11,10 +11,14 @@ var util = require('util');
 var backend;
 var config;
 
-function KVRevBucket (backend, log) {
-    // XXX: create store based on backend.type
-    // console.log('backend.type', backend.type);
-    this.store = new RevisionBackend(backend.client);
+function reverseDomain(domain) {
+    if (!domain) {
+        throw new Error("Domain required!");
+    }
+    return domain.toLowerCase().split('.').reverse().join('.');
+}
+
+function KVBucket (log) {
     this.log = log || function(){};
 
     this.router = new RouteSwitch([
@@ -53,9 +57,12 @@ function KVRevBucket (backend, log) {
         }
     ]);
 }
-KVRevBucket.prototype.getBucketInfo = function(env, req) {
+KVBucket.prototype.getBucketInfo = function(req, store) {
     var self = this;
-    return this.store.getBucketInfo (env, req)
+    return store.getSchema(
+        reverseDomain(req.params.domain),
+        req.params.bucket
+    )
     .then(function(res) {
         return {
             status: 200,
@@ -70,22 +77,55 @@ KVRevBucket.prototype.getBucketInfo = function(env, req) {
                 message: 'Internal error',
                 stack: err.stack
             }
-        }
+        };
     });
 };
 
-KVRevBucket.prototype.createBucket = function(env, req) {
+KVBucket.prototype.makeSchema = function (opts) {
+    if (opts.type === 'kv_rev') {
+        opts.schemaVersion = 1;
+        return {
+            bucket: opts,
+            attributes: {
+                key: opts.keyType || 'string',
+                tid: 'timeuuid',
+                latestTid: 'timeuuid',
+                value: opts.valueType || 'blob',
+                'content-type': 'string',
+                'content-length': 'varint',
+                'content-sha256': 'string',
+                // redirect
+                'content-location': 'string',
+                // 'deleted', 'nomove' etc?
+                restrictions: 'set<string>',
+            },
+            index: {
+                hash: 'key',
+                range: 'tid',
+                static: 'latestTid'
+            }
+        };
+    } else {
+        throw new Error('Bucket type ' + opts.type + ' not yet implemented');
+    }
+};
+
+var bucketTypes = {
+    kv_rev: true,
+    kv: true,
+    kv_ordered: true,
+    kv_ordered_rev: true
+};
+KVBucket.prototype.createBucket = function(req, store) {
     if (!req.body
             || req.body.constructor !== Object
-            || req.body.type !== 'kv_rev')
+            || !(req.body.type in bucketTypes) )
     {
         // XXX: validate with JSON schema
         var exampleBody = {
             type: 'kv_rev',
-            options: {
-                keyType: 'text',
-                valueType: 'blob'
-            }
+            keyType: 'string',
+            valueType: 'blob'
         };
 
         return Promise.resolve({
@@ -96,18 +136,44 @@ KVRevBucket.prototype.createBucket = function(env, req) {
             }
         });
     }
-    if (!req.body.options) { req.body.options = {}; }
-    var opts = req.body.options;
-    if (!opts.keyType) { opts.keyType = 'text'; }
+    var opts = req.body;
+    if (!opts.keyType) { opts.keyType = 'string'; }
     if (!opts.valueType) { opts.valueType = 'blob'; }
-    return this.store.createBucket(env, req);
+    var schema = this.makeSchema(opts);
+    schema.table = req.params.bucket;
+    return store.createTable(reverseDomain(req.params.domain), schema);
 };
 
-KVRevBucket.prototype.listBucket = function(env, req) {
+
+KVBucket.prototype.getListQuery = function (type, bucket) {
+    // TODO: support other bucket types
+    if (type !== 'kv_rev') {
+        throw new Error('Only kv_rev supported to far');
+    }
+    return {
+        table: bucket,
+        distinct: true,
+        proj: 'key',
+        limit: 10000
+    };
+};
+
+
+
+KVBucket.prototype.listBucket = function(req, store) {
     // XXX: check params!
-    return this.store.listBucket(env, req)
-    .then(function(results) {
-        var listing = results.map(function(row) {
+    var params = req.params;
+    if (!params.domain || !params.bucket) {
+        return Promise.resolve({
+            status: 400,
+            body: { message: "Domain / bucket missing" }
+        });
+    }
+
+    var listQuery = this.getListQuery('kv_rev', params.bucket);
+    return store.get(reverseDomain(params.domain), listQuery)
+    .then(function(result) {
+        var listing = result.items.map(function(row) {
             return row.key;
         });
         return {
@@ -129,9 +195,9 @@ KVRevBucket.prototype.listBucket = function(env, req) {
     });
 };
 
-KVRevBucket.prototype.getLatest = function(env, req) {
+KVBucket.prototype.getLatest = function(req, store) {
     // XXX: check params!
-    return this.store.getLatest(env, req)
+    return store.getLatest(req)
     .then(function(result) {
         var headers = result.headers;
         headers.etag = result.tid.toString();
@@ -152,10 +218,10 @@ KVRevBucket.prototype.getLatest = function(env, req) {
     });
 };
 
-KVRevBucket.prototype.putLatest = function(env, req) {
+KVBucket.prototype.putLatest = function(req, store) {
     var self = this;
 
-    return this.store.putLatest(env, req)
+    return store.putLatest(req)
     .then(function(result) {
         return {
             status: 201,
@@ -181,7 +247,7 @@ KVRevBucket.prototype.putLatest = function(env, req) {
 
 
 
-KVRevBucket.prototype.handlePOST = function (env, req) {
+KVBucket.prototype.handlePOST = function (req, store) {
     var self = this;
     var match = this.router.match(req.uri);
 
@@ -202,7 +268,7 @@ KVRevBucket.prototype.handlePOST = function (env, req) {
                 timestamp: req.body._timestamp,
                 props: props
             };
-            return this.store.addRevision(revision)
+            return store.addRevision(revision)
             .then(function (result) {
                 return {
                     status: 200,
@@ -236,7 +302,7 @@ KVRevBucket.prototype.handlePOST = function (env, req) {
 };
 
 
-KVRevBucket.prototype.handleGET = function (env, req) {
+KVBucket.prototype.handleGET = function (req, store) {
     var self = this;
     var match = this.router.match(req.uri);
 
@@ -271,7 +337,7 @@ KVRevBucket.prototype.handleGET = function (env, req) {
 
         if (page && prop && rev) {
             //console.log(page, prop, rev);
-            return this.store.getRevision(page, rev, prop)
+            return store.getRevision(page, rev, prop)
             .then(function (results) {
                 if (!results.length) {
                     return {
@@ -302,7 +368,7 @@ KVRevBucket.prototype.handleGET = function (env, req) {
     });
 };
 
-KVRevBucket.prototype.handleALL = function (env, req) {
+KVBucket.prototype.handleALL = function (req, store) {
     var match = this.router.match(req.uri);
     if (match) {
         var handler = match.route.methods[req.method] || match.route.methods.ALL;
@@ -311,7 +377,7 @@ KVRevBucket.prototype.handleALL = function (env, req) {
             var params = match.params;
             util._extend(params, req.params);
             newReq.params = params;
-            return handler(env, newReq);
+            return handler(newReq, store);
         }
     }
     // Fall through: Error case
@@ -327,7 +393,7 @@ KVRevBucket.prototype.handleALL = function (env, req) {
 
 
 
-module.exports = function(options, log) {
-    var revBucket = new KVRevBucket(options.backend, log);
-    return revBucket.handleALL.bind(revBucket)
+module.exports = function(log) {
+    var revBucket = new KVBucket(log);
+    return revBucket.handleALL.bind(revBucket);
 };

@@ -10,6 +10,14 @@ var util = require('util');
 
 // TODO: retrieve dynamically from storage!
 var fakeRegistry = {
+    "storoid.system" : {
+        buckets: {
+            system: {
+                type: 'kv',
+                backend: 'default'
+            }
+        }
+    },
     "en.wikipedia.org": {
         prefix: 'enwiki',
         buckets: {
@@ -17,7 +25,7 @@ var fakeRegistry = {
                 "type": "kv_rev",
                 // XXX: is this actually needed?
                 "backend": "cassandra",
-                "backendID": "store/default",
+                "backendID": "default",
                 "acl": {
                     read: [
                         // A publicly readable bucket
@@ -109,8 +117,8 @@ function Rashomon (options) {
     this.config = options.config;
     this.log = options.log;
     this.setup = this.setup.bind(this);
-    this.handlers = {};
-    this.backends = {};
+    this.buckets = {};
+    this.stores = {};
     this.handler = {
         routes: [
             {
@@ -170,26 +178,26 @@ function Rashomon (options) {
  */
 Rashomon.prototype.setup = function setup () {
     var self = this;
-    // Set up all backends, including the default storage backend
-    var backendNames = Object.keys(this.config.backends);
-    var backendPromises = backendNames.map(function(key) {
-            var backendConf = self.config.backends[key];
+    // Set up storage backends
+    var storageNames = Object.keys(this.config.storage);
+    var storagePromises = storageNames.map(function(key) {
+            var storageConf = self.config.storage[key];
             try {
-                var moduleName = __dirname + '/backends/' + backendConf.type;
+                var moduleName = __dirname + '/storage/' + storageConf.type;
                 console.log(moduleName);
                 var backend = require(moduleName);
-                return backend(backendConf);
+                return backend(storageConf);
             } catch (e) {
                 self.log('error/setup/backend/' + key, e, e.stack);
                 Promise.resolve(null);
             }
     });
 
-    return Promise.all(backendPromises)
-    .then(function(backends) {
-        for (var i = 0; i < backends.length; i++) {
-            if (backends[i]) {
-                self.backends[backendNames[i]] = backends[i];
+    return Promise.all(storagePromises)
+    .then(function(stores) {
+        for (var i = 0; i < stores.length; i++) {
+            if (stores[i]) {
+                self.stores[storageNames[i]] = stores[i];
             }
         }
     })
@@ -205,33 +213,17 @@ Rashomon.prototype.setup = function setup () {
             try {
                 // Instantiate one for each configured backend?
                 var handlerFn = require(__dirname + '/buckets/' + fileName);
-                self.handlers[fileName] = {};
-                Object.keys(self.backends).forEach(function(backendID) {
-                    var handler = handlerFn({
-                        config: self.config.handlers[fileName],
-                        backend: self.backends[backendID]
-                    }, self.log);
-                    if (handler) {
-                        // ex:
-                        // self.handlers["revisioned-blob"]["store/default"]
-                        self.handlers[fileName][backendID] = handler;
-                        self.log('notice/setup/bucket', fileName);
-                    }
-                });
+                self.buckets[fileName] = handlerFn(self.log);
             } catch (e) {
                 self.log('warning/setup/handlers', e, e.stack);
             }
         });
-    })
-
-    .then(function() {
+        self.registry = fakeRegistry;
         return self.createSystemBucket();
     })
 
     .then(function(res) {
         console.log(res);
-        // Fake it for now:
-        self.registry = fakeRegistry;
     })
 
     // Finally return the handler
@@ -244,24 +236,25 @@ Rashomon.prototype.setup = function setup () {
 };
 
 Rashomon.prototype.createSystemBucket = function() {
+    var self = this;
     // XXX: Retrieve the global config using the default revisioned blob
     // bucket & backend
-    var sysprefix = this.config.backends['store/default'].sysprefix;
+    var sysdomain = this.config.storage.default.sysdomain;
 
-    var rootHandler = this.handlers.kv_rev['store/default'];
+    var bucketHandler = this.buckets.kv;
 
     var rootRequest = {
         method: 'GET',
         uri: '',
         params: {
-            prefix: sysprefix,
-            domain: sysprefix,
+            domain: sysdomain,
             bucket: 'system'
         }
     };
 
-    return rootHandler({}, rootRequest)
+    return this.handleAll({}, rootRequest)
     .then(function(res) {
+        console.log(res);
         if (res.status === 200) {
             return res;
         } else {
@@ -270,23 +263,20 @@ Rashomon.prototype.createSystemBucket = function() {
                 method: 'PUT',
                 uri: '',
                 params: {
-                    prefix: sysprefix,
-                    domain: sysprefix,
+                    domain: sysdomain,
                     bucket: 'system'
                 },
                 body: {
                     type: 'kv_rev',
-                    options: {
-                        keyType: 'text',
-                        valueType: 'blob'
-                    }
+                    keyType: 'text',
+                    valueType: 'blob'
                 }
             };
 
             // XXX: change the registry to not use verbs here
-            return rootHandler({}, rootReq)
+            return self.putBucket({}, rootReq)
             .then(function() {
-                return rootHandler({}, rootRequest);
+                return self.handleAll({}, rootRequest);
             });
         }
     });
@@ -305,18 +295,17 @@ Rashomon.prototype.handleAll = function (env, req) {
         if (bucket) {
             // XXX: authenticate against bucket ACLs
             //console.log(bucket);
-            var bucketTypeHandlers = this.handlers[bucket.type];
-            var handler = bucketTypeHandlers && bucketTypeHandlers[bucket.backendID];
+            var handler = this.buckets.kv;
             if (handler) {
 
                 // Yay! All's well. Go for it!
                 // Drop the non-bucket parts of the path / url
                 req.uri = req.uri.replace(/^(?:\/[^\/]+){3}/, '');
-                req.params.prefix = domain.prefix;
                 console.log(req);
                 // XXX: shift params?
                 //req.params = req.params.slice(2);
-                return handler(env, req);
+                // TODO: look up store from registry!
+                return handler(req, this.stores.default);
             } else {
                 // Options request
                 return Promise.resolve({
@@ -336,7 +325,8 @@ Rashomon.prototype.handleAll = function (env, req) {
                 body: {
                     "code": "NotFoundError",
                     "message": "Bucket " + req.params.domain + '/'
-                                + req.params.bucket + " not found for " + req.uri
+                                + req.params.bucket + " not found for "
+                                + JSON.stringify(req.uri)
                 }
             });
         }
@@ -357,14 +347,14 @@ Rashomon.prototype.putDomain = function (env, req) {
         // Insert the domain
         // Verify the domain metadata
         var exampleBody = {
-            prefix: 'enwiki',
-            buckets: [
-            {
-                name: 'pages', // path
-                type: 'kv_rev', // used for handler selection
-                keyspace: 'storoid1_enwiki' // auto-generated from name
+            buckets: {
+                pages: {
+                    type: 'kv_rev', // used for handler & backend selection
+                    backend: 'default', // which backend to use
+                    keyType: 'string',
+                    valueType: 'blob'
+                }
             }
-            ]
         };
 
         var sysprefix = this.config.backends['store/default'].sysprefix;
@@ -373,14 +363,13 @@ Rashomon.prototype.putDomain = function (env, req) {
             uri: '/' + req.params.domain,
             headers: req.headers,
             params: {
-                prefix: sysprefix,
                 domain: sysprefix,
                 bucket: 'system'
             },
             body: exampleBody // req.body
         };
-        var rootHandler = this.handlers.kv_rev['store/default'];
-        return rootHandler({}, domainReq);
+        var rootHandler = this.handlers.kv;
+        return rootHandler(domainReq, this.stores.default);
 
     } else {
         return Promise.resolve({
@@ -405,28 +394,16 @@ Rashomon.prototype.putBucket = function (env, req) {
     // XXX: fake the body
     req.body = {
         type: 'kv_rev',
-        options: {
-            keyType: 'text',
-            valueType: 'blob'
-        }
+        keyType: 'string',
+        valueType: 'blob'
     };
     // Check whether we have a backend for the requested type
     if (req.body && req.body.constructor === Object
             && req.body.type
-            && this.handlers[req.body.type])
+            && this.buckets.kv)
     {
-        // XXX: Use a generic default here rather than store/default?
-        var handler = this.handlers[req.body.type]['store/default'];
-        var domOptions = this.registry[req.params.domain];
-
-        //XXX: Fake the registry entry for now
-        domOptions = {
-            prefix: 'enwiki',
-            buckets: {}
-        };
-        req.params.prefix = domOptions.prefix;
         req.uri = '';
-        return handler(env, req);
+        return this.buckets.kv(req, this.stores.default);
     } else {
         return Promise.resolve({
             status: 400,
@@ -447,23 +424,21 @@ Rashomon.prototype.listBucket = function (env, req) {
             }
         });
     }
-    var domainInfo = this.registry[req.params.domain];
-    var bucketInfo = domainInfo.buckets[req.params.bucket];
-    if (!bucketInfo) {
-        return Promise.resolve({
-            status: 400,
-            body: {
-                message: 'Domain does not exist'
-            }
-        });
-    }
+    //var domainInfo = this.registry[req.params.domain];
+    //var bucketInfo = domainInfo.buckets[req.params.bucket];
+    //if (!bucketInfo) {
+    //    return Promise.resolve({
+    //        status: 400,
+    //        body: {
+    //            message: 'Domain does not exist'
+    //        }
+    //    });
+    //}
 
-    var handler = this.handlers[bucketInfo.type]['store/default'];
+    var handler = this.buckets.kv;
     if (handler) {
-        console.log(bucketInfo);
         req.uri = '/';
-        req.params.prefix = domainInfo.prefix;
-        return handler(env, req);
+        return handler(req, this.stores.default);
     } else {
         return Promise.resolve({
             status: 400,
@@ -484,8 +459,8 @@ Rashomon.prototype.listBucket = function (env, req) {
 function makeRashomon (options) {
     // XXX: move to global config
     options.config = {
-        backends: {
-            "store/default": {
+        storage: {
+            "default": {
                 "type": "cassandra",
                 "hosts": ["localhost"],
                 "id": "<uuid>",
@@ -494,9 +469,8 @@ function makeRashomon (options) {
                 "password": "test",
                 "poolSize": 1,
                 // The Storoid root bucket prefix
-                "sysprefix": "storoid1"
+                "sysdomain": "storoid.system"
             }
-            // "queue/default": {}
         },
         handlers: {}
         // bucket type -> handler config

@@ -8,5 +8,5 @@ CREATE TABLE IF NOT EXISTS %s.kv_rev (
 compression = { 
     'sstable_compression' : 'DeflateCompressor', 
     'chunk_length_kb': 256 
-} and CLUSTERING ORDER BY (tid desc);
+};
 

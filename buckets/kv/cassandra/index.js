@@ -61,17 +61,106 @@ function infoTableCQL (keyspace) {
                 + ');', keyspace);
 }
 
+function cassID (name) {
+    return '"' + name.replace(/"/g, '""') + '"';
+}
+
+/*
+ * {
+    "AttributeDefinitions": [
+        {
+            "AttributeName": "ForumName",
+            "AttributeType": "S"
+        },
+        {
+            "AttributeName": "Subject",
+            "AttributeType": "S"
+        },
+        {
+            "AttributeName": "LastPostDateTime",
+            "AttributeType": "S"
+        }
+    ],
+    }*/
+CRSP.buildTableCQL = function (keyspaceName, tableName, schema) {
+    var defs = schema.attributes;
+    if (!defs) {
+        throw new Error('No AttributeDefinitions for table!');
+    }
+    var cql = 'create table if not exists ' + cassID(keyspaceName + '.' + tableName) + ' (';
+    defs.forEach(function(def) {
+        cql += cassID(def.name) + ' ';
+        switch (def.type) {
+        case 'blob': cql += 'blob'; break;
+        case 'set<blob>': cql += 'set<blob>'; break;
+        case 'number': cql += 'decimal'; break;
+        case 'set<number>': cql += 'set<decimal>'; break;
+        case 'boolean': cql += 'boolean'; break;
+        case 'set<boolean>': cql += 'set<boolean>'; break;
+        case 'varint': cql += 'varint'; break;
+        case 'set<varint>': cql += 'set<varint>'; break;
+        case 'string': cql += 'text'; break;
+        case 'set<string>': cql += 'set<text>'; break;
+        case 'timeuuid': cql += 'timeuuid'; break;
+        case 'set<timeuuid>': cql += 'set<timeuuid>'; break;
+        case 'uuid': cql += 'uuid'; break;
+        case 'set<uuid>': cql += 'set<uuid>'; break;
+        case 'timestamp': cql += 'timestamp'; break;
+        case 'set<timestamp>': cql += 'set<timestamp>'; break;
+        default: throw new Error('Invalid type ' + def.type
+                     + ' for attribute ' + def.name);
+        }
+        cql += ', ';
+    });
+
+    var keySchema = schema.keys;
+    var hashKey, rangeKey;
+    keySchema.forEach(function(ks) {
+        if (ks.type.toLowerCase() === 'hash') {
+            hashKey = ks.attributeName;
+        } else if (ks.type.toLowerCase() === 'range') {
+            rangeKey = ks.attributeName;
+        }
+    });
+
+    if (!hashKey) {
+        throw new Error("Missing hash key in table schema");
+    }
+
+    cql += 'primary key (';
+    cql += cassID(hashKey) + (rangeKey ? ', ' + cassID(rangeKey) : '');
+    cql += ');';
+    return cql;
+};
+
+
+CRSP.revBucketSchema = {
+    attributes: {
+        uri: 'string',
+        tid: 'timeuuid',
+        body: 'blob',
+        'content-type': 'string',
+        'content-length': 'varint',
+        'content-sha256': 'string',
+        // redirect
+        'content-location': 'string',
+        // 'deleted', 'nomove' etc?
+        restrictions: 'set<string>'
+    },
+    index: {
+        hash: 'uri',
+        range: 'tid'
+    }
+};
+
 // Create a new bucket
 CRSP.createBucket = function(env, req) {
     var self = this;
     var options = req.body.options;
     var params = req.params;
     var keyspaceName = this.client.keyspaceName(params.prefix, params.bucket);
-    var tableCQL = util.format(tableCQLTemplate,
-                        keyspaceName,
-                        options.keyType,
-                        options.valueType
-                    );
+    // TODO: support non-standard buckets?
+    var tableCQL = this.buildTableCQL(keyspaceName, 'data', this.revBucketSchema);
     var updateInfoCQL = util.format(updateInfoCQLTemplate, keyspaceName);
     var bucketInfo = {
         type: 'kv_rev',

@@ -9,9 +9,14 @@
     "connect-busboy": "git+https://github.com/gwicke/connect-busboy.git#master",
     "node-uuid": "1.x.x",
     "node-cassandra-cql": "^0.5.0",
-    "routeswitch": "^0.3.2"
+    "routeswitch": "^0.3.2",
+    "assert": "^1.1.1"
   },
   "scripts": {
-    "start": "node rashomon.js"
+    "start": "node rashomon.js",
+    "test": "mocha"
+  },
+  "devDependencies": {
+    "mocha": "x.x.x"
   }
 }
