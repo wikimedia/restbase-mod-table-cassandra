@@ -24,8 +24,10 @@ Dfferent partition & range index, maps to primary partition & range keys
     - create primary entry before adding index entries
     - remove index entries before deleting primary
 
-## Implementing blob storage in terms of db buckets
-- 'body' & 'uri' attributes
+## Implementing KV buckets on top of db tables
+- 'key' & 'value' attributes
+    - really only index matters
+    - if 'value' property: returned on GET
 - entity headers as individual attributes
     - content-type
     - content-length

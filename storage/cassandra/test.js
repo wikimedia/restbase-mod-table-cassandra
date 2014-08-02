@@ -37,9 +37,11 @@ var dynamoQuery = {
 
 // Sample revisioned bucket schema
 var revisionedKVSchema = {
+    // keep extra redundant info for primary bucket table reconstruction
+    domain: 'en.wikipedia.org',
     table: 'someTable',
     attributes: {
-        uri: 'string',
+        key: 'string',
         tid: 'timeuuid',
         latestTid: 'timeuuid',
         body: 'blob',
@@ -59,6 +61,8 @@ var revisionedKVSchema = {
 };
 
 var simpleKVSchema = {
+    // extra redundant info for primary bucket table reconstruction
+    domain: 'en.wikipedia.org',
     table: 'someTable',
     attributes: {
         uri: 'string',

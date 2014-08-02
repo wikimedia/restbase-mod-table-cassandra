@@ -1,10 +1,10 @@
-# Design notes for account & bucket support 
+# Design notes for domain & bucket support 
 ## Goals
 
-### Account goals
+### Domain goals
 
 - Namespace buckets to avoid naming conflicts
-- Define per account:
+- Define per domain:
     - ownership (can delete with all buckets when no longer needed)
     - bucket creation rights
     - quotas (perhaps)

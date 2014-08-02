@@ -102,7 +102,11 @@ function keyspaceName (reverseDomain, key) {
 
 
 function DB (client) {
+    // cassandra client
     this.client = client;
+
+    // cache keyspace -> schema
+    this.schemaCache = {};
 }
 
 DB.prototype.getSchema = function (reverseDomain, tableName) {
@@ -115,10 +119,23 @@ DB.prototype.getSchema = function (reverseDomain, tableName) {
             key: 'schema'
         }
     };
-    return this._get(keyspace, {}, consistency, 'meta');
+    return this._getSchema(keyspace, consistency);
+};
+
+DB.prototype._getSchema = function (keyspace, consistency) {
+    var query = {
+        attributes: {
+            key: 'schema'
+        }
+    };
+    return this._get(keyspace, {}, consistency, 'meta')
+    .then(function(res) {
+        return JSON.parse(res.items[0].value);
+    });
 };
 
 DB.prototype.get = function (reverseDomain, req) {
+    var self = this;
     var keyspace = keyspaceName(reverseDomain, req.table);
 
     // consistency
@@ -126,7 +143,17 @@ DB.prototype.get = function (reverseDomain, req) {
     if (req.consistency && req.consistency in {all:1, localQuorum:1}) {
         consistency = cass.types.consistencies[req.consistency];
     }
-    return this._get(keyspace, req, consistency);
+
+    if (!this.schemaCache[keyspace]) {
+        return this._getSchema(keyspace, defaultConsistency)
+        .then(function(schema) {
+            //console.log('schema', schema);
+            self.schemaCache[keyspace] = schema;
+            return self._get(keyspace, req, consistency);
+        });
+    } else {
+        return this._get(keyspace, req, consistency);
+    }
 };
 
 
@@ -134,12 +161,22 @@ DB.prototype._get = function (keyspace, req, consistency, table) {
     if (!table) {
         table = 'data';
     }
-    var proj = '*';
+    var proj;
     if (req.proj) {
         if (Array.isArray(req.proj)) {
             proj = req.proj.map(cassID).join(',');
         } else if (req.proj.constructor === String) {
             proj = cassID(req.proj);
+        }
+    } else {
+        // Work around 'order by' bug in cassandra when using *
+        // Trying to change the natural sort order only works with a
+        // projection in 2.0.9
+        var schema = this.schemaCache[keyspace];
+        if (schema) {
+            proj = Object.keys(schema.attributes).map(cassID).join(',');
+        } else {
+            proj = '*';
         }
     }
     if (req.index) {
@@ -161,17 +198,39 @@ DB.prototype._get = function (keyspace, req, consistency, table) {
         params = condResult.params;
     }
 
-    //if (req.order) {
-    //    // XXX: need to know range column!
-    //}
+    if (req.order) {
+        // need to know range column
+        var schema = this.schemaCache[keyspace];
+        var rangeColumn;
+        if (schema) {
+            rangeColumn = schema.index.range;
+            if (Array.isArray(rangeColumn)) {
+                rangeColumn = rangeColumn[0];
+            }
+        } else {
+            // fake it for now
+            rangeColumn = 'tid';
+        }
+        var dir = req.order.toLowerCase();
+        if (rangeColumn && dir in {'asc':1, 'desc':1}) {
+            cql += ' order by ' + cassID(rangeColumn) + ' ' + dir;
+        }
+    }
 
     if (req.limit && req.limit.constructor === Number) {
         cql += ' limit ' + req.limit;
     }
 
+    console.log(cql, params);
     return this.client.executeAsPrepared_p(cql, params, consistency)
     .then(function(result) {
+        //console.log(result);
         var rows = result[0].rows;
+        // hide the columns property added by node-cassandra-cql
+        // XXX: submit a patch to avoid adding it in the first place
+        rows.forEach(function(row) {
+            row.columns = undefined;
+        });
         return {
             count: rows.length,
             items: rows
@@ -179,9 +238,9 @@ DB.prototype._get = function (keyspace, req, consistency, table) {
     });
 };
 
-
 DB.prototype.put = function (reverseDomain, req) {
     var keyspace = keyspaceName(reverseDomain, req.table);
+
 
     // consistency
     var consistency = defaultConsistency;
@@ -199,15 +258,23 @@ DB.prototype._put = function(keyspace, req, consistency, table) {
         table = 'data';
     }
 
-    var keys = Object.keys(req.attributes);
+    var keys = [];
+    var params = [];
+    var placeholders = [];
+    for (var key in req.attributes) {
+        var val = req.attributes[key];
+        if (val !== undefined) {
+            if (val.constructor === Object) {
+                val = JSON.stringify(val);
+            }
+            keys.push(key);
+            params.push(val);
+            placeholders.push('?');
+        }
+    }
     var proj = keys.map(cassID).join(',');
     var cql = 'insert into ' + cassID(keyspace) + '.' + cassID(table)
             + ' (' + proj + ') values (';
-    var params = [], placeholders = [];
-    for (var key in req.attributes) {
-        params.push(req.attributes[key]);
-        placeholders.push('?');
-    }
     cql += placeholders.join(',') + ')';
 
     // Build up the condition
@@ -220,6 +287,7 @@ DB.prototype._put = function(keyspace, req, consistency, table) {
 
     // TODO: update indexes
 
+    //console.log('cql', cql, 'params', JSON.stringify(params));
     return this.client.executeAsPrepared_p(cql, params, consistency)
     .then(function(result) {
         var rows = result[0].rows;
@@ -288,7 +356,7 @@ DB.prototype.createTable = function (reverseDomain, req) {
         name: 'meta',
         attributes: {
             key: 'string',
-            value: 'string'
+            value: 'json'
         },
         index: {
             hash: 'key'
@@ -340,8 +408,10 @@ DB.prototype._createTable = function (keyspace, req, tableName, consistency) {
         switch (type) {
         case 'blob': cql += 'blob'; break;
         case 'set<blob>': cql += 'set<blob>'; break;
-        case 'number': cql += 'decimal'; break;
-        case 'set<number>': cql += 'set<decimal>'; break;
+        case 'decimal': cql += 'decimal'; break;
+        case 'set<decimal>': cql += 'set<decimal>'; break;
+        case 'double': cql += 'double'; break;
+        case 'set<double>': cql += 'set<double>'; break;
         case 'boolean': cql += 'boolean'; break;
         case 'set<boolean>': cql += 'set<boolean>'; break;
         case 'varint': cql += 'varint'; break;
@@ -354,6 +424,8 @@ DB.prototype._createTable = function (keyspace, req, tableName, consistency) {
         case 'set<uuid>': cql += 'set<uuid>'; break;
         case 'timestamp': cql += 'timestamp'; break;
         case 'set<timestamp>': cql += 'set<timestamp>'; break;
+        case 'json': cql += 'text'; break;
+        case 'set<json>': cql += 'set<text>'; break;
         default: throw new Error('Invalid type ' + type
                      + ' for attribute ' + attr);
         }
@@ -364,13 +436,27 @@ DB.prototype._createTable = function (keyspace, req, tableName, consistency) {
     }
 
     if (!req.index || !req.index.hash) {
-        console.log(req);
+        //console.log(req);
         throw new Error("Missing index or hash key in table schema");
     }
 
     cql += 'primary key (';
-    cql += cassID(req.index.hash) + (req.index.range ? ', ' + cassID(req.index.range) : '');
-    cql += '));';
+    var rangeIndex = '';
+    if (req.index.range) {
+        if (Array.isArray(req.index.range)) {
+            rangeIndex = req.index.range.map(cassID).join(',');
+        } else {
+            rangeIndex = cassID(req.index.range);
+        }
+        rangeIndex = ', ' + rangeIndex;
+    }
+    cql += cassID(req.index.hash) + rangeIndex;
+    cql += '))';
+
+    if (req.order && req.order.toLowerCase() in {'asc':1, 'desc':1} && req.index.range) {
+        var firstRange = Array.isArray(req.index.range) ? req.index.range[0] : req.index.range;
+        cql += ' with clustering order by ( ' + cassID(firstRange) + ' ' + req.order.toLowerCase() + ')';
+    }
 
     // XXX: Handle secondary indexes
     var tasks = [];
@@ -388,8 +474,17 @@ DB.prototype._createTable = function (keyspace, req, tableName, consistency) {
             if (!attributes[req.index.hash]) {
                 attributes[req.index.hash] = req.attributes[req.index.hash];
             }
-            if (req.index.range && !attributes[req.index.range]) {
-                attributes[req.index.range] = req.attributes[req.index.range];
+            if (req.index.range) {
+                if (Array.isArray(req.index.range)) {
+                    // Multiple range keys
+                    for (var rangeKey in req.index.range) {
+                        if (!attributes[req.index.range]) {
+                            attributes[rangeKey] = req.attributes[rangeKey];
+                        }
+                    }
+                } else if (!attributes[req.index.range]) {
+                    attributes[req.index.range] = req.attributes[req.index.range];
+                }
             }
 
             // now deal with projections

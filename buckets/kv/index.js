@@ -7,6 +7,7 @@
 var RevisionBackend = require('./cassandra');
 var RouteSwitch = require('routeswitch');
 var util = require('util');
+var uuid = require('node-uuid');
 
 var backend;
 var config;
@@ -16,6 +17,16 @@ function reverseDomain(domain) {
         throw new Error("Domain required!");
     }
     return domain.toLowerCase().split('.').reverse().join('.');
+}
+
+function tidFromDate(date) {
+    // Create a new, deterministic timestamp
+    return uuid.v1({
+        node: [0x01, 0x23, 0x45, 0x67, 0x89, 0xab],
+        clockseq: 0x1234,
+        msecs: date.getTime(),
+        nsecs: 0
+    });
 }
 
 function KVBucket (log) {
@@ -103,7 +114,8 @@ KVBucket.prototype.makeSchema = function (opts) {
                 hash: 'key',
                 range: 'tid',
                 static: 'latestTid'
-            }
+            },
+            order: 'desc'
         };
     } else {
         throw new Error('Bucket type ' + opts.type + ' not yet implemented');
@@ -123,7 +135,8 @@ KVBucket.prototype.createBucket = function(req, store) {
     {
         // XXX: validate with JSON schema
         var exampleBody = {
-            type: 'kv_rev',
+            type: 'kv',
+            revisioned: true,
             keyType: 'string',
             valueType: 'blob'
         };
@@ -197,15 +210,35 @@ KVBucket.prototype.listBucket = function(req, store) {
 
 KVBucket.prototype.getLatest = function(req, store) {
     // XXX: check params!
-    return store.getLatest(req)
+    var query = {
+        table: req.params.bucket,
+        attributes: {
+            key: req.params.key
+        },
+        limit: 1
+    };
+
+    return store.get(reverseDomain(req.params.domain), query)
     .then(function(result) {
-        var headers = result.headers;
-        headers.etag = result.tid.toString();
-        return {
-            status: 200,
-            headers: headers,
-            body: result.value
-        };
+        if (result.items.length) {
+            var row = result.items[0];
+            var headers = {
+                etag: row.tid,
+                'content-type': row['content-type']
+            };
+            return {
+                status: 200,
+                headers: headers,
+                body: row.value
+            };
+        } else {
+            return {
+                status: 404,
+                body: {
+                    message: "Not found."
+                }
+            };
+        }
     })
     .catch(function(error) {
         console.error(error);
@@ -221,16 +254,34 @@ KVBucket.prototype.getLatest = function(req, store) {
 KVBucket.prototype.putLatest = function(req, store) {
     var self = this;
 
-    return store.putLatest(req)
+    var tid = uuid.v1();
+    if (req.headers['last-modified']) {
+        try {
+            // XXX: require elevated rights for passing in the revision time
+            tid = tidFromDate(new Date(req.headers['last-modified']));
+        } catch (e) { }
+    }
+
+    var query = {
+        table: req.params.bucket,
+        attributes: {
+            key: req.params.key,
+            tid: tid,
+            value: req.body,
+            'content-type': req.headers['content-type']
+        }
+    };
+
+    return store.put(reverseDomain(req.params.domain), query)
     .then(function(result) {
         return {
             status: 201,
             headers: {
-                etag: result.tid
+                etag: tid
             },
             body: {
                 message: "Created.",
-                tid: result.tid
+                tid: tid
             }
         };
     })

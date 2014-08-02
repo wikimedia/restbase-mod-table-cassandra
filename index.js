@@ -8,13 +8,24 @@ var prfun = require('prfun');
 var fs = require('fs');
 var util = require('util');
 
+function reverseDomain (domain) {
+    return domain.toLowerCase().split('.').reverse().join('.');
+}
+
 // TODO: retrieve dynamically from storage!
+// system_storoid_T_buckets
+
+
 var fakeRegistry = {
     "storoid.system" : {
-        buckets: {
+        tables: {
             system: {
                 type: 'kv',
-                backend: 'default'
+                store: 'default',
+                revisioned: true,
+                ordered: false,
+                keyType: 'string',
+                valueType: 'blob',
             }
         }
     },
@@ -144,6 +155,9 @@ function Rashomon (options) {
                 methods: {
                     PUT: {
                         handler: this.putBucket.bind(this)
+                    },
+                    GET: {
+                        handler: this.getBucket.bind(this)
                     }
                 }
             },
@@ -218,12 +232,13 @@ Rashomon.prototype.setup = function setup () {
                 self.log('warning/setup/handlers', e, e.stack);
             }
         });
-        self.registry = fakeRegistry;
-        return self.createSystemBucket();
+        // self.registry = fakeRegistry;
+        return self.loadRegistry();
     })
 
     .then(function(res) {
-        console.log(res);
+        console.log('registry', res);
+        self.registry = res;
     })
 
     // Finally return the handler
@@ -235,50 +250,81 @@ Rashomon.prototype.setup = function setup () {
     });
 };
 
-Rashomon.prototype.createSystemBucket = function() {
+var domainRegistrySchema = {
+    table: 'domains',
+    attributes: {
+        domain: 'string',
+        acls: 'json', // default acls for entire domain
+        quota: 'varint'
+    },
+    index: {
+        hash: 'domain'
+    }
+};
+
+var tableRegistrySchema = {
+    table: 'tables',
+    attributes: {
+        domain: 'string',
+        table: 'string',
+        type: 'string',     // 'table' or 'kv'
+        store: 'string',    // 'default' or uuid
+        acls: 'json'
+    },
+    index: {
+        hash: 'domain',
+        range: 'table'
+    }
+};
+
+Rashomon.prototype.loadRegistry = function() {
     var self = this;
+    var store = self.stores.default;
     // XXX: Retrieve the global config using the default revisioned blob
     // bucket & backend
-    var sysdomain = this.config.storage.default.sysdomain;
+    var sysDomain = this.config.sysdomain;
 
-    var bucketHandler = this.buckets.kv;
-
-    var rootRequest = {
-        method: 'GET',
-        uri: '',
-        params: {
-            domain: sysdomain,
-            bucket: 'system'
-        }
-    };
-
-    return this.handleAll({}, rootRequest)
-    .then(function(res) {
-        console.log(res);
-        if (res.status === 200) {
-            return res;
-        } else {
-
-            var rootReq = {
-                method: 'PUT',
-                uri: '',
-                params: {
-                    domain: sysdomain,
-                    bucket: 'system'
-                },
-                body: {
-                    type: 'kv_rev',
-                    keyType: 'text',
-                    valueType: 'blob'
-                }
-            };
-
-            // XXX: change the registry to not use verbs here
-            return self.putBucket({}, rootReq)
-            .then(function() {
-                return self.handleAll({}, rootRequest);
+    // check if the domains table exists
+    return store.getSchema(sysDomain, 'domains')
+    .catch(function(err) {
+        console.log(err.stack);
+        return store.createTable(sysDomain, domainRegistrySchema);
+    })
+    // check if the 'table' registry exists
+    .then(function() {
+        return store.getSchema(sysDomain, 'tables')
+        .catch(function(err) {
+            return store.createTable(sysDomain, tableRegistrySchema);
+        });
+    })
+    // Load the registry
+    .then(function() {
+        var registry = {};
+        var domainQuery = {
+            table: 'domains'
+        };
+        return store.get(sysDomain, { table: 'domains' })
+        .then(function(res) {
+            //console.log('domains', res);
+            res.items.forEach(function(domainObj) {
+                domainObj.tables = {};
+                registry[domainObj.domain] = domainObj;
             });
-        }
+            return store.get(sysDomain, { table: 'tables' });
+        })
+        .then(function(res) {
+            //console.log('tables', res);
+            res.items.forEach(function(tableObj) {
+                var domain = registry[tableObj.domain];
+                if (!domain) {
+                    throw new Error('Domain ' + tableObj.domain
+                        + ' has tables, but no domain entry!');
+                }
+                domain.tables[tableObj.table] = tableObj;
+            });
+
+            return registry;
+        });
     });
 };
 
@@ -291,26 +337,25 @@ Rashomon.prototype.createSystemBucket = function() {
 Rashomon.prototype.handleAll = function (env, req) {
     var domain = this.registry[req.params.domain];
     if (domain) {
-        var bucket = domain.buckets[req.params.bucket];
-        if (bucket) {
-            // XXX: authenticate against bucket ACLs
-            //console.log(bucket);
-            var handler = this.buckets.kv;
+        var table = domain.tables[req.params.bucket];
+        if (table) {
+            // XXX: authenticate against table ACLs
+            //console.log(table);
+            var handler = this.buckets[table.type];
             if (handler) {
 
                 // Yay! All's well. Go for it!
                 // Drop the non-bucket parts of the path / url
                 req.uri = req.uri.replace(/^(?:\/[^\/]+){3}/, '');
-                console.log(req);
-                // XXX: shift params?
-                //req.params = req.params.slice(2);
+                //console.log(req);
                 // TODO: look up store from registry!
-                return handler(req, this.stores.default);
+                return handler(req, this.stores[table.store] || this.stores.default);
             } else {
                 // Options request
                 return Promise.resolve({
                     headers: {
-                        Allow: Object.keys(bucket.handlers).join(' ')
+                        // FIXME: table.handlers does not exist
+                        Allow: Object.keys(table.handlers).join(' ')
                     },
                     status: 405,
                     body: {
@@ -343,34 +388,29 @@ Rashomon.prototype.handleAll = function (env, req) {
 };
 
 Rashomon.prototype.putDomain = function (env, req) {
+    var self = this;
     if (/^\/v1\/[a-zA-Z]+(?:\.[a-zA-Z\.]+)*$/.test(req.uri)) {
         // Insert the domain
         // Verify the domain metadata
         var exampleBody = {
-            buckets: {
-                pages: {
-                    type: 'kv_rev', // used for handler & backend selection
-                    backend: 'default', // which backend to use
-                    keyType: 'string',
-                    valueType: 'blob'
-                }
+            acls: {},
+            quota: 0
+        };
+
+        var sysdomain = this.config.sysdomain;
+        var domain = req.params.domain.toLowerCase();
+        var query = {
+            table: 'domains',
+            attributes: {
+                domain: domain,
+                acls: req.body.acls,
+                quota: req.body.quota
             }
         };
-
-        var sysprefix = this.config.backends['store/default'].sysprefix;
-        var domainReq = {
-            method: 'PUT',
-            uri: '/' + req.params.domain,
-            headers: req.headers,
-            params: {
-                domain: sysprefix,
-                bucket: 'system'
-            },
-            body: exampleBody // req.body
-        };
-        var rootHandler = this.handlers.kv;
-        return rootHandler(domainReq, this.stores.default);
-
+        return this.stores.default.put(sysdomain, query)
+        .then(function() {
+            return self.loadRegistry();
+        });
     } else {
         return Promise.resolve({
             status: 400,
@@ -382,8 +422,10 @@ Rashomon.prototype.putDomain = function (env, req) {
 };
 
 Rashomon.prototype.putBucket = function (env, req) {
+    var self = this;
     // check if the domain exists
-    if (!this.registry[req.params.domain]) {
+    var domain = (req.params.domain || '').toLowerCase();
+    if (!this.registry[domain]) {
         return Promise.resolve({
             status: 400,
             body: {
@@ -403,7 +445,24 @@ Rashomon.prototype.putBucket = function (env, req) {
             && this.buckets.kv)
     {
         req.uri = '';
-        return this.buckets.kv(req, this.stores.default);
+        return this.buckets.kv(req, this.stores.default)
+        .then(function(res) {
+            // Insert the table into the registry
+            var query = {
+                table: 'tables',
+                attributes: {
+                    domain: domain,
+                    table: req.params.bucket,
+                    type: 'kv',
+                    store: 'default'
+                }
+            };
+            return self.stores.default.put(self.config.sysdomain, query)
+            .then(function() {
+                self.loadRegistry();
+                return res;
+            });
+        });
     } else {
         return Promise.resolve({
             status: 400,
@@ -412,6 +471,25 @@ Rashomon.prototype.putBucket = function (env, req) {
             }
         });
     }
+};
+
+Rashomon.prototype.getBucket = function (env, req) {
+    var domain = req.params.domain.toLowerCase();
+    var bucket = req.params.bucket;
+    var query = {
+        table: 'tables',
+        attributes: {
+            domain: domain,
+            table: bucket
+        }
+    };
+    return this.stores.default.get(this.config.sysdomain, query)
+    .then(function(res) {
+        return {
+            status: 200,
+            body: res.items[0]
+        };
+    });
 };
 
 Rashomon.prototype.listBucket = function (env, req) {
@@ -459,6 +537,7 @@ Rashomon.prototype.listBucket = function (env, req) {
 function makeRashomon (options) {
     // XXX: move to global config
     options.config = {
+        sysdomain: "system.storoid", // reverse DNS notation
         storage: {
             "default": {
                 "type": "cassandra",
@@ -469,7 +548,6 @@ function makeRashomon (options) {
                 "password": "test",
                 "poolSize": 1,
                 // The Storoid root bucket prefix
-                "sysdomain": "storoid.system"
             }
         },
         handlers: {}
