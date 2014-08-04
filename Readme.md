@@ -11,6 +11,9 @@ there.
 
 Early prototype. Minimal storage and retrieval of revisioned blobs in Cassandra.
 
+[![Build
+Status](https://travis-ci.org/gwicke/rashomon.svg?branch=master)](https://travis-ci.org/gwicke/rashomon)
+
 ## Performance
 Initial testing with ab, rashomon and cassandra on an aging laptop gives these results:
 
