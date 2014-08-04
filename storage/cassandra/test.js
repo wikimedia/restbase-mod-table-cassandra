@@ -171,15 +171,15 @@ describe('DB backend', function() {
             return testDB.createTable('org.wikipedia.en', revisionedKVSchema)
             .then(function() {
                 var expected = [ { query: 'create keyspace "org_wikipedia_en_T_someTable" WITH REPLICATION = {\'class\': \'SimpleStrategy\', \'replication_factor\': 3}',
-    params: [] },
-  { query: 'create table "org_wikipedia_en_T_someTable"."data" ("uri" text, "tid" timeuuid, "latestTid" timeuuid static, "body" blob, "content-type" text, "content-length" varint, "content-sha256" text, "content-location" text, "restrictions" set<text>, primary key ("uri", "tid");',
-    params: [] },
-  { query: 'create table "org_wikipedia_en_T_someTable"."meta" ("key" text, "value" text, primary key ("key");',
-    params: [] },
-  { query: 'insert into "org_wikipedia_en_T_someTable"."meta" ("key","value") values (?,?)',
-    params:
-     [ 'schema',
-       '{"table":"someTable","attributes":{"uri":"string","tid":"timeuuid","latestTid":"timeuuid","body":"blob","content-type":"string","content-length":"varint","content-sha256":"string","content-location":"string","restrictions":"set<string>"},"index":{"hash":"uri","range":"tid","static":"latestTid"}}' ] } ]
+                        params: [] },
+                  { query: 'create table "org_wikipedia_en_T_someTable"."data" ("key" text, "tid" timeuuid, "latestTid" timeuuid static, "body" blob, "content-type" text, "content-length" varint, "content-sha256" text, "content-location" text, "restrictions" set<text>, primary key ("uri", "tid"))',
+                          params: [] },
+                  { query: 'create table "org_wikipedia_en_T_someTable"."meta" ("key" text, "value" text, primary key ("key"))',
+                          params: [] },
+                  { query: 'insert into "org_wikipedia_en_T_someTable"."meta" ("key","value") values (?,?)',
+                          params:
+                     [ 'schema',
+                       '{"domain":"en.wikipedia.org","table":"someTable","attributes":{"key":"string","tid":"timeuuid","latestTid":"timeuuid","body":"blob","content-type":"string","content-length":"varint","content-sha256":"string","content-location":"string","restrictions":"set<string>"},"index":{"hash":"uri","range":"tid","static":"latestTid"}}' ] } ];
                 assert.deepEqual(results, expected);
             });
         });
@@ -198,18 +198,20 @@ describe('DB backend', function() {
         });
     });
     describe('get', function() {
-        it('should perform a simple query', function() {
+        it('should perform a simple get query', function() {
             results = [];
             return testDB.get('org.wikipedia.en', ourQuery)
             .then(function() {
-                var expected = [ { query: 'select * from "org_wikipedia_en_T_Thread"."i_LastPostIndex" where "LastPostDateTime" >= ? AND "LastPostDateTime" <= ? AND "ForumName" = ? limit 3',
-    params: [ '20130101', '20130115', 'Amazon DynamoDB' ] } ];
+                var expected = [ { query: 'select * from "org_wikipedia_en_T_Thread"."meta"',
+                        params: [] },
+                  { query: 'select "all" from "org_wikipedia_en_T_Thread"."i_LastPostIndex" where "LastPostDateTime" >= ? AND "LastPostDateTime" <= ? AND "ForumName" = ? limit 3',
+                          params: [ '20130101', '20130115', 'Amazon DynamoDB' ] } ];
                 assert.deepEqual(results, expected, results);
             });
         });
     });
     describe('put', function() {
-        it('should perform a simple query', function() {
+        it('should perform a simple put query', function() {
             results = [];
             return testDB.put('org.wikipedia.en', ourPutQuery)
             .then(function() {

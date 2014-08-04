@@ -135,7 +135,11 @@ DB.prototype._getSchema = function (keyspace, consistency) {
     };
     return this._get(keyspace, {}, consistency, 'meta')
     .then(function(res) {
-        return JSON.parse(res.items[0].value);
+        if (res.items.length) {
+            return JSON.parse(res.items[0].value);
+        } else {
+            return null;
+        }
     });
 };
 
