@@ -300,6 +300,16 @@ Rashomon.prototype.putDomain = function (env, req) {
             return self.loadRegistry()
             .then(function(registry) {
                 self.registry = registry;
+                return {
+                    status: 401,
+                    headers: {
+                        'content-type': 'application/json'
+                    },
+                    body: {
+                        message: 'Domain created.',
+                        domain: domain
+                    }
+                };
             });
         });
     } else {
@@ -354,7 +364,12 @@ Rashomon.prototype.putBucket = function (env, req) {
                 .then(function(registry) {
                     self.registry = registry;
                 });
-                return res;
+                return {
+                    status: 401,
+                    body: {
+                        message: 'Bucket created.'
+                    }
+                };
             });
         });
     } else {
