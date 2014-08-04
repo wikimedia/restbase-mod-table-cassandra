@@ -233,7 +233,7 @@ DB.prototype._get = function (keyspace, req, consistency, table) {
     return this.client.executeAsPrepared_p(cql, params, consistency)
     .then(function(result) {
         //console.log(result);
-        var rows = result[0].rows;
+        var rows = result.rows;
         // hide the columns property added by node-cassandra-cql
         // XXX: submit a patch to avoid adding it in the first place
         for (var row in rows) {
@@ -298,7 +298,7 @@ DB.prototype._put = function(keyspace, req, consistency, table) {
     //console.log('cql', cql, 'params', JSON.stringify(params));
     return this.client.executeAsPrepared_p(cql, params, consistency)
     .then(function(result) {
-        var rows = result[0].rows;
+        var rows = result.rows;
         return {
             // XXX: check if condition failed!
             status: 401
