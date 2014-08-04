@@ -36,25 +36,10 @@
 
 - keyspace is unit of replication
     - so map buckets onto keyspaces for per-bucket replication control
-- dedicated `accounts` keyspace
-- keyspace name
-    - "Keyspace names are 32 or fewer alpha-numeric characters and
-      underscores, the first of which is an alpha character."
-    - But would like to allow longer account / bucket names
-      (MySQL for example allows 64 byte db names)
-    - use hash of full name `B<account>_<bucket>`, i.e. `Benwiki_pages`
-```javascript
-// Results in a 27 byte string [a-zA-Z0-9_], starting with 'B' to ensure that
-// it starts with a letter as required by Cassandra (and as mnemonic)
-'B' + crypto.Hash('sha1')
-    .update(Math.random().toString()) // would normally use the bucket path + version
-    .digest()
-    .toString('base64')
-    // Replace [+/] from base64 with _ (illegal in Cassandra)
-    .replace(/[+\/]/g, '_')
-    // Remove base64 padding, has no entropy
-    .replace(/=+$/, '')
-```
+    - for more generality, use underlying DynamoDB-like tables which map to
+      keyspaces
+- dedicated system tables for domains & buckets, prefixed with system domain
+- keyspace name: see code
 
 - List keyspaces
 

@@ -155,7 +155,7 @@ var mockClient = {
         };
         results.push(result);
         //console.log(result);
-        return Promise.resolve([{rows:[]}]);
+        return Promise.resolve({rows:[]});
     }
 };
 mockClient.executeAsPrepared_p = mockClient.execute_p;
