@@ -65,6 +65,18 @@ function KVBucket (log) {
                 GET: this.getLatest.bind(this),
                 PUT: this.putLatest.bind(this)
             }
+        },
+        {
+            pattern: '/{key}/',
+            methods: {
+                GET: this.listRevisions.bind(this),
+            }
+        },
+        {
+            pattern: '/{key}/{revision}',
+            methods: {
+                GET: this.getRevision.bind(this),
+            }
         }
     ]);
 }
@@ -208,6 +220,30 @@ KVBucket.prototype.listBucket = function(req, store) {
     });
 };
 
+// Format a revision response. Shared between different ways to retrieve a
+// revision (latest & with explicit revision).
+KVBucket.prototype.returnRevision = function(dbResult) {
+    if (dbResult.items.length) {
+        var row = dbResult.items[0];
+        var headers = {
+            etag: row.tid,
+            'content-type': row['content-type']
+        };
+        return {
+            status: 200,
+            headers: headers,
+            body: row.value
+        };
+    } else {
+        return {
+            status: 404,
+            body: {
+                message: "Not found."
+            }
+        };
+    }
+};
+
 KVBucket.prototype.getLatest = function(req, store) {
     // XXX: check params!
     var query = {
@@ -219,27 +255,7 @@ KVBucket.prototype.getLatest = function(req, store) {
     };
 
     return store.get(reverseDomain(req.params.domain), query)
-    .then(function(result) {
-        if (result.items.length) {
-            var row = result.items[0];
-            var headers = {
-                etag: row.tid,
-                'content-type': row['content-type']
-            };
-            return {
-                status: 200,
-                headers: headers,
-                body: row.value
-            };
-        } else {
-            return {
-                status: 404,
-                body: {
-                    message: "Not found."
-                }
-            };
-        }
-    })
+    .then(this.returnRevision.bind(this))
     .catch(function(error) {
         console.error(error);
         return {
@@ -291,6 +307,52 @@ KVBucket.prototype.putLatest = function(req, store) {
             status: 500,
             body: {
                 message: "Unknown error\n" + err.stack
+            }
+        };
+    });
+};
+
+KVBucket.prototype.listRevisions = function(req, store) {
+    var query = {
+        table: req.params.bucket,
+        attributes: {
+            key: req.params.key
+        },
+        proj: ['tid']
+    };
+    var domain = reverseDomain(req.params.domain);
+    return store.get(domain, query)
+    .then(function(res) {
+        return {
+            status: 200,
+            headers: {
+                'content-type': 'application/json'
+            },
+            body: res.items.map(function(row) {
+                        return row.tid;
+                  })
+        };
+    });
+};
+
+KVBucket.prototype.getRevision = function(req, store) {
+    // TODO: support other formats! See cassandra backend getRevision impl.
+    var query = {
+        table: req.params.bucket,
+        attributes: {
+            key: req.params.key,
+            tid: req.params.revision
+        }
+    };
+    var domain = reverseDomain(req.params.domain);
+    return store.get(domain, query)
+    .then(this.returnRevision.bind(this))
+    .catch(function(error) {
+        console.error(error);
+        return {
+            status: 404,
+            body: {
+                message: "Not found."
             }
         };
     });

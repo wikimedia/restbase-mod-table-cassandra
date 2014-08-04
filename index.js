@@ -12,118 +12,6 @@ function reverseDomain (domain) {
     return domain.toLowerCase().split('.').reverse().join('.');
 }
 
-// TODO: retrieve dynamically from storage!
-// system_storoid_T_buckets
-
-
-var fakeRegistry = {
-    "storoid.system" : {
-        tables: {
-            system: {
-                type: 'kv',
-                store: 'default',
-                revisioned: true,
-                ordered: false,
-                keyType: 'string',
-                valueType: 'blob',
-            }
-        }
-    },
-    "en.wikipedia.org": {
-        prefix: 'enwiki',
-        buckets: {
-            "foo": {
-                "type": "kv_rev",
-                // XXX: is this actually needed?
-                "backend": "cassandra",
-                "backendID": "default",
-                "acl": {
-                    read: [
-                        // A publicly readable bucket
-                        [
-                            // Any path in bucket (default: anything - so can be omitted)
-                            {
-                                type: "pathRegExp",
-                                re: '*'
-                            },
-                            {
-                                type: "role",
-                                anyOf: [ '*', 'user', 'admin' ]
-                            }
-                        ]
-                    ],
-                    write: [
-                        // Require both the user group & the service signature for writes
-                        [
-                            {
-                                type: "role",
-                                anyOf: [ 'user', 'admin' ]
-                            },
-                            {
-                                type: "serviceSignature",
-                                // Can require several service signatures here, for example to
-                                // ensure that a request was sanitized by all of them.
-                                allOf: [ 'b7821dbca23b6f36db2bdcc3ba10075521999e6b' ]
-                            }
-                        ]
-                    ]
-                }
-            }
-        }
-    }
-};
-
-//            {
-//                path: '/v1/{domain}/{bucket}/{+path}',
-//                methods: {
-//                    GET: {
-//                        handler: this.handleAll.bind(this),
-//                        doc: { /* swagger docs */
-//                            "summary": "Retrieves the property of a specific revision through Rashomon",
-//                            "notes": "See <link> for information on properties and content types.",
-//                            "type": "html",
-//                            "produces": ["text/html;spec=mediawiki.org/specs/html/1.0"],
-//                            "responseMessages": [
-//                                {
-//                                    "code": 404,
-//                                    "message": "No HTML for page & revision found"
-//                                }
-//                            ]
-//                        }
-//                    },
-//                    PUT: {
-//                        handler: this.handleAll.bind(this),
-//                        doc: { /* swagger docs */
-//                            "summary": "Adds a new version of an object",
-//                            "notes": "See <link> for information on properties and content types.",
-//                            "type": "html",
-//                            "produces": ["text/html;spec=mediawiki.org/specs/html/1.0"],
-//                            "responseMessages": [
-//                                {
-//                                    "code": 404,
-//                                    "message": "No HTML for page & revision found"
-//                                }
-//                            ]
-//                        }
-//                    },
-//                    POST: {
-//                        handler: this.handleAll.bind(this),
-//                        doc: { /* swagger docs */
-//                            "summary": "Saves a new revision to Rashomon",
-//                            "notes": "Some notes.",
-//                            "type": "html",
-//                            "produces": ["text/html;spec=mediawiki.org/specs/html/1.0"],
-//                            "responseMessages": [
-//                                {
-//                                    "code": 404,
-//                                    "message": "No HTML for page & revision found"
-//                                }
-//                            ]
-//                        }
-//                    }
-//                }
-//            },
-
 function Rashomon (options) {
     this.config = options.config;
     this.log = options.log;
@@ -162,7 +50,7 @@ function Rashomon (options) {
                 }
             },
             {
-                path: '/v1/{domain}/{bucket}/{key}',
+                path: '/v1/{domain}/{bucket}/{+rest}',
                 methods: {
                     PUT: {
                         handler: this.handleAll.bind(this)
@@ -171,7 +59,7 @@ function Rashomon (options) {
                         handler: this.handleAll.bind(this)
                     }
                 }
-            },
+            }
             //{
             //    path: '/v1/{domain}/{bucket}/{key}/{rev}',
             //    methods: {
@@ -409,7 +297,10 @@ Rashomon.prototype.putDomain = function (env, req) {
         };
         return this.stores.default.put(sysdomain, query)
         .then(function() {
-            return self.loadRegistry();
+            return self.loadRegistry()
+            .then(function(registry) {
+                self.registry = registry;
+            });
         });
     } else {
         return Promise.resolve({
@@ -459,7 +350,10 @@ Rashomon.prototype.putBucket = function (env, req) {
             };
             return self.stores.default.put(self.config.sysdomain, query)
             .then(function() {
-                self.loadRegistry();
+                self.loadRegistry()
+                .then(function(registry) {
+                    self.registry = registry;
+                });
                 return res;
             });
         });
@@ -546,7 +440,7 @@ function makeRashomon (options) {
                 "keyspace": "system",
                 "username": "test",
                 "password": "test",
-                "poolSize": 1,
+                "poolSize": 70,
                 // The Storoid root bucket prefix
             }
         },

@@ -5,7 +5,11 @@ var cass = require('node-cassandra-cql');
 var defaultConsistency = cass.types.consistencies.one;
 
 function cassID (name) {
-    return '"' + name.replace(/"/g, '""') + '"';
+    if (/^[a-zA-Z0-9_]+$/.test(name)) {
+        return '"' + name + '"';
+    } else {
+        return '"' + name.replace(/"/g, '""') + '"';
+    }
 }
 
 function buildCondition (pred) {
@@ -18,25 +22,26 @@ function buildCondition (pred) {
         if (predObj.constructor === String) {
             cql += ' = ?';
             params.push(predObj);
-        } else if (predObj.constructor === Object
-                && Object.keys(predObj).length === 1)
-        {
-            var predOp = Object.keys(predObj)[0];
-            var predArg = predObj[predOp];
-            switch (predOp) {
-            case '==': cql += ' = ?'; params.push(predArg); break;
-            case '<=': cql += ' <= ?'; params.push(predArg); break;
-            case '!=': cql += ' != ?'; params.push(predArg); break;
-            case 'NOT': cql += ' <= ?'; params.push(predArg); break;
-            case 'BETWEEN':
-                    cql += ' >= ?' + ' AND '; params.push(predArg[0]);
-                    cql += cassID(predKey) + ' <= ?'; params.push(predArg[1]);
-                    break;
-            default: throw new Error ('Operator ' + predObj[0] + ' not yet implemented!');
-            }
+        } else if (predObj.constructor === Object) {
+            var predKeys = Object.keys(predObj);
+            if (predKeys.length === 1) {
+                var predOp = predKeys[0];
+                var predArg = predObj[predOp];
+                switch (predOp) {
+                case '==': cql += ' = ?'; params.push(predArg); break;
+                case '<=': cql += ' <= ?'; params.push(predArg); break;
+                case '!=': cql += ' != ?'; params.push(predArg); break;
+                case 'NOT': cql += ' <= ?'; params.push(predArg); break;
+                case 'BETWEEN':
+                        cql += ' >= ?' + ' AND '; params.push(predArg[0]);
+                        cql += cassID(predKey) + ' <= ?'; params.push(predArg[1]);
+                        break;
+                default: throw new Error ('Operator ' + predObj[0] + ' not yet implemented!');
+                }
 
-        } else {
-            throw new Error ('Invalid predicate ' + JSON.stringify(pred));
+            } else {
+                throw new Error ('Invalid predicate ' + JSON.stringify(pred));
+            }
         }
         conjunctions.push(cql);
     }
@@ -156,27 +161,26 @@ DB.prototype.get = function (reverseDomain, req) {
     }
 };
 
+var getCache = {};
 
 DB.prototype._get = function (keyspace, req, consistency, table) {
     if (!table) {
         table = 'data';
     }
-    var proj;
+    var proj = '*';
     if (req.proj) {
         if (Array.isArray(req.proj)) {
             proj = req.proj.map(cassID).join(',');
         } else if (req.proj.constructor === String) {
             proj = cassID(req.proj);
         }
-    } else {
+    } else if (req.order) {
         // Work around 'order by' bug in cassandra when using *
         // Trying to change the natural sort order only works with a
         // projection in 2.0.9
         var schema = this.schemaCache[keyspace];
         if (schema) {
             proj = Object.keys(schema.attributes).map(cassID).join(',');
-        } else {
-            proj = '*';
         }
     }
     if (req.index) {
@@ -221,16 +225,16 @@ DB.prototype._get = function (keyspace, req, consistency, table) {
         cql += ' limit ' + req.limit;
     }
 
-    console.log(cql, params);
+    //console.log(cql, params);
     return this.client.executeAsPrepared_p(cql, params, consistency)
     .then(function(result) {
         //console.log(result);
         var rows = result[0].rows;
         // hide the columns property added by node-cassandra-cql
         // XXX: submit a patch to avoid adding it in the first place
-        rows.forEach(function(row) {
+        for (var row in rows) {
             row.columns = undefined;
-        });
+        }
         return {
             count: rows.length,
             items: rows
