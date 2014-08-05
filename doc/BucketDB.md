@@ -24,6 +24,18 @@ Dfferent partition & range index, maps to primary partition & range keys
     - create primary entry before adding index entries
     - remove index entries before deleting primary
 
+### Accessing secondary indexes via HTTP
+`/v1/en.wikipedia.org/pages.revisions//by-page/Foo`
+
+Equality match on the a range key:
+`/v1/en.wikipedia.org/pages.revisions//by-page/Foo/Bar`
+
+Can also support range queries on the secondary index:
+`/v1/en.wikipedia.org/pages.revisions//by-page/Foo/?gt=a&lt=b
+
+- empty keys are not permitted in cassandra anyway
+- don't want collisions with other keys
+
 ## Implementing KV buckets on top of db tables
 - 'key' & 'value' attributes
     - really only index matters
@@ -44,7 +56,7 @@ Dfferent partition & range index, maps to primary partition & range keys
 - need static 'latest revision' property for CAS
     - not a feature in DynamoDB
 
-### MediaWiki oldids
+## Supporting MediaWiki oldids
 Use cases: 
 - retrieval by oldid: /v1/en.wikipedia.org/pages/Foo/html/12345
 - listing of revisions per page: /v1/en.wikipedia.org/pages/Foo/revisions/`
@@ -56,7 +68,7 @@ Other goals:
     - primary access implicit in all by-oldid accesses: `oldid -> page, tid`
     - sounds like a table with secondary index
 
-#### Caching considerations for by-oldid accesses
+### Caching considerations for by-oldid accesses
 Want to minimize round-trips (redirects) while keeping the caching / purging
 manageable. Focus on round-trips especially for new content, perhaps more on
 cache fragmentation for old content.
@@ -71,7 +83,7 @@ cache fragmentation for old content.
     - so look for 2 oldids >= taget-oldid
         - if only one returned: latest
 
-#### Implementation idea
+### Implementation idea
 - separate revision bucket: `/v1/en.wikipedia.org/pages.revision/
 - check if MW revision exists when referenced: 
     - if not: fetch revision info from API
