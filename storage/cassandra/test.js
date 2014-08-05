@@ -121,7 +121,7 @@ var ourPutQuery = {
     limit: 3,
     if: {
         LastPostDateTime: { "BETWEEN": ["20130101", "20130115"] },
-        ForumName: { "!=": "Amazon DynamoDB" }
+        ForumName: { "ne": "Amazon DynamoDB" }
     },
     attributes: {
         LastPostDateTime: 'foo',

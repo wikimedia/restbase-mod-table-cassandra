@@ -20,6 +20,7 @@ function buildCondition (pred) {
         var predObj = pred[predKey];
         cql += cassID(predKey);
         if (predObj.constructor === String) {
+            // Default to equality
             cql += ' = ?';
             params.push(predObj);
         } else if (predObj.constructor === Object) {
@@ -27,16 +28,19 @@ function buildCondition (pred) {
             if (predKeys.length === 1) {
                 var predOp = predKeys[0];
                 var predArg = predObj[predOp];
-                switch (predOp) {
-                case '==': cql += ' = ?'; params.push(predArg); break;
-                case '<=': cql += ' <= ?'; params.push(predArg); break;
-                case '!=': cql += ' != ?'; params.push(predArg); break;
-                case 'NOT': cql += ' <= ?'; params.push(predArg); break;
-                case 'BETWEEN':
+                switch (predOp.toLowerCase()) {
+                case 'eq': cql += ' = ?'; params.push(predArg); break;
+                case 'lt': cql += ' < ?'; params.push(predArg); break;
+                case 'gt': cql += ' > ?'; params.push(predArg); break;
+                case 'le': cql += ' <= ?'; params.push(predArg); break;
+                case 'ge': cql += ' >= ?'; params.push(predArg); break;
+                // Also support 'neq' for symmetry with 'eq' ?
+                case 'ne': cql += ' != ?'; params.push(predArg); break;
+                case 'between':
                         cql += ' >= ?' + ' AND '; params.push(predArg[0]);
                         cql += cassID(predKey) + ' <= ?'; params.push(predArg[1]);
                         break;
-                default: throw new Error ('Operator ' + predObj[0] + ' not yet implemented!');
+                default: throw new Error ('Operator ' + predOp + ' not supported!');
                 }
 
             } else {
