@@ -12,7 +12,7 @@ function cassID (name) {
     }
 }
 
-function buildCondition (pred) {
+function buildCondition (pred, isIfCondition) {
     var params = [];
     var conjunctions = [];
     for (var predKey in pred) {
@@ -36,10 +36,20 @@ function buildCondition (pred) {
                 case 'ge': cql += ' >= ?'; params.push(predArg); break;
                 // Also support 'neq' for symmetry with 'eq' ?
                 case 'ne': cql += ' != ?'; params.push(predArg); break;
+                case 'exists':
+                    if (!isIfCondition) {
+                        throw new Error('EXISTS condition only allowed in if block.');
+                    }
+                    if (predArg) {
+                        cql += ' exists';
+                    } else {
+                        cql += ' not exists';
+                    }
+                    break;
                 case 'between':
-                        cql += ' >= ?' + ' AND '; params.push(predArg[0]);
-                        cql += cassID(predKey) + ' <= ?'; params.push(predArg[1]);
-                        break;
+                    cql += ' >= ?' + ' AND '; params.push(predArg[0]);
+                    cql += cassID(predKey) + ' <= ?'; params.push(predArg[1]);
+                    break;
                 default: throw new Error ('Operator ' + predOp + ' not supported!');
                 }
 
@@ -212,7 +222,6 @@ DB.prototype._get = function (keyspace, req, consistency, table) {
 
     if (req.order) {
         // need to know range column
-        var schema = this.schemaCache[keyspace];
         var rangeColumn;
         if (schema) {
             rangeColumn = schema.index.range;
@@ -285,8 +294,40 @@ DB.prototype._put = function(keyspace, req, consistency, table) {
         }
     }
     var proj = keys.map(cassID).join(',');
-    var cql = 'insert into ' + cassID(keyspace) + '.' + cassID(table)
-            + ' (' + proj + ') values (';
+    var schema = this.schemaCache[keyspace];
+
+    var cql = '';
+    if (req.if && req.if.toLowerCase() === 'not exists') {
+        throw new Exception('Conditional updates not yet supported!');
+        cql += 'update ' + cassID(keyspace) + '.' + cassID(table)
+                + ' set ';
+        // Get primary keys, exclude them from set part
+        if (schema) {
+            // figure out the index
+            var index = schema.index;
+            var indexKeys = {};
+            indexKeys[index.hash] = true;
+            if (index.range) {
+                // TODO; support aray
+                indexKeys[index.range] = true;
+            }
+            var setBits = [];
+            for (var attr in req.attributes) {
+                setBits.push(cassID(attr) + ' = ?');
+                params.push(req.attributes[attr]);
+            }
+            cql += setBits.join(', ');
+        } else {
+            throw new Error('Need schema for conditional updates');
+        }
+        // build up foo = bar, baz = booz bit
+        // add 'where <primary keys>' bit at the end
+    } else {
+        cql += 'insert into ' + cassID(keyspace) + '.' + cassID(table)
+                + ' (' + proj + ') values (';
+    }
+
+
     cql += placeholders.join(',') + ')';
 
     // Build up the condition

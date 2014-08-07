@@ -119,6 +119,7 @@ var ourPutQuery = {
     method: 'put',
     table: "Thread",
     limit: 3,
+    // alternative: if: 'EXISTS'
     if: {
         LastPostDateTime: { "BETWEEN": ["20130101", "20130115"] },
         ForumName: { "ne": "Amazon DynamoDB" }
