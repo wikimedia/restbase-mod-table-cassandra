@@ -33,10 +33,22 @@ Equality match on the a range key:
 Can also support range queries on the secondary index:
 `/v1/en.wikipedia.org/pages.revisions//by-page/Foo/?gt=a&lt=b
 
-- empty keys are not permitted in cassandra anyway
+Rationale for `//` as delimiter:
+- empty partition keys are not permitted in cassandra anyway
 - don't want collisions with other keys
 
-## Implementing KV buckets on top of db tables
+## Concistency
+### Unconditional put
+Can use either insert or update.
+
+### Conditional insert
+- if not exists: `insert .. if not exists`
+
+### Conditional update
+- if exists / specific value: `update .. if tid = <etag>
+    - can also test for null, but only on otherwise existing rows
+
+# Implementing KV buckets on top of db tables
 - 'key' & 'value' attributes
     - really only index matters
     - if 'value' property: returned on GET
@@ -50,13 +62,13 @@ Can also support range queries on the secondary index:
       http://www.w3.org/Protocols/rfc2616/rfc2616-sec7.html
 - potentially per-item ACLs as attribute for filtering
 
-### Revisioned blob
+## Revisioned blob
 - guid as range index
 - listing using distinct to filter out revisions
 - need static 'latest revision' property for CAS
     - not a feature in DynamoDB
 
-## Supporting MediaWiki oldids
+# Supporting MediaWiki oldids
 Use cases: 
 - retrieval by oldid: /v1/en.wikipedia.org/pages/Foo/html/12345
 - listing of revisions per page: /v1/en.wikipedia.org/pages/Foo/revisions/`
@@ -68,7 +80,7 @@ Other goals:
     - primary access implicit in all by-oldid accesses: `oldid -> page, tid`
     - sounds like a table with secondary index
 
-### Caching considerations for by-oldid accesses
+## Caching considerations for by-oldid accesses
 Want to minimize round-trips (redirects) while keeping the caching / purging
 manageable. Focus on round-trips especially for new content, perhaps more on
 cache fragmentation for old content.
@@ -83,7 +95,7 @@ cache fragmentation for old content.
     - so look for 2 oldids >= taget-oldid
         - if only one returned: latest
 
-### Implementation idea
+## Implementation idea
 - separate revision bucket: `/v1/en.wikipedia.org/pages.revision/
 - check if MW revision exists when referenced: 
     - if not: fetch revision info from API
