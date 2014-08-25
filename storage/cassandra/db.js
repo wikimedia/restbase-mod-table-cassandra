@@ -288,7 +288,7 @@ DB.prototype._put = function(keyspace, req, consistency, table) {
     // XXX: switch between insert & update / upsert?
     // - insert for 'if not exists', or when no non-primary-key attributes are
     //   specified
-    // - update when non-primary key attributes supplied
+    // - update when any non-primary key attributes are supplied
     //  - Need to verify that all primary key members are supplied as well,
     //    else error.
     var cql = 'insert into ' + cassID(keyspace) + '.' + cassID(table)

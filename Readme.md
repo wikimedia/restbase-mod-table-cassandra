@@ -17,8 +17,8 @@ Status](https://travis-ci.org/gwicke/rashomon.svg?branch=master)](https://travis
 ## Performance
 Initial testing with ab, rashomon and cassandra on an aging laptop gives these results:
 
-* 1800req/s for very small revisions
-* 2Gbit throughput for large wikitext revisions like Barack Obama
+* 2900req/s for very small revisions
+* 5Gbit throughput for large wikitext revisions like Barack Obama
 
 ## Troubleshooting
 ### The server connection to Cassandra hangs when testing on localhost
