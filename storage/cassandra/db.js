@@ -211,9 +211,9 @@ DB.prototype._get = function (keyspace, req, consistency, table) {
         // Work around 'order by' bug in cassandra when using *
         // Trying to change the natural sort order only works with a
         // projection in 2.0.9
-        var schema = this.schemaCache[keyspace];
-        if (schema) {
-            proj = Object.keys(schema.attributes).map(cassID).join(',');
+        var cachedSchema = this.schemaCache[keyspace];
+        if (cachedSchema) {
+            proj = Object.keys(cachedSchema.attributes).map(cassID).join(',');
         }
     }
     if (req.index) {
@@ -571,31 +571,53 @@ DB.prototype._createTable = function (keyspace, req, tableName, consistency) {
     if (req.secondaryIndexes) {
         for (var indexName in req.secondaryIndexes) {
             var index = req.secondaryIndexes[indexName];
-            // create the index
+
+            // Make sure we have an array for the range part of the index
+            if (index.range) {
+                if (!Array.isArray(index.range)) {
+                    index.range = [index.range];
+                }
+            } else {
+                index.range = [];
+            }
+
+            // Build up attributes
             var attributes = {};
             // copy over type info
             attributes[index.hash] = req.attributes[index.hash];
-            if (index.range) {
-                attributes[index.range] = req.attributes[index.range];
-            }
-            // include main index attributes unconditionally
-            if (!attributes[req.index.hash]) {
-                attributes[req.index.hash] = req.attributes[req.index.hash];
-            }
-            if (req.index.range) {
-                if (Array.isArray(req.index.range)) {
-                    // Multiple range keys
-                    for (var rangeKey in req.index.range) {
-                        if (!attributes[req.index.range]) {
-                            attributes[rangeKey] = req.attributes[rangeKey];
-                        }
-                    }
-                } else if (!attributes[req.index.range]) {
-                    attributes[req.index.range] = req.attributes[req.index.range];
-                }
-            }
 
-            // now deal with projections
+            // Make sure the main index keys are included in the new index
+            // First, the hash key.
+            if (!attributes[req.index.hash] && index.range.indexOf(req.index.hash) === -1) {
+                // Add in the original hash key as an additional range key
+                index.range.push(req.index.hash);
+            }
+            // Now the range key(s).
+            var origRange = req.index.range;
+            if (origRange) {
+                if (!Array.isArray(origRange)) {
+                    origRange = [origRange];
+                }
+            } else {
+                origRange = [];
+            }
+            origRange.forEach(function(att) {
+                if (!attributes[att] && index.range.indexOf(att) === -1) {
+                    // Add in the original hash key(s) as additional range
+                    // key(s)
+                    index.range.push(att);
+                }
+            });
+
+            // Now make sure that all range keys are also included in the
+            // attributes.
+            index.range.forEach(function(att) {
+                if (!attributes[att]) {
+                    attributes[att] = req.attributes[att];
+                }
+            });
+
+            // Finally, deal with projections
             if (index.proj && Array.isArray(index.proj)) {
                 index.proj.forEach(function(attr) {
                     if (!attributes[attr]) {
