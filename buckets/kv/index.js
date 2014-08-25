@@ -120,7 +120,7 @@ KVBucket.prototype.makeSchema = function (opts) {
                 // redirect
                 'content-location': 'string',
                 // 'deleted', 'nomove' etc?
-                restrictions: 'set<string>',
+                tags: 'set<string>',
             },
             index: {
                 hash: 'key',
