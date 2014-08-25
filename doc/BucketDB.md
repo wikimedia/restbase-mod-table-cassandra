@@ -16,10 +16,12 @@ Secondary range index within partition, maps to primary range index value
   `PRIMARY KEY (<partition>, <alternate range>, <orig range>)`
 
 ### Global
-Dfferent partition & range index, maps to primary partition & range keys
+Different partition & range index, maps to primary partition & range keys
 - cassandra: second table with
   `PRIMARY KEY(<alternate partition>, <alternate range>, <orig
   partition>, <orig range>)`
+    - multiple entries per (<alternate partition>, <alternate range>) pair
+      possible, as orig primary key included in new primary key
 - updates not atomic rel to primary, so ideally
     - create primary entry before adding index entries
     - remove index entries before deleting primary
@@ -27,7 +29,7 @@ Dfferent partition & range index, maps to primary partition & range keys
 ### Accessing secondary indexes via HTTP
 `/v1/en.wikipedia.org/pages.revisions//by-page/Foo`
 
-Equality match on the a range key:
+Equality match on a range key:
 `/v1/en.wikipedia.org/pages.revisions//by-page/Foo/Bar`
 
 Can also support range queries on the secondary index:
@@ -36,6 +38,13 @@ Can also support range queries on the secondary index:
 Rationale for `//` as delimiter:
 - empty partition keys are not permitted in cassandra anyway
 - don't want collisions with other keys
+
+## Secondary indexes vs. revisioning
+Question: Index latest revisioned object only vs. index all entries.
+- *All* is easier to implement in storage backend
+- *Only latest* requires some knowledge of semantics / integration with
+  conditional updates. Possibly easier to implement in something like a KV
+  bucket handler.
 
 ## Concistency
 ### Unconditional put
