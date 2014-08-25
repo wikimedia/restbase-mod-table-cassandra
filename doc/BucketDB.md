@@ -27,13 +27,17 @@ Different partition & range index, maps to primary partition & range keys
     - remove index entries before deleting primary
 
 ### Accessing secondary indexes via HTTP
+Main table layout is by revision id:
+`/v1/en.wikipedia.org/pages.revisions/12345/<tid>`
+
+All revisions for a given page, using by-page secondary index:
 `/v1/en.wikipedia.org/pages.revisions//by-page/Foo`
 
 Equality match on a range key:
-`/v1/en.wikipedia.org/pages.revisions//by-page/Foo/Bar`
+`/v1/en.wikipedia.org/pages.revisions//by-page/Foo/bd7a5a00-1f04-11e4-b312-c1e90310049f`
 
 Can also support range queries on the secondary index:
-`/v1/en.wikipedia.org/pages.revisions//by-page/Foo/?gt=a&lt=b
+`/v1/en.wikipedia.org/pages.revisions//by-page/Foo/?gt=<starttime>&lt=<endtime>
 
 Rationale for `//` as delimiter:
 - empty partition keys are not permitted in cassandra anyway
