@@ -3,6 +3,16 @@
 require('prfun');
 var assert = require('assert');
 
+function deepEqual (result, expected) {
+    try {
+        assert.deepEqual(result, expected);
+    } catch (e) {
+        console.log('Expected:\n' + expected);
+        console.log('Result:\n' + result);
+        throw e;
+    }
+}
+
 var DB = require('./db');
 
 var dynamoQuery = {
@@ -173,15 +183,15 @@ describe('DB backend', function() {
             .then(function() {
                 var expected = [ { query: 'create keyspace "org_wikipedia_en_T_someTable" WITH REPLICATION = {\'class\': \'SimpleStrategy\', \'replication_factor\': 3}',
                         params: [] },
-                  { query: 'create table "org_wikipedia_en_T_someTable"."data" ("key" text, "tid" timeuuid, "latestTid" timeuuid static, "body" blob, "content-type" text, "content-length" varint, "content-sha256" text, "content-location" text, "restrictions" set<text>, primary key ("uri","tid"))',
+                  { query: 'create table "org_wikipedia_en_T_someTable"."data" ("key" text, "tid" timeuuid, "latestTid" timeuuid static, "body" blob, "content-type" text, "content-length" varint, "content-sha256" text, "content-location" text, "restrictions" set<text>, primary key ("uri","tid")) WITH compaction = { \'class\' : \'LeveledCompactionStrategy\' }',
                           params: [] },
-                  { query: 'create table "org_wikipedia_en_T_someTable"."meta" ("key" text, "value" text, primary key ("key"))',
+                  { query: 'create table "org_wikipedia_en_T_someTable"."meta" ("key" text, "value" text, primary key ("key")) WITH compaction = { \'class\' : \'LeveledCompactionStrategy\' }',
                           params: [] },
                   { query: 'insert into "org_wikipedia_en_T_someTable"."meta" ("key","value") values (?,?)',
                           params:
                      [ 'schema',
                        '{"domain":"en.wikipedia.org","table":"someTable","attributes":{"key":"string","tid":"timeuuid","latestTid":"timeuuid","body":"blob","content-type":"string","content-length":"varint","content-sha256":"string","content-location":"string","restrictions":"set<string>"},"index":{"hash":"uri","range":"tid","static":"latestTid"}}' ] } ];
-                assert.deepEqual(results, expected);
+                deepEqual(results, expected);
             });
         });
     });
@@ -194,7 +204,7 @@ describe('DB backend', function() {
                     query: 'drop keyspace "org_wikipedia_en_T_someTable"',
                     params: []
                 }];
-                assert.deepEqual(results, expected, results);
+                deepEqual(results, expected, results);
             });
         });
     });
@@ -207,7 +217,7 @@ describe('DB backend', function() {
                         params: [] },
                   { query: 'select "all" from "org_wikipedia_en_T_Thread"."i_LastPostIndex" where "LastPostDateTime" >= ? AND "LastPostDateTime" <= ? AND "ForumName" = ? limit 3',
                           params: [ '20130101', '20130115', 'Amazon DynamoDB' ] } ];
-                assert.deepEqual(results, expected, results);
+                deepEqual(results, expected, results);
             });
         });
     });
@@ -218,7 +228,7 @@ describe('DB backend', function() {
             .then(function() {
                 var expected = [ { query: 'insert into "org_wikipedia_en_T_Thread"."data" ("LastPostDateTime","ForumName") values (?,?) if "LastPostDateTime" >= ? AND "LastPostDateTime" <= ? AND "ForumName" != ?',
     params: [ 'foo', 'bar', '20130101', '20130115', 'Amazon DynamoDB' ] } ];
-                assert.deepEqual(results, expected, results);
+                deepEqual(results, expected, results);
             });
         });
     });
