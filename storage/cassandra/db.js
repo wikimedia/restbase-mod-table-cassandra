@@ -566,9 +566,28 @@ DB.prototype._createTable = function (keyspace, req, tableName, consistency) {
     // Default to leveled compaction strategy
     cql += " WITH compaction = { 'class' : 'LeveledCompactionStrategy' }";
 
-    if (req.order && req.order.toLowerCase() in {'asc':1, 'desc':1} && rangeIndex.length) {
-        var firstRange = rangeIndex[0];
-        cql += ' and clustering order by ( ' + cassID(firstRange) + ' ' + req.order.toLowerCase() + ')';
+    if (req.index.order && rangeIndex.length) {
+        var orders = req.index.order;
+        if (!Array.isArray(order)) {
+            orders = [orders];
+        }
+        var orderBits = [];
+        for (var i = 0; i < rangeIndex.length; i++) {
+            var attName = rangeIndex[i];
+            var dir = orders[i];
+            if (dir) {
+                if (dir.constructor !== String
+                        || ! dir.toLowerCase() in {'asc':1, 'desc':1})
+                {
+                    throw new Error('Invalid order direction in schema:\n' + req);
+                } else {
+                    orderBits.push(cassID(attName) + ' ' + dir.toLowerCase());
+                }
+            }
+        }
+        if (orderBits) {
+            cql += ' and clustering order by ( ' + orderBits.join(',') + ' )';
+        }
     }
 
     // XXX: Handle secondary indexes
