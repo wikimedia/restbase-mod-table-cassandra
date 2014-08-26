@@ -548,21 +548,21 @@ DB.prototype._createTable = function (keyspace, req, tableName, consistency) {
         throw new Error("Missing index or hash key in table schema");
     }
 
-    cql += 'primary key (';
-    var rangeIndex = '';
-    if (req.index.range) {
-        if (Array.isArray(req.index.range)) {
-            rangeIndex = req.index.range.map(cassID).join(',');
-        } else {
-            rangeIndex = cassID(req.index.range);
-        }
-        rangeIndex = ', ' + rangeIndex;
+    // Normalize the range index to an array
+    var rangeIndex = req.index.range || [];
+    if (!Array.isArray(rangeIndex)) {
+        rangeIndex = [req.index.range];
     }
-    cql += cassID(req.index.hash) + rangeIndex;
-    cql += '))';
 
-    if (req.order && req.order.toLowerCase() in {'asc':1, 'desc':1} && req.index.range) {
-        var firstRange = Array.isArray(req.index.range) ? req.index.range[0] : req.index.range;
+    cql += 'primary key (';
+    var indexBits = [cassID(req.index.hash)];
+    rangeIndex.forEach(function(att) {
+        indexBits.push(cassID(att));
+    });
+    cql += indexBits.join(',') + '))';
+
+    if (req.order && req.order.toLowerCase() in {'asc':1, 'desc':1} && rangeIndex.length) {
+        var firstRange = rangeIndex[0];
         cql += ' with clustering order by ( ' + cassID(firstRange) + ' ' + req.order.toLowerCase() + ')';
     }
 
@@ -593,15 +593,7 @@ DB.prototype._createTable = function (keyspace, req, tableName, consistency) {
                 index.range.push(req.index.hash);
             }
             // Now the range key(s).
-            var origRange = req.index.range;
-            if (origRange) {
-                if (!Array.isArray(origRange)) {
-                    origRange = [origRange];
-                }
-            } else {
-                origRange = [];
-            }
-            origRange.forEach(function(att) {
+            rangeIndex.forEach(function(att) {
                 if (!attributes[att] && index.range.indexOf(att) === -1) {
                     // Add in the original hash key(s) as additional range
                     // key(s)
