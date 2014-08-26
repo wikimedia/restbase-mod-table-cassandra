@@ -94,9 +94,9 @@ function makeValidKey (key, length) {
 
 /**
  * Derive a valid keyspace name from a random bucket name. Try to use valid
- * chars as far as possible, but fall back to a sha1 if not possible. Also
- * respect Cassandra's limit of 48 or fewer alphanum chars & first char being
- * an alpha char.
+ * chars from the requested name as far as possible, but fall back to a sha1
+ * if not possible. Also respect Cassandra's limit of 48 or fewer alphanum
+ * chars & first char being an alpha char.
  *
  * @param {string} reverseDomain, a domain in reverse dot notation
  * @param {string} key, the bucket name to derive the key of
@@ -404,6 +404,8 @@ DB.prototype._put = function(keyspace, req, consistency, table) {
         }
     }
     // TODO: update indexes
+    // - if primary request is conditional: schedule a dependent transaction
+    // - else: run secondary updates in a single unconditional batch
 
     //console.log('cql', cql, 'params', JSON.stringify(params));
     return this.client.executeAsPrepared_p(cql, params, consistency)
@@ -561,9 +563,12 @@ DB.prototype._createTable = function (keyspace, req, tableName, consistency) {
     });
     cql += indexBits.join(',') + '))';
 
+    // Default to leveled compaction strategy
+    cql += " WITH compaction = { 'class' : 'LeveledCompactionStrategy' }";
+
     if (req.order && req.order.toLowerCase() in {'asc':1, 'desc':1} && rangeIndex.length) {
         var firstRange = rangeIndex[0];
-        cql += ' with clustering order by ( ' + cassID(firstRange) + ' ' + req.order.toLowerCase() + ')';
+        cql += ' and clustering order by ( ' + cassID(firstRange) + ' ' + req.order.toLowerCase() + ')';
     }
 
     // XXX: Handle secondary indexes

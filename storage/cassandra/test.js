@@ -4,6 +4,16 @@ require('prfun');
 var assert = require('assert');
 var cass = require('node-cassandra-cql');
 
+function deepEqual (result, expected) {
+    try {
+        assert.deepEqual(result, expected);
+    } catch (e) {
+        console.log('Expected:\n' + expected);
+        console.log('Result:\n' + result);
+        throw e;
+    }
+}
+
 var DB = require('./db');
 
 var dynamoQuery = {
@@ -199,14 +209,14 @@ describe('DB backend', function() {
     /*
     describe('get', function() {
         it('should perform a simple get query', function() {
-            return DB.get('org.wikipedia.en', ourQuery)
-            .then(function(item) {
-                console.log(item);
-                //var expected = [ { query: 'select * from "org_wikipedia_en_T_Thread"."meta"',
-                //        params: [] },
-                //  { query: 'select "all" from "org_wikipedia_en_T_Thread"."i_LastPostIndex" where "LastPostDateTime" >= ? AND "LastPostDateTime" <= ? AND "ForumName" = ? limit 3',
-                //          params: [ '20130101', '20130115', 'Amazon DynamoDB' ] } ];
-                //assert.deepEqual(results, expected, results);
+            results = [];
+            return testDB.get('org.wikipedia.en', ourQuery)
+            .then(function() {
+                var expected = [ { query: 'select * from "org_wikipedia_en_T_Thread"."meta"',
+                        params: [] },
+                  { query: 'select "all" from "org_wikipedia_en_T_Thread"."i_LastPostIndex" where "LastPostDateTime" >= ? AND "LastPostDateTime" <= ? AND "ForumName" = ? limit 3',
+                          params: [ '20130101', '20130115', 'Amazon DynamoDB' ] } ];
+                deepEqual(results, expected, results);
             });
         });
     });
@@ -218,7 +228,7 @@ describe('DB backend', function() {
             .then(function() {
                 var expected = [ { query: 'insert into "org_wikipedia_en_T_Thread"."data" ("LastPostDateTime","ForumName") values (?,?) if "LastPostDateTime" >= ? AND "LastPostDateTime" <= ? AND "ForumName" != ?',
     params: [ 'foo', 'bar', '20130101', '20130115', 'Amazon DynamoDB' ] } ];
-                assert.deepEqual(results, expected, results);
+                deepEqual(results, expected, results);
             });
         });
     });*/
