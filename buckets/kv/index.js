@@ -4,7 +4,6 @@
  * Revisioned blob handler
  */
 
-var RevisionBackend = require('./cassandra');
 var RouteSwitch = require('routeswitch');
 var util = require('util');
 var uuid = require('node-uuid');
