@@ -124,9 +124,9 @@ KVBucket.prototype.makeSchema = function (opts) {
             index: {
                 hash: 'key',
                 range: 'tid',
+                order: 'desc',
                 static: 'latestTid'
-            },
-            order: 'desc'
+            }
         };
     } else {
         throw new Error('Bucket type ' + opts.type + ' not yet implemented');
