@@ -140,7 +140,20 @@ DB.prototype._getSchema = function (keyspace, consistency) {
     return this._get(keyspace, {}, consistency, 'meta')
     .then(function(res) {
         if (res.items.length) {
-            return JSON.parse(res.items[0].value);
+            var schema = res.items[0].value,
+                _indexAttributes = {};
+            _indexAttributes[schema.index.hash] = true;
+            var rangeColumn = schema.index.range;
+            if (Array.isArray(rangeColumn)) {
+                rangeColumn.forEach(function(items){
+                    _indexAttributes[items] = true;
+                });
+            } else if (rangeColumn) {
+                _indexAttributes[rangeColumn] = true;
+            }
+            JSON.parse(schema);
+            schema._indexAttributes = _indexAttributes;
+            return schema;
         } else {
             return null;
         }
@@ -259,50 +272,101 @@ DB.prototype.put = function (reverseDomain, req) {
     if (req.consistency && req.consistency in {all:1, localQuorum:1}) {
         consistency = cass.types.consistencies[req.consistency];
     }
-    return this._put(keyspace, req, consistency);
+
+    // Get the type info for the table & verify types & ops per index
+    var self = this;
+    if (!this.schemaCache[keyspace]) {
+        return this._getSchema(keyspace, defaultConsistency)
+        .then(function(schema) {
+            self.schemaCache[keyspace] = schema;
+            return self._put(keyspace, req, consistency);
+        });
+    } else {
+        return this._put(keyspace, req, consistency);
+    }
 };
 
 
 DB.prototype._put = function(keyspace, req, consistency, table) {
-    // Get the type info for the table & verify types & ops per index
-    // var schema = this.getSchema(keyspace, req.table);
+
     if (!table) {
         table = 'data';
     }
 
+    var schema = this.schemaCache[keyspace];
+    if (!schema) {
+        throw new Error('Table not found!');
+    }
+
     var keys = [];
     var params = [];
+    var indexParams = [];
     var placeholders = [];
-    for (var key in req.attributes) {
+
+    for (var key in schema._indexAttributes) {
+        var v = req.attributes[key];
+        if (!v) {
+            throw new Error("Index attribute " + key + " missing");
+        } else {
+            indexParams.push(v);
+        }
+    }
+
+    for (key in req.attributes) {
         var val = req.attributes[key];
         if (val !== undefined) {
             if (val.constructor === Object) {
                 val = JSON.stringify(val);
             }
-            keys.push(key);
-            params.push(val);
+            if (!schema._indexAttributes[key]) {
+                keys.push(key);
+                params.push(val);
+            }
             placeholders.push('?');
         }
     }
-    var proj = keys.map(cassID).join(',');
-    // XXX: switch between insert & update / upsert?
+
+    // switch between insert & update / upsert
     // - insert for 'if not exists', or when no non-primary-key attributes are
     //   specified
     // - update when any non-primary key attributes are supplied
-    //  - Need to verify that all primary key members are supplied as well,
-    //    else error.
-    var cql = 'insert into ' + cassID(keyspace) + '.' + cassID(table)
-            + ' (' + proj + ') values (';
-    cql += placeholders.join(',') + ')';
+    //   - Need to verify that all primary key members are supplied as well,
+    //     else error.
+
+    var cql = '', condResult;
+
+    if (req.if && req.if.constructor === String) {
+        req.if = req.if.trim().split(/\s+/).join(' ').toLowerCase();
+    }
+
+    if (!keys.length || req.if === 'not exists') {
+
+        var proj = Object.keys(schema._indexAttributes).concat(keys).map(cassID).join(',');
+        cql = 'insert into ' + cassID(keyspace) + '.' + cassID(table)
+                + ' (' + proj + ') values (';
+        cql += placeholders.join(',') + ')';
+    } else if ( keys.length ) {
+        var updateProj = keys.map(cassID).join(' = ?,') + ' = ? ';
+        cql += 'update ' + cassID(keyspace) + '.' + cassID(table) +
+               ' set' + updateProj + ' where';
+        var condRes = buildCondition(schema._indexAttributes);
+        cql += condRes.cql;
+        params = params.concat(indexParams);
+    } else {
+        throw new Error("Can't Update or Insert");
+    }
 
     // Build up the condition
     if (req.if) {
-        cql += ' if ';
-        var condResult = buildCondition(req.if);
-        cql += condResult.cql;
-        params = params.concat(condResult.params);
+        if (req.if === 'not exists') {
+            cql += ' if not exists ';
+        } else {
+            cql += ' if ';
+            condResult = buildCondition(req.if);
+            cql += condResult.cql;
+            params = params.concat(condResult.params);
+        }
     }
-
     // TODO: update indexes
     // - if primary request is conditional: schedule a dependent transaction
     // - else: run secondary updates in a single unconditional batch
