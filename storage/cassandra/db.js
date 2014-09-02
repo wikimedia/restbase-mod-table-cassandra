@@ -118,6 +118,19 @@ function DB (client) {
     this.schemaCache = {};
 }
 
+// Info table schema
+DB.prototype.infoSchema = {
+    name: 'meta',
+    attributes: {
+        key: 'string',
+        value: 'json'
+    },
+    index: {
+        hash: 'key'
+    },
+    _indexAttributes: {'key':true}
+};
+
 DB.prototype.getSchema = function (reverseDomain, tableName) {
     var keyspace = keyspaceName(reverseDomain, tableName);
 
@@ -140,7 +153,22 @@ DB.prototype._getSchema = function (keyspace, consistency) {
     return this._get(keyspace, {}, consistency, 'meta')
     .then(function(res) {
         if (res.items.length) {
-            return JSON.parse(res.items[0].value);
+            var schema = res.items[0].value,
+                _indexAttributes = {};
+
+            schema = JSON.parse(schema);
+            _indexAttributes[schema.index.hash] = true;
+            var rangeColumn = schema.index.range;
+            if (Array.isArray(rangeColumn)) {
+                rangeColumn.forEach(function(items){
+                    _indexAttributes[items] = true;
+                });
+            } else if (rangeColumn) {
+                _indexAttributes[rangeColumn] = true;
+            }
+
+            schema._indexAttributes = _indexAttributes;
+            return schema;
         } else {
             return null;
         }
@@ -259,48 +287,107 @@ DB.prototype.put = function (reverseDomain, req) {
     if (req.consistency && req.consistency in {all:1, localQuorum:1}) {
         consistency = cass.types.consistencies[req.consistency];
     }
-    return this._put(keyspace, req, consistency);
+
+    // Get the type info for the table & verify types & ops per index
+    var self = this;
+    if (!this.schemaCache[keyspace]) {
+        return this._getSchema(keyspace, defaultConsistency)
+        .then(function(schema) {
+            self.schemaCache[keyspace] = schema;
+            return self._put(keyspace, req, consistency);
+        });
+    } else {
+        return this._put(keyspace, req, consistency);
+    }
 };
 
 
 DB.prototype._put = function(keyspace, req, consistency, table) {
-    // Get the type info for the table & verify types & ops per index
-    // var schema = this.getSchema(keyspace, req.table);
+
     if (!table) {
         table = 'data';
     }
 
+    var schema;
+    if (table === 'meta') {
+        schema = this.infoSchema;
+    } else {
+        schema = this.schemaCache[keyspace];
+    }
+
+    if (!schema) {
+        throw new Error('Table not found!');
+    }
+
     var keys = [];
     var params = [];
+    var indexKVMap = {};
     var placeholders = [];
-    for (var key in req.attributes) {
+
+    for (var key in schema._indexAttributes) {
+        if (!req.attributes[key]) {
+            throw new Error("Index attribute " + key + " missing");
+        } else {
+            indexKVMap[key] = req.attributes[key];
+        }
+    }
+
+    for (key in req.attributes) {
         var val = req.attributes[key];
         if (val !== undefined) {
             if (val.constructor === Object) {
                 val = JSON.stringify(val);
             }
-            keys.push(key);
-            params.push(val);
+            if (!schema._indexAttributes[key]) {
+                keys.push(key);
+                params.push(val);
+            }
             placeholders.push('?');
         }
     }
-    var proj = keys.map(cassID).join(',');
-    // XXX: switch between insert & update / upsert?
+
+    // switch between insert & update / upsert
     // - insert for 'if not exists', or when no non-primary-key attributes are
     //   specified
     // - update when any non-primary key attributes are supplied
-    //  - Need to verify that all primary key members are supplied as well,
-    //    else error.
-    var cql = 'insert into ' + cassID(keyspace) + '.' + cassID(table)
-            + ' (' + proj + ') values (';
-    cql += placeholders.join(',') + ')';
+    //   - Need to verify that all primary key members are supplied as well,
+    //     else error.
+
+    var cql = '', condResult;
+
+    if (req.if && req.if.constructor === String) {
+        req.if = req.if.trim().split(/\s+/).join(' ').toLowerCase();
+    }
+
+    var condRes = buildCondition(indexKVMap);
+
+    if (!keys.length || req.if === 'not exists') {
+
+        var proj = Object.keys(schema._indexAttributes).concat(keys).map(cassID).join(',');
+        cql = 'insert into ' + cassID(keyspace) + '.' + cassID(table)
+                + ' (' + proj + ') values (';
+        cql += placeholders.join(',') + ')';
+        params = condRes.params.concat(params);
+    } else if ( keys.length ) {
+        var updateProj = keys.map(cassID).join(' = ?,') + ' = ? ';
+        cql += 'update ' + cassID(keyspace) + '.' + cassID(table) +
+               ' set ' + updateProj + ' where ';
+        cql += condRes.cql;
+        params = params.concat(condRes.params);
+    } else {
+        throw new Error("Can't Update or Insert");
+    }
 
     // Build up the condition
     if (req.if) {
-        cql += ' if ';
-        var condResult = buildCondition(req.if);
-        cql += condResult.cql;
-        params = params.concat(condResult.params);
+        if (req.if === 'not exists') {
+            cql += ' if not exists ';
+        } else {
+            cql += ' if ';
+            condResult = buildCondition(req.if);
+            cql += condResult.cql;
+            params = params.concat(condResult.params);
+        }
     }
 
     // TODO: update indexes
@@ -313,7 +400,7 @@ DB.prototype._put = function(keyspace, req, consistency, table) {
         var rows = result.rows;
         return {
             // XXX: check if condition failed!
-            status: 401
+            status: 201
         };
     });
 
@@ -371,17 +458,7 @@ DB.prototype.createTable = function (reverseDomain, req) {
         consistency = cass.types.consistencies[req.consistency];
     }
 
-    // Info table schema
-    var infoSchema = {
-        name: 'meta',
-        attributes: {
-            key: 'string',
-            value: 'json'
-        },
-        index: {
-            hash: 'key'
-        }
-    };
+    var infoSchema = this.infoSchema;
 
     return this._createKeyspace(keyspace, consistency)
     .then(function() {
