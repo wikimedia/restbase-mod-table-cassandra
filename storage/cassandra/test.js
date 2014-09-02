@@ -3,6 +3,17 @@
 require('prfun');
 var assert = require('assert');
 var cass = require('node-cassandra-cql');
+var uuid = require('node-uuid');
+
+function tidFromDate(date) {
+    // Create a new, deterministic timestamp
+    return uuid.v1({
+        node: [0x01, 0x23, 0x45, 0x67, 0x89, 0xab],
+        clockseq: 0x1234,
+        msecs: date.getTime(),
+        nsecs: 0
+    });
+}
 
 function deepEqual (result, expected) {
     try {
@@ -126,6 +137,15 @@ var ourQuery = {
     }
 };
 
+var anotherQuery = {
+    table: "someTable",
+    attributes: {
+        key: 'testing',
+        tid: tidFromDate(new Date('2013-08-08 18:43:58-0700'))
+    }
+};
+
+
 var ourPutQuery = {
     method: 'put',
     table: "someTable",
@@ -138,6 +158,20 @@ var ourPutQuery = {
     attributes: {
         LastPostDateTime: 'foo',
         ForumName: 'bar'
+    },
+    // dependent requests
+    then: [
+        { /* more dependent requests */ }
+    ]
+};
+var anotherPutQuery = {
+    method: 'put',
+    table: "someTable",
+    limit: 3,
+    attributes: {
+        key: 'testing',
+        tid: tidFromDate(new Date('2013-08-08 18:43:58-0700')),
+        body: '<p>Service Oriented Architecture</p>',
     },
     // dependent requests
     then: [
@@ -157,9 +191,6 @@ var ourQueryResult = {
         /* pred matching next key to scan for paging */
     }
 };
-
-
-var results = [];
 
 function promisifyClient (client, options) {
     var methods = ['connect', 'shutdown', 'executeAsPrepared', 'execute', 'executeBatch'];
@@ -196,40 +227,31 @@ describe('DB backend', function() {
             this.timeout(15000);
             return DB.createTable('org.wikipedia.en', revisionedKVSchema)
             .then(function(item) {
-                console.log(item);
+                deepEqual(item, {status:201});
+            });
+        });
+    });
+    describe('put', function() {
+        it('should perform a simple put query', function() {
+            this.timeout(15000);
+            return DB.put('org.wikipedia.en', anotherPutQuery)
+            .then(function(item) {
+                deepEqual(item, {status:201});
+            });
+        });
+    });
+    describe('get', function() {
+        it('should perform a simple get query', function() {
+            return DB.get('org.wikipedia.en', anotherQuery)
+            .then(function(result) {
+                deepEqual(result.count, 1);
             });
         });
     });
     describe('dropTable', function() {
         it('should drop a simple table', function() {
-            results = [];
+            this.timeout(15000);
             return DB.dropTable('org.wikipedia.en', 'someTable');
         });
     });
-    /*
-    describe('get', function() {
-        it('should perform a simple get query', function() {
-            results = [];
-            return testDB.get('org.wikipedia.en', ourQuery)
-            .then(function() {
-                var expected = [ { query: 'select * from "org_wikipedia_en_T_Thread"."meta"',
-                        params: [] },
-                  { query: 'select "all" from "org_wikipedia_en_T_Thread"."i_LastPostIndex" where "LastPostDateTime" >= ? AND "LastPostDateTime" <= ? AND "ForumName" = ? limit 3',
-                          params: [ '20130101', '20130115', 'Amazon DynamoDB' ] } ];
-                deepEqual(results, expected, results);
-            });
-        });
-    });
-    /*
-    describe('put', function() {
-        it('should perform a simple put query', function() {
-            results = [];
-            return testDB.put('org.wikipedia.en', ourPutQuery)
-            .then(function() {
-                var expected = [ { query: 'insert into "org_wikipedia_en_T_Thread"."data" ("LastPostDateTime","ForumName") values (?,?) if "LastPostDateTime" >= ? AND "LastPostDateTime" <= ? AND "ForumName" != ?',
-    params: [ 'foo', 'bar', '20130101', '20130115', 'Amazon DynamoDB' ] } ];
-                deepEqual(results, expected, results);
-            });
-        });
-    });*/
 });

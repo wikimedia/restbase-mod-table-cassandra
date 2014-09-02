@@ -116,19 +116,20 @@ function DB (client) {
 
     // cache keyspace -> schema
     this.schemaCache = {};
-
-    // Info table schema
-    this.infoSchema = {
-        name: 'meta',
-        attributes: {
-            key: 'string',
-            value: 'json'
-        },
-        index: {
-            hash: 'key'
-        }
-    };
 }
+
+// Info table schema
+DB.prototype.infoSchema = {
+    name: 'meta',
+    attributes: {
+        key: 'string',
+        value: 'json'
+    },
+    index: {
+        hash: 'key'
+    },
+    _indexAttributes: {'key':true}
+};
 
 DB.prototype.getSchema = function (reverseDomain, tableName) {
     var keyspace = keyspaceName(reverseDomain, tableName);
@@ -154,6 +155,8 @@ DB.prototype._getSchema = function (keyspace, consistency) {
         if (res.items.length) {
             var schema = res.items[0].value,
                 _indexAttributes = {};
+
+            schema = JSON.parse(schema);
             _indexAttributes[schema.index.hash] = true;
             var rangeColumn = schema.index.range;
             if (Array.isArray(rangeColumn)) {
@@ -163,7 +166,7 @@ DB.prototype._getSchema = function (keyspace, consistency) {
             } else if (rangeColumn) {
                 _indexAttributes[rangeColumn] = true;
             }
-            JSON.parse(schema);
+
             schema._indexAttributes = _indexAttributes;
             return schema;
         } else {
@@ -308,19 +311,6 @@ DB.prototype._put = function(keyspace, req, consistency, table) {
     var schema;
     if (table === 'meta') {
         schema = this.infoSchema;
-        var _indexAttributes = {};
-        _indexAttributes[schema.index.hash] = true;
-
-        var rangeColumn = schema.index.range;
-        if (Array.isArray(rangeColumn)) {
-            rangeColumn.forEach(function(items){
-                _indexAttributes[items] = true;
-            });
-        } else if (rangeColumn) {
-            _indexAttributes[rangeColumn] = true;
-        }
-
-        schema._indexAttributes = _indexAttributes;
     } else {
         schema = this.schemaCache[keyspace];
     }
@@ -331,15 +321,14 @@ DB.prototype._put = function(keyspace, req, consistency, table) {
 
     var keys = [];
     var params = [];
-    var indexParams = [];
+    var indexKVMap = {};
     var placeholders = [];
 
     for (var key in schema._indexAttributes) {
-        var v = req.attributes[key];
-        if (!v) {
+        if (!req.attributes[key]) {
             throw new Error("Index attribute " + key + " missing");
         } else {
-            indexParams.push(v);
+            indexKVMap[key] = req.attributes[key];
         }
     }
 
@@ -370,24 +359,21 @@ DB.prototype._put = function(keyspace, req, consistency, table) {
         req.if = req.if.trim().split(/\s+/).join(' ').toLowerCase();
     }
 
+    var condRes = buildCondition(indexKVMap);
+
     if (!keys.length || req.if === 'not exists') {
 
         var proj = Object.keys(schema._indexAttributes).concat(keys).map(cassID).join(',');
         cql = 'insert into ' + cassID(keyspace) + '.' + cassID(table)
                 + ' (' + proj + ') values (';
         cql += placeholders.join(',') + ')';
+        params = condRes.params.concat(params);
     } else if ( keys.length ) {
         var updateProj = keys.map(cassID).join(' = ?,') + ' = ? ';
         cql += 'update ' + cassID(keyspace) + '.' + cassID(table) +
                ' set ' + updateProj + ' where ';
-
-        var indexAttrMaps = {};
-        for (key in schema._indexAttributes) {
-            indexAttrMaps[key] = key;
-        }
-        var condRes = buildCondition(indexAttrMaps);
         cql += condRes.cql;
-        params = params.concat(indexParams);
+        params = params.concat(condRes.params);
     } else {
         throw new Error("Can't Update or Insert");
     }
@@ -403,6 +389,7 @@ DB.prototype._put = function(keyspace, req, consistency, table) {
             params = params.concat(condResult.params);
         }
     }
+
     // TODO: update indexes
     // - if primary request is conditional: schedule a dependent transaction
     // - else: run secondary updates in a single unconditional batch
@@ -413,7 +400,7 @@ DB.prototype._put = function(keyspace, req, consistency, table) {
         var rows = result.rows;
         return {
             // XXX: check if condition failed!
-            status: 401
+            status: 201
         };
     });
 
