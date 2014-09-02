@@ -91,7 +91,15 @@ in-order.
 }
 ```
 
-## Related
+## Cassandra transaction related
+- [Original Cassandra CAS support bug](https://issues.apache.org/jira/browse/CASSANDRA-5062)
+- [cages, zookeeper locking for Cassandra](https://code.google.com/p/cages/)
+- [Wait chain algorithm](http://media.fightmymonster.com/Shared/docs/Wait%20Chain%20Algorithm.pdf)
+- [Spinnaker paper](http://arxiv.org/pdf/1103.2408.pdf)
+- [Scalaris transaction
+  paper](http://eprints.sics.se/3453/01/AtomicCommitment.pdf)
+
+## Commercial services
 - [Google DataStore
   transactions](https://developers.google.com/datastore/docs/concepts/transactions)
 - [DynamoDB transaction library](http://java.awsblog.com/post/Tx13H2W58QMAOA7/Performing-Conditional-Writes-Using-the-Amazon-DynamoDB-Transaction-Library)
