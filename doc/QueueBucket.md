@@ -4,8 +4,8 @@ Should make sense to use websockets or long polling. Fall-back to polling is
 common in websocket libraries.
 
 ## Using Kafka
-http://kafka.apache.org/documentation.html
-https://github.com/SOHU-Co/kafka-node
+- http://kafka.apache.org/documentation.html
+- https://github.com/SOHU-Co/kafka-node
 
 ### for queuing
 Goal: deliver each message at least once while avoiding duplicate processing.
