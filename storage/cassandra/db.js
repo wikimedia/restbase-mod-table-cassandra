@@ -116,6 +116,18 @@ function DB (client) {
 
     // cache keyspace -> schema
     this.schemaCache = {};
+
+    // Info table schema
+    this.infoSchema = {
+        name: 'meta',
+        attributes: {
+            key: 'string',
+            value: 'json'
+        },
+        index: {
+            hash: 'key'
+        }
+    };
 }
 
 DB.prototype.getSchema = function (reverseDomain, tableName) {
@@ -293,7 +305,26 @@ DB.prototype._put = function(keyspace, req, consistency, table) {
         table = 'data';
     }
 
-    var schema = this.schemaCache[keyspace];
+    var schema;
+    if (table === 'meta') {
+        schema = this.infoSchema;
+        var _indexAttributes = {};
+        _indexAttributes[schema.index.hash] = true;
+
+        var rangeColumn = schema.index.range;
+        if (Array.isArray(rangeColumn)) {
+            rangeColumn.forEach(function(items){
+                _indexAttributes[items] = true;
+            });
+        } else if (rangeColumn) {
+            _indexAttributes[rangeColumn] = true;
+        }
+
+        schema._indexAttributes = _indexAttributes;
+    } else {
+        schema = this.schemaCache[keyspace];
+    }
+
     if (!schema) {
         throw new Error('Table not found!');
     }
@@ -348,8 +379,13 @@ DB.prototype._put = function(keyspace, req, consistency, table) {
     } else if ( keys.length ) {
         var updateProj = keys.map(cassID).join(' = ?,') + ' = ? ';
         cql += 'update ' + cassID(keyspace) + '.' + cassID(table) +
-               ' set' + updateProj + ' where';
-        var condRes = buildCondition(schema._indexAttributes);
+               ' set ' + updateProj + ' where ';
+
+        var indexAttrMaps = {};
+        for (key in schema._indexAttributes) {
+            indexAttrMaps[key] = key;
+        }
+        var condRes = buildCondition(indexAttrMaps);
         cql += condRes.cql;
         params = params.concat(indexParams);
     } else {
@@ -433,17 +469,7 @@ DB.prototype.createTable = function (reverseDomain, req) {
         consistency = cass.types.consistencies[req.consistency];
     }
 
-    // Info table schema
-    var infoSchema = {
-        name: 'meta',
-        attributes: {
-            key: 'string',
-            value: 'json'
-        },
-        index: {
-            hash: 'key'
-        }
-    };
+    var infoSchema = this.infoSchema;
 
     return this._createKeyspace(keyspace, consistency)
     .then(function() {

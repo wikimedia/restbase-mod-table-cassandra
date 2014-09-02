@@ -2,6 +2,7 @@
 
 require('prfun');
 var assert = require('assert');
+var cass = require('node-cassandra-cql');
 
 var DB = require('./db');
 
@@ -54,7 +55,7 @@ var revisionedKVSchema = {
         restrictions: 'set<string>',
     },
     index: {
-        hash: 'uri',
+        hash: 'key',
         range: 'tid',
         static: 'latestTid'
     }
@@ -104,7 +105,7 @@ var rangeKVSchema = {
 
 
 var ourQuery = {
-    table: "Thread",
+    table: "someTable",
     index: "LastPostIndex",
     // from: 'foo', // key to start the query from (paging)
     proj: "all",
@@ -117,7 +118,7 @@ var ourQuery = {
 
 var ourPutQuery = {
     method: 'put',
-    table: "Thread",
+    table: "someTable",
     limit: 3,
     // alternative: if: 'EXISTS'
     if: {
@@ -146,71 +147,70 @@ var ourQueryResult = {
         /* pred matching next key to scan for paging */
     }
 };
-var results = [];
-var mockClient = {
-    // mock client
-    execute_p: function(cql, params) {
-        var result = {
-            query: cql,
-            params: params
-        };
-        results.push(result);
-        //console.log(result);
-        return Promise.resolve({rows:[]});
-    }
-};
-mockClient.executeAsPrepared_p = mockClient.execute_p;
 
-var testDB = new DB(mockClient);
+
+var results = [];
+
+function promisifyClient (client, options) {
+    var methods = ['connect', 'shutdown', 'executeAsPrepared', 'execute', 'executeBatch'];
+    methods.forEach(function(method) {
+        //console.log(method, client[method]);
+        client[method + '_p'] = Promise.promisify(client[method].bind(client));
+    });
+
+    return client;
+}
+
+function makeClient () {
+    var client =  promisifyClient(new cass.Client({hosts: ['localhost'], keyspace: 'system'}));
+
+    var reconnectCB = function(err) {
+        if (err) {
+            // keep trying each 500ms
+            console.error('Cassandra connection error @ localhost :', err, '\nretrying..');
+            setTimeout(client.connect.bind(client, reconnectCB), 500);
+        }
+    };
+    client.on('connection', reconnectCB);
+    client.connect();
+    return new DB(client);
+}
+
+var DB = makeClient();
 
 // A few tests
 
 describe('DB backend', function() {
     describe('createTable', function() {
         it('should create a simple table', function() {
-            results = [];
-            return testDB.createTable('org.wikipedia.en', revisionedKVSchema)
-            .then(function() {
-                var expected = [ { query: 'create keyspace "org_wikipedia_en_T_someTable" WITH REPLICATION = {\'class\': \'SimpleStrategy\', \'replication_factor\': 3}',
-                        params: [] },
-                  { query: 'create table "org_wikipedia_en_T_someTable"."data" ("key" text, "tid" timeuuid, "latestTid" timeuuid static, "body" blob, "content-type" text, "content-length" varint, "content-sha256" text, "content-location" text, "restrictions" set<text>, primary key ("uri", "tid"))',
-                          params: [] },
-                  { query: 'create table "org_wikipedia_en_T_someTable"."meta" ("key" text, "value" text, primary key ("key"))',
-                          params: [] },
-                  { query: 'insert into "org_wikipedia_en_T_someTable"."meta" ("key","value") values (?,?)',
-                          params:
-                     [ 'schema',
-                       '{"domain":"en.wikipedia.org","table":"someTable","attributes":{"key":"string","tid":"timeuuid","latestTid":"timeuuid","body":"blob","content-type":"string","content-length":"varint","content-sha256":"string","content-location":"string","restrictions":"set<string>"},"index":{"hash":"uri","range":"tid","static":"latestTid"}}' ] } ];
-                assert.deepEqual(results, expected);
+            this.timeout(15000);
+            return DB.createTable('org.wikipedia.en', revisionedKVSchema)
+            .then(function(item) {
+                console.log(item);
             });
         });
     });
     describe('dropTable', function() {
         it('should drop a simple table', function() {
             results = [];
-            return testDB.dropTable('org.wikipedia.en', 'someTable')
-            .then(function() {
-                var expected = [{
-                    query: 'drop keyspace "org_wikipedia_en_T_someTable"',
-                    params: []
-                }];
-                assert.deepEqual(results, expected, results);
-            });
+            return DB.dropTable('org.wikipedia.en', 'someTable');
         });
     });
+    /*
     describe('get', function() {
         it('should perform a simple get query', function() {
-            results = [];
-            return testDB.get('org.wikipedia.en', ourQuery)
-            .then(function() {
-                var expected = [ { query: 'select * from "org_wikipedia_en_T_Thread"."meta"',
-                        params: [] },
-                  { query: 'select "all" from "org_wikipedia_en_T_Thread"."i_LastPostIndex" where "LastPostDateTime" >= ? AND "LastPostDateTime" <= ? AND "ForumName" = ? limit 3',
-                          params: [ '20130101', '20130115', 'Amazon DynamoDB' ] } ];
-                assert.deepEqual(results, expected, results);
+            return DB.get('org.wikipedia.en', ourQuery)
+            .then(function(item) {
+                console.log(item);
+                //var expected = [ { query: 'select * from "org_wikipedia_en_T_Thread"."meta"',
+                //        params: [] },
+                //  { query: 'select "all" from "org_wikipedia_en_T_Thread"."i_LastPostIndex" where "LastPostDateTime" >= ? AND "LastPostDateTime" <= ? AND "ForumName" = ? limit 3',
+                //          params: [ '20130101', '20130115', 'Amazon DynamoDB' ] } ];
+                //assert.deepEqual(results, expected, results);
             });
         });
     });
+    /*
     describe('put', function() {
         it('should perform a simple put query', function() {
             results = [];
@@ -221,5 +221,5 @@ describe('DB backend', function() {
                 assert.deepEqual(results, expected, results);
             });
         });
-    });
+    });*/
 });
