@@ -79,3 +79,13 @@ On read
 - `-` need to filter app-level tombstones on index read (but fairly
   straightforward)
 - `-` some complexity especially around inserts of old tids
+
+## Related work
+- [CASSANDRA-2897: Secondary indexes without read-before-write](https://issues.apache.org/jira/browse/CASSANDRA-2897)
+
+Still somewhat related:
+- [Article about built-in secondary indexes](http://www.wentnet.com/blog/?p=77)
+    - only support equality, and are only efficient if # of expected results
+      is roughly equal to the number of nodes; each query goes to all nodes
+- [Old presentation on indexing in Cassandra; slides 35 to 46 are
+  interesting](http://www.slideshare.net/edanuff/indexing-in-cassandra)
