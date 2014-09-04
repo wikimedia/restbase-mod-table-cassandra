@@ -1,4 +1,4 @@
-# Secondary index definition
+# Secondary index definition in table schema
 Example:
 ```javascrip
 {
@@ -13,6 +13,7 @@ Example:
         hash: 'key',
         range: 'tid'
     },
+    // This is where all secondary indexes are defined.
     secondaryIndexes: {
         by_tid: {
             hash: tid,
@@ -57,23 +58,68 @@ performance hit. Can we avoid this if a CAS on the primary is normally not
 needed (as in revisioned buckets)?
 
 ## Strategy: versioned index + read repair
-- Indexes are versioned (tid); have a static 'consistentUpTo' column
-  defaulting to null
+Basic idea is to insert multiple index entries by `tid` (a `timeuuid`), so
+that the index essentially becomes versioned. Index layout: 
+```javascript
+{ 
+    attributes: {
+        consistentUpTo: 'timeuuid'
+        // any projected attributes
+    }, 
+    index: {
+        hash: '{defined hash column, or string column fixed to index name}',
+        range: ['{defined ranges}', '{remaining main table primary keys}', 'tid'],
+        static: 'consistentUpTo'
+    }
+}
+```
+
 - All index entries are written in batch on each write
 - After main write, select items > consistentUpTo and insert app-level
   tombstones into index & update consistentUpTo in a single batch
 
-On read
+On read:
+
 - check if consistentUpTo is >= tid; return result if it is
 - if not: check if there is a newer primary tid that doesn't match the index
     - if found: insert app-level tombstones
     - else: update consistentUpTo & return result
 
 ### Issue: Write of old versions / tids ('back-fill')
-- need to also insert tombstones *after* the new entry
+- need to also insert tombstones *after* the new entry if next entry in the
+  main table doesn't match the index
+
+### Issue: range requests on secondary index of revisioned table
+A range request on one of the defined range indexes will fetch all matching
+index entries, including old ones if the underlying data is revisioned. This
+could potentially be a lot of entries.
+
+One approach to reduce the number of entries would be to prune sequential
+identical entries into larger ranges as part of the read repair / tombstone
+insertion process. This would drastically reduce the number of entries for
+rarely-changing attributes.
+
+It would however not do much for an index on a boolean that flips all the
+time. This might however be rare enough to not matter?
+
+Possible problem cases:
+
+- template link table entries for procedural pages / templates, e.g.
+  {{editprotected}}
+
+Further ideas:
+- use a built-in secondary index on a date range to narrow down the index entries
+  (and daterange = '201401')
+    - *partition key* determines nodes to query, so normally only 1-2 nodes
+    - cassandra then narrows using the secondary index to get list of primary
+      key matches (including range query). Not sure if it traverses *all* rows
+      matching the partition key in the process. XXX: figure this out
+    - can dynamically adjust the granularity based on the index; secondary
+      index will be automatically rebuilt
 
 ### Pros / cons
 - `++` big advantage: can use index for timestamp in past
+- `++` easy to implement revision stuff like list of user contributions
 - `+` no transactions required -> good for write throughput
 - `-` more storage space required (but should compress well)
 - `-` need to filter app-level tombstones on index read (but fairly
