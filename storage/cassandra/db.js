@@ -439,9 +439,9 @@ DB.prototype._delete = function (keyspace, req, consistency, table) {
     return this.client.executeAsPrepared_p(cql, params, consistency);
 };
 
-DB.prototype._createKeyspace = function (keyspace, consistency) {
+DB.prototype._createKeyspace = function (keyspace, consistency, options) {
     var cql = 'create keyspace ' + cassID(keyspace)
-        + " WITH REPLICATION = {'class': 'SimpleStrategy', 'replication_factor': 3}";
+        + ' WITH REPLICATION = ' + options;
     return this.client.execute_p(cql, [], consistency || defaultConsistency);
 };
 
@@ -460,7 +460,13 @@ DB.prototype.createTable = function (reverseDomain, req) {
 
     var infoSchema = this.infoSchema;
 
-    return this._createKeyspace(keyspace, consistency)
+    if (!req.options) {
+        req.options = "{ 'class': 'SimpleStrategy', 'replication_factor': 3 }";
+    } else {
+        req.options = "{ 'class': '"+ req.options.storageClass + "', 'replication_factor': " + req.options.durabilityLevel + "}";
+    }
+
+    return this._createKeyspace(keyspace, consistency, req.options)
     .then(function() {
         return Promise.all([
             self._createTable(keyspace, req, 'data', consistency),
