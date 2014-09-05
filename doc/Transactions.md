@@ -13,7 +13,7 @@ Can likely share infrastructure with multi-item transactions below.
 - ideally, allow transactions across an arbitrary set of entities within a
   domain
 
-## Modified 2PL / 2PC
+## 2PL with Wound/Wait
 
 - prepare transaction by inserting using timeuuid into per-domain transaction
   table
@@ -30,7 +30,8 @@ Can likely share infrastructure with multi-item transactions below.
           transaction updates
     - abort *other* transaction if other timeuuid newer (atomic update on
       'abort' column)
-    - abort / retry current transaction if other timeuuid is older
+    - retry aquiring the lock (wound-wait) for a limited time or abort / retry
+      current transaction if other timeuuid is older
 - once everything is properly locked, atomically mark transaction as
   *committed* by inserting now() tid
     - perform all updates using commit tid
@@ -77,11 +78,13 @@ Can likely share infrastructure with multi-item transactions below.
 }
 ```
 
-## Cassandra transaction related
+## Related
 - [Original Cassandra CAS support bug](https://issues.apache.org/jira/browse/CASSANDRA-5062)
 - [cages, zookeeper locking for Cassandra](https://code.google.com/p/cages/)
 - [Wait chain algorithm](http://media.fightmymonster.com/Shared/docs/Wait%20Chain%20Algorithm.pdf)
 - [Spinnaker paper](http://arxiv.org/pdf/1103.2408.pdf)
+- [Google
+  Spanner](https://www.usenix.org/system/files/conference/osdi12/osdi12-final-16.pdf)
 - [Scalaris transaction
   paper](http://eprints.sics.se/3453/01/AtomicCommitment.pdf)
 
