@@ -109,6 +109,91 @@ function keyspaceName (reverseDomain, key) {
         + '_T_' + makeValidKey(key, 48 - prefix.length - 3);
 }
 
+function generateIndexSchema (req, indexName) {
+
+    var index = req.secondaryIndexes[indexName],
+        hasTid = false;
+
+    // Normalize the range index to an array
+    var rangeIndex = req.index.range || [];
+    if (!Array.isArray(rangeIndex)) {
+        rangeIndex = [req.index.range];
+    }
+
+    if (!index.hash) {
+        throw new Error ('Index not defined properly');
+    }
+
+    // Make sure we have an array for the range part of the index
+    if (index.range) {
+        if (!Array.isArray(index.range)) {
+            index.range = [index.range];
+        }
+    } else {
+        index.range = [];
+    }
+
+    // Build up attributes
+    var attributes = {
+        __consistentUpTo: 'timeuuid',
+        __tombstone: 'boolean'
+    };
+    index.static = '__consistentUpTo';
+
+    // copy over type info
+    attributes[index.hash] = req.attributes[index.hash];
+
+    // Make sure the main index keys are included in the new index
+    // First, the hash key.
+    if (!attributes[req.index.hash] && index.range.indexOf(req.index.hash) === -1) {
+        // Add in the original hash key as an additional range key
+        index.range.push(req.index.hash);
+    }
+    // Now the range key(s).
+    rangeIndex.forEach(function(att) {
+        if (!attributes[att] && index.range.indexOf(att) === -1) {
+            // Add in the original hash key(s) as additional range
+            // key(s)
+            index.range.push(att);
+        }
+    });
+
+    // Now make sure that all range keys are also included in the
+    // attributes.
+    index.range.forEach(function(att) {
+        if (!attributes[att]) {
+            attributes[att] = req.attributes[att];
+        }
+        if (attributes[att] === 'timeuuid') {
+            hasTid = true;
+        }
+    });
+
+    // Finally, deal with projections
+    if (index.proj && Array.isArray(index.proj)) {
+        index.proj.forEach(function(attr) {
+            if (!attributes[attr]) {
+                attributes[attr] = req.attributes[attr];
+                if (attributes[attr] === 'timeuuid') {
+                    hasTid = true;
+                }
+            }
+        });
+    }
+
+    if (!hasTid) {
+        index.range.tid = 'timeuuid';
+    }
+
+    var indexSchema = {
+        name: indexName,
+        attributes: attributes,
+        index: index,
+        consistency: defaultConsistency
+    };
+
+    return indexSchema;
+}
 
 function DB (client) {
     // cassandra client
@@ -128,7 +213,7 @@ DB.prototype.infoSchema = {
     index: {
         hash: 'key'
     },
-    _indexAttributes: {'key':true}
+    _restbase: { _indexAttributes: {'key': true} }
 };
 
 DB.prototype.getSchema = function (reverseDomain, tableName) {
@@ -154,11 +239,33 @@ DB.prototype._getSchema = function (keyspace, consistency) {
     .then(function(res) {
         if (res.items.length) {
             var schema = res.items[0].value,
-                _indexAttributes = {};
+                _indexAttributes = {},
+                rangeColumn;
 
             schema = JSON.parse(schema);
+            schema._restbase = {};
+
+            if (schema.secondaryIndexes) {
+                for (var indexName in schema.secondaryIndexes) {
+                    var indexSchema = generateIndexSchema(schema, indexName);
+                    schema._restbase.indexSchema[indexName] = indexSchema;
+                    
+                    // have a _indexattr for on index schema
+                    _indexAttributes[indexSchema.index.hash] = true;
+                    rangeColumn = indexSchema.index.range;
+                    if (Array.isArray(rangeColumn)) {
+                        rangeColumn.forEach(function(items){
+                            _indexAttributes[items] = true;
+                        });
+                    } else if (rangeColumn) {
+                        _indexAttributes[rangeColumn] = true;
+                    }
+                    schema._restbase.indexSchema[indexName]._indexAttributes = _indexAttributes;
+                }
+            }
+
             _indexAttributes[schema.index.hash] = true;
-            var rangeColumn = schema.index.range;
+            rangeColumn = schema.index.range;
             if (Array.isArray(rangeColumn)) {
                 rangeColumn.forEach(function(items){
                     _indexAttributes[items] = true;
@@ -166,8 +273,7 @@ DB.prototype._getSchema = function (keyspace, consistency) {
             } else if (rangeColumn) {
                 _indexAttributes[rangeColumn] = true;
             }
-
-            schema._indexAttributes = _indexAttributes;
+            schema._restbase._indexAttributes = _indexAttributes;
             return schema;
         } else {
             return null;
@@ -318,13 +424,20 @@ DB.prototype._put = function(keyspace, req, consistency, table) {
     if (!schema) {
         throw new Error('Table not found!');
     }
+    
+    // TODO: fetch all secondary indexes
+    //  - for each
+    //  - fetch their schema, thier _indexattributes 
+    //  - run the code below
+    //  - save in array
+    //  - run  a batch query
 
     var keys = [];
     var params = [];
     var indexKVMap = {};
     var placeholders = [];
 
-    for (var key in schema._indexAttributes) {
+    for (var key in schema._restbase._indexAttributes) {
         if (!req.attributes[key]) {
             throw new Error("Index attribute " + key + " missing");
         } else {
@@ -338,7 +451,7 @@ DB.prototype._put = function(keyspace, req, consistency, table) {
             if (val.constructor === Object) {
                 val = JSON.stringify(val);
             }
-            if (!schema._indexAttributes[key]) {
+            if (!schema._restbase._indexAttributes[key]) {
                 keys.push(key);
                 params.push(val);
             }
@@ -363,7 +476,7 @@ DB.prototype._put = function(keyspace, req, consistency, table) {
 
     if (!keys.length || req.if === 'not exists') {
 
-        var proj = Object.keys(schema._indexAttributes).concat(keys).map(cassID).join(',');
+        var proj = Object.keys(schema._restbase._indexAttributes).concat(keys).map(cassID).join(',');
         cql = 'insert into ' + cassID(keyspace) + '.' + cassID(table)
                 + ' (' + proj + ') values (';
         cql += placeholders.join(',') + ')';
@@ -403,7 +516,6 @@ DB.prototype._put = function(keyspace, req, consistency, table) {
             status: 201
         };
     });
-
 };
 
 
@@ -587,61 +699,7 @@ DB.prototype._createTable = function (keyspace, req, tableName, consistency) {
     var tasks = [];
     if (req.secondaryIndexes) {
         for (var indexName in req.secondaryIndexes) {
-            var index = req.secondaryIndexes[indexName];
-
-            // Make sure we have an array for the range part of the index
-            if (index.range) {
-                if (!Array.isArray(index.range)) {
-                    index.range = [index.range];
-                }
-            } else {
-                index.range = [];
-            }
-
-            // Build up attributes
-            var attributes = {};
-            // copy over type info
-            attributes[index.hash] = req.attributes[index.hash];
-
-            // Make sure the main index keys are included in the new index
-            // First, the hash key.
-            if (!attributes[req.index.hash] && index.range.indexOf(req.index.hash) === -1) {
-                // Add in the original hash key as an additional range key
-                index.range.push(req.index.hash);
-            }
-            // Now the range key(s).
-            rangeIndex.forEach(function(att) {
-                if (!attributes[att] && index.range.indexOf(att) === -1) {
-                    // Add in the original hash key(s) as additional range
-                    // key(s)
-                    index.range.push(att);
-                }
-            });
-
-            // Now make sure that all range keys are also included in the
-            // attributes.
-            index.range.forEach(function(att) {
-                if (!attributes[att]) {
-                    attributes[att] = req.attributes[att];
-                }
-            });
-
-            // Finally, deal with projections
-            if (index.proj && Array.isArray(index.proj)) {
-                index.proj.forEach(function(attr) {
-                    if (!attributes[attr]) {
-                        attributes[attr] = req.attributes[attr];
-                    }
-                });
-            }
-
-            var indexSchema = {
-                name: indexName,
-                attributes: attributes,
-                index: index,
-                consistency: defaultConsistency
-            };
-
+            var indexSchema = generateIndexSchema(req, indexName);
             tasks.push(this._createTable(keyspace, indexSchema, 'i_' + indexName));
         }
         tasks.push(this.client.execute_p(cql, [], consistency));
