@@ -227,6 +227,18 @@ var putIfQuery = {
     if: { body: { "eq": "<p>Service Oriented Architecture</p>" } }
 };
 
+// simple query to test secondary index update functionality
+var putIndexQuery = {
+    table: "someTable2",
+    attributes: {
+        key: "another test",
+        tid: tidFromDate(new Date('2013-08-11 18:43:58-0700')),
+        body: "<p>test<p>",
+        uri: "a uri"
+    },
+};
+
+
 // simple select query
 var simpleQuery = {
     table: "someTable",
@@ -319,7 +331,6 @@ function makeClient () {
 var DB = makeClient();
 
 // light-weight transactions
-// secondary index tests
 
 describe('DB backend', function() {
     describe('createTable', function() {
@@ -386,6 +397,14 @@ describe('DB backend', function() {
     describe('put', function() {
         it('should perform a put query with if and non index attributes', function() {
             return DB.put('org.wikipedia.en', putIfQuery)
+            .then(function(result) {
+                deepEqual(result, {status:201});
+            });
+        });
+    });
+    describe('put', function() {
+        it('should perform a put query to test index update functionality ', function() {
+            return DB.put('org.wikipedia.en', putIndexQuery)
             .then(function(result) {
                 deepEqual(result, {status:201});
             });
