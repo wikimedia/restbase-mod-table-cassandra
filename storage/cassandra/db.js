@@ -2,6 +2,8 @@
 
 var crypto = require('crypto');
 var cass = require('node-cassandra-cql');
+var uuid = require('node-uuid');
+
 var defaultConsistency = cass.types.consistencies.one;
 
 function cassID (name) {
@@ -10,6 +12,16 @@ function cassID (name) {
     } else {
         return '"' + name.replace(/"/g, '""') + '"';
     }
+}
+
+function tidFromDate(date) {
+    // Create a new, deterministic timestamp
+    return uuid.v1({
+        node: [0x01, 0x23, 0x45, 0x67, 0x89, 0xab],
+        clockseq: 0x1234,
+        msecs: date.getTime(),
+        nsecs: 0
+    });
 }
 
 function buildCondition (pred) {
@@ -196,8 +208,9 @@ function generateIndexSchema (req, indexName) {
     });
 
     if (!hasTid) {
-        range.tid = 'timeuuid';
-        _indexAttributes.tid = 'timeuuid';
+        attributes._tid = 'timeuuid';
+        range.push('_tid');
+        _indexAttributes._tid = 'timeuuid';
     }
 
     // Finally, deal with projections
@@ -242,6 +255,7 @@ DB.prototype.infoSchema = {
     _restbase: { _indexAttributes: {'key': true} }
 };
 
+
 DB.prototype.buildPutQuery = function(req, keyspace, table, schema) {
 
     // TODO: Think about how to insert tid for secondary index ranges
@@ -260,13 +274,15 @@ DB.prototype.buildPutQuery = function(req, keyspace, table, schema) {
         _indexAttributes = schema._indexAttributes;
         table = "i_" + table;
     }
-    console.log(schema, _indexAttributes);
+
     if (!schema) {
         throw new Error('Table not found!');
     }
 
     for (var key in _indexAttributes) {
-        if (!req.attributes[key]) {
+        if (key === '_tid') {
+            indexKVMap[key] = tidFromDate(new Date());
+        } else if (!req.attributes[key]) {
             throw new Error("Index attribute " + key + " missing");
         } else {
             indexKVMap[key] = req.attributes[key];
@@ -471,7 +487,7 @@ DB.prototype._get = function (keyspace, req, consistency, table) {
             }
         } else {
             // fake it for now
-            rangeColumn = 'tid';
+            rangeColumn = '_tid';
         }
         var dir = req.order.toLowerCase();
         if (rangeColumn && dir in {'asc':1, 'desc':1}) {

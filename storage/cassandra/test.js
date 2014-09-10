@@ -130,6 +130,32 @@ var simpleSchemaWithIndex = {
     }
 };
 
+// simple schema with secondary index
+var SchemaWithIndexWithoutTID = {
+    domain: 'en.wikipedia.org',
+    table: 'someTable3',
+    options: { storageClass: 'SimpleStrategy', durabilityLevel: 1 },
+    attributes: {
+        key: 'string',
+        //tid: 'timeuuid',
+        latestTid: 'timeuuid',
+        uri: 'string',
+        body: 'blob',
+        // 'deleted', 'nomove' etc?
+        restrictions: 'set<string>',
+    },
+    index: {
+        hash: 'key',
+        //range: 'tid',
+    },
+    secondaryIndexes: {
+        by_uri : {
+            hash: 'uri',
+            proj : ["body"]
+        }
+    }
+};
+
 
 var simpleKVSchema = {
     // extra redundant info for primary bucket table reconstruction
@@ -360,6 +386,15 @@ describe('DB backend', function() {
             });
         });
     });
+    describe('createTable', function() {
+        it('should create a simple table with secondary index and no tid in range', function() {
+            this.timeout(15000);
+            return DB.createTable('org.wikipedia.en', SchemaWithIndexWithoutTID)
+            .then(function(item) {
+                deepEqual(item, {status:201});
+            });
+        });
+    });
     describe('put', function() {
         it('should perform a simple put insert query', function() {
             this.timeout(15000);
@@ -436,7 +471,8 @@ describe('DB backend', function() {
             this.timeout(15000);
             return Promise.all([ DB.dropTable('org.wikipedia.en', 'someTable'),
                                  DB.dropTable('org.wikipedia.en', 'someTable1'),
-                                 DB.dropTable('org.wikipedia.en', 'someTable2')]);
+                                 DB.dropTable('org.wikipedia.en', 'someTable2'),
+                                 DB.dropTable('org.wikipedia.en', 'someTable3')]);
         });
     });
 });
