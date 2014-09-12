@@ -204,7 +204,6 @@ var rangeKVSchema = {
 // simple insert query
 var simplePutQuery = {
     table: "someTable",
-    limit: 3,
     attributes: {
         key: 'testing',
         tid: tidFromDate(new Date('2013-08-08 18:43:58-0700')),
@@ -214,7 +213,6 @@ var simplePutQuery = {
 // simple insert query to test more than one range keys
 var anotherSimplePutQuery = {
     table: "someTable1",
-    limit: 3,
     attributes: {
         key: 'testing',
         tid: tidFromDate(new Date('2013-08-08 18:43:58-0700')),
@@ -260,7 +258,6 @@ var putIndexQuery = {
     attributes: {
         key: "another test",
         tid: tidFromDate(new Date('2013-08-11 18:43:58-0700')),
-        body: "<p>test<p>",
         uri: "a uri"
     },
 };
@@ -278,15 +275,25 @@ var simpleQuery = {
 // simeple select query using between relation
 var betweenQuery = {
     table: "someTable",
-    //index: "key",
     //from: 'foo', // key to start the query from (paging)
-    proj: ["key", "tid"],
     limit: 3,
     attributes: {
         tid: { "BETWEEN": [ tidFromDate(new Date('2013-07-08 18:43:58-0700')),
                             tidFromDate(new Date('2013-08-08 18:43:58-0700'))] },
         key: "testing"
     }
+};
+
+// simple index query
+var simpleIndexQuery = {
+    table: "someTable2",
+    index: "by_uri",
+    attributes: {
+        key: "another test",
+        tid: { "le" : tidFromDate(new Date('2013-08-11 18:43:58-0700')) },
+        uri: "a uri"
+    },
+    limit: 1
 };
 
 // simple delete query
@@ -439,6 +446,14 @@ describe('DB backend', function() {
             });
         });
     });
+    describe('get', function() {
+        it('should perform a index query', function() {
+            return DB.get('org.wikipedia.en', simpleIndexQuery)
+            .then(function(result) {
+                deepEqual(result.count, 1);
+            });
+        });
+    })
     describe('delete', function() {
         it('should perform a simple delete query', function() {
             return DB.delete('org.wikipedia.en', deleteQuery);
