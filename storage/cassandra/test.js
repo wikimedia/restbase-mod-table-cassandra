@@ -104,10 +104,38 @@ var anotherSimpleSchema = {
     }
 };
 
+// simple schema with secondary index
+var simpleSchemaWithIndex = {
+    domain: 'en.wikipedia.org',
+    table: 'someTable2',
+    options: { storageClass: 'SimpleStrategy', durabilityLevel: 1 },
+    attributes: {
+        key: 'string',
+        tid: 'timeuuid',
+        latestTid: 'timeuuid',
+        uri: 'string',
+        body: 'blob',
+        // 'deleted', 'nomove' etc?
+        restrictions: 'set<string>',
+    },
+    index: {
+        hash: 'key',
+        range: 'tid',
+    },
+    secondaryIndexes: {
+        by_uri : {
+            hash: 'uri',
+            proj : ["body"]
+        }
+    }
+};
+
+
 var simpleKVSchema = {
     // extra redundant info for primary bucket table reconstruction
     domain: 'en.wikipedia.org',
     table: 'someTable',
+    options: { storageClass: 'SimpleStrategy', durabilityLevel: 1 },
     attributes: {
         uri: 'string',
         tid: 'timeuuid',
@@ -198,6 +226,18 @@ var putIfQuery = {
     },
     if: { body: { "eq": "<p>Service Oriented Architecture</p>" } }
 };
+
+// simple query to test secondary index update functionality
+var putIndexQuery = {
+    table: "someTable2",
+    attributes: {
+        key: "another test",
+        tid: tidFromDate(new Date('2013-08-11 18:43:58-0700')),
+        body: "<p>test<p>",
+        uri: "a uri"
+    },
+};
+
 
 // simple select query
 var simpleQuery = {
@@ -291,7 +331,6 @@ function makeClient () {
 var DB = makeClient();
 
 // light-weight transactions
-// secondary index tests
 
 describe('DB backend', function() {
     describe('createTable', function() {
@@ -302,11 +341,20 @@ describe('DB backend', function() {
                 deepEqual(item, {status:201});
             });
         });
-    });anotherSimpleSchema
+    });
     describe('createTable', function() {
         it('should create a simple table with more than one range keys', function() {
             this.timeout(15000);
             return DB.createTable('org.wikipedia.en', anotherSimpleSchema)
+            .then(function(item) {
+                deepEqual(item, {status:201});
+            });
+        });
+    });
+    describe('createTable', function() {
+        it('should create a simple table with secondary index', function() {
+            this.timeout(15000);
+            return DB.createTable('org.wikipedia.en', simpleSchemaWithIndex)
             .then(function(item) {
                 deepEqual(item, {status:201});
             });
@@ -354,6 +402,14 @@ describe('DB backend', function() {
             });
         });
     });
+    describe('put', function() {
+        it('should perform a put query to test index update functionality ', function() {
+            return DB.put('org.wikipedia.en', putIndexQuery)
+            .then(function(result) {
+                deepEqual(result, {status:201});
+            });
+        });
+    });
     describe('get', function() {
         it('should perform a simple get query', function() {
             return DB.get('org.wikipedia.en', betweenQuery)
@@ -378,7 +434,9 @@ describe('DB backend', function() {
     describe('dropTable', function() {
         it('should drop a simple table', function() {
             this.timeout(15000);
-            return DB.dropTable('org.wikipedia.en', 'someTable');
+            return Promise.all([ DB.dropTable('org.wikipedia.en', 'someTable'),
+                                 DB.dropTable('org.wikipedia.en', 'someTable1'),
+                                 DB.dropTable('org.wikipedia.en', 'someTable2')]);
         });
     });
 });

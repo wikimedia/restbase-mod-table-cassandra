@@ -50,7 +50,7 @@ function buildCondition (pred) {
         conjunctions.push(cql);
     }
     return {
-        cql: conjunctions.join(' AND '),
+        query: conjunctions.join(' AND '),
         params: params
     };
 }
@@ -109,6 +109,117 @@ function keyspaceName (reverseDomain, key) {
         + '_T_' + makeValidKey(key, 48 - prefix.length - 3);
 }
 
+function validateSchema(req) {
+
+    if (!req.index || !req.index.hash) {
+        //console.log(req);
+        throw new Error("Missing index or hash key in table schema");
+    }
+
+    // Normalize the range index to an array
+    var rangeIndex = req.index.range || [];
+    if (!Array.isArray(rangeIndex)) {
+        rangeIndex = [req.index.range];
+    }
+
+    return rangeIndex;
+}
+
+function generateIndexSchema (req, indexName) {
+
+    var index = req.secondaryIndexes[indexName],
+        hasTid = false;
+
+    if (!index.hash) {
+        throw new Error ('Index not defined properly');
+    }
+
+    var rangeIndex = validateSchema(req);
+
+    // Make sure we have an array for the range part of the index
+    var range = [];
+    if (index.range) {
+        if (!Array.isArray(index.range)) {
+            range = [index.range];
+        } else {
+            range = index.range;
+        }
+    }
+
+    // Build up attributes
+    var attributes = {
+        __consistentUpTo: 'timeuuid',
+        __tombstone: 'boolean'
+    };
+    index.static = '__consistentUpTo';
+
+    // copy over type info
+    attributes[index.hash] = req.attributes[index.hash];
+
+    // build index attribures for the schema
+    var _indexAttributes = {};
+    _indexAttributes[index.hash] = true;
+
+    range.forEach(function(items){
+        _indexAttributes[items] = true;
+    });
+
+    // TODO: Support indexes without a hash, by substituting an int column that defaults to 0 or the like. 
+    // This is useful for smallish indexes that need to be sorted / support range queries.
+    
+    // Make sure the main index keys are included in the new index
+    // First, the hash key.
+    if (!attributes[req.index.hash] && range.indexOf(req.index.hash) === -1) {
+        // Add in the original hash key as an additional range key
+        range.push(req.index.hash);
+    }
+
+    // Now the range key(s).
+    rangeIndex.forEach(function(att) {
+        if (!attributes[att] && range.indexOf(att) === -1) {
+            // Add in the original hash key(s) as additional range
+            // key(s)
+            range.push(att);
+            _indexAttributes[att] = true;
+        }
+    });
+
+    // Now make sure that all range keys are also included in the
+    // attributes.
+    range.forEach(function(att) {
+        if (!attributes[att]) {
+            attributes[att] = req.attributes[att];
+        }
+        if (attributes[att] === 'timeuuid') {
+            hasTid = true;
+        }
+    });
+
+    if (!hasTid) {
+        range.tid = 'timeuuid';
+        _indexAttributes.tid = 'timeuuid';
+    }
+
+    // Finally, deal with projections
+    if (index.proj && Array.isArray(index.proj)) {
+        index.proj.forEach(function(attr) {
+            if (!attributes[attr]) {
+                attributes[attr] = req.attributes[attr];
+            }
+        });
+    }
+
+    index.range = range;
+    var indexSchema = {
+        name: indexName,
+        attributes: attributes,
+        index: index,
+        consistency: defaultConsistency,
+        _indexAttributes: _indexAttributes
+    };
+
+    return indexSchema;
+}
 
 function DB (client) {
     // cassandra client
@@ -128,7 +239,108 @@ DB.prototype.infoSchema = {
     index: {
         hash: 'key'
     },
-    _indexAttributes: {'key':true}
+    _restbase: { _indexAttributes: {'key': true} }
+};
+
+DB.prototype.buildPutQuery = function(req, keyspace, table, schema) {
+
+    // TODO: Think about how to insert tid for secondary index ranges
+
+    var keys = [];
+    var params = [];
+    var indexKVMap = {};
+    var placeholders = [];
+    var _indexAttributes;
+
+    if (table === 'meta') {
+        _indexAttributes = schema._restbase._indexAttributes;
+    } else if ( table === "data" ) {
+        _indexAttributes = schema._restbase._indexAttributes;
+    } else {
+        _indexAttributes = schema._indexAttributes;
+        table = "i_" + table;
+    }
+    console.log(schema, _indexAttributes);
+    if (!schema) {
+        throw new Error('Table not found!');
+    }
+
+    for (var key in _indexAttributes) {
+        if (!req.attributes[key]) {
+            throw new Error("Index attribute " + key + " missing");
+        } else {
+            indexKVMap[key] = req.attributes[key];
+        }
+    }
+
+    for (key in req.attributes) {
+        var val = req.attributes[key];
+        if (val !== undefined && schema.attributes[key]) {
+            if (val.constructor === Object) {
+                val = JSON.stringify(val);
+            }
+            if (!_indexAttributes[key]) {
+                keys.push(key);
+                params.push(val);
+            }
+            placeholders.push('?');
+        }
+    }
+
+    // switch between insert & update / upsert
+    // - insert for 'if not exists', or when no non-primary-key attributes are
+    //   specified
+    // - update when any non-primary key attributes are supplied
+    //   - Need to verify that all primary key members are supplied as well,
+    //     else error.
+
+    var cql = '', condResult;
+
+    if (req.if && req.if.constructor === String) {
+        req.if = req.if.trim().split(/\s+/).join(' ').toLowerCase();
+    }
+
+    var condRes = buildCondition(indexKVMap);
+
+    if (!keys.length || req.if === 'not exists') {
+        var proj = Object.keys(_indexAttributes).concat(keys).map(cassID).join(',');
+        cql = 'insert into ' + cassID(keyspace) + '.' + cassID(table)
+                + ' (' + proj + ') values (';
+        cql += placeholders.join(',') + ')';
+        params = condRes.params.concat(params);
+    } else if ( keys.length ) {
+        var updateProj = keys.map(cassID).join(' = ?,') + ' = ? ';
+        cql += 'update ' + cassID(keyspace) + '.' + cassID(table) +
+               ' set ' + updateProj + ' where ';
+        cql += condRes.query;
+        params = params.concat(condRes.params);
+    } else {
+        throw new Error("Can't Update or Insert");
+    }
+
+    // Build up the condition
+    if (req.if) {
+        if (req.if === 'not exists') {
+            cql += ' if not exists ';
+        } else {
+            cql += ' if ';
+            condResult = buildCondition(req.if);
+            cql += condResult.query;
+            params = params.concat(condResult.params);
+        }
+    }
+
+    return {query: cql, params: params};
+};
+
+DB.prototype.executeCql = function(batch, consistency, thenCB) {
+    if (batch.length === 1) {
+        return this.client.executeAsPrepared_p(batch[0].query, batch[0].params, consistency)
+        .then(thenCB);
+    } else {
+        return this.client.executeBatch_p(batch, consistency)
+        .then(thenCB);
+    }
 };
 
 DB.prototype.getSchema = function (reverseDomain, tableName) {
@@ -154,11 +366,22 @@ DB.prototype._getSchema = function (keyspace, consistency) {
     .then(function(res) {
         if (res.items.length) {
             var schema = res.items[0].value,
-                _indexAttributes = {};
+                _indexAttributes = {},
+                rangeColumn;
 
             schema = JSON.parse(schema);
+            schema._restbase = {};
+            schema._restbase.indexSchema = {};
+
+            if (schema.secondaryIndexes) {
+                for (var indexName in schema.secondaryIndexes) {
+                    var indexSchema = generateIndexSchema(schema, indexName);
+                    schema._restbase.indexSchema[indexName] = indexSchema;
+                }
+            }
+
             _indexAttributes[schema.index.hash] = true;
-            var rangeColumn = schema.index.range;
+            rangeColumn = schema.index.range;
             if (Array.isArray(rangeColumn)) {
                 rangeColumn.forEach(function(items){
                     _indexAttributes[items] = true;
@@ -166,8 +389,7 @@ DB.prototype._getSchema = function (keyspace, consistency) {
             } else if (rangeColumn) {
                 _indexAttributes[rangeColumn] = true;
             }
-
-            schema._indexAttributes = _indexAttributes;
+            schema._restbase._indexAttributes = _indexAttributes;
             return schema;
         } else {
             return null;
@@ -234,7 +456,7 @@ DB.prototype._get = function (keyspace, req, consistency, table) {
     if (req.attributes) {
         cql += ' where ';
         var condResult = buildCondition(req.attributes);
-        cql += condResult.cql;
+        cql += condResult.query;
         params = condResult.params;
     }
 
@@ -302,7 +524,7 @@ DB.prototype.put = function (reverseDomain, req) {
 };
 
 
-DB.prototype._put = function(keyspace, req, consistency, table) {
+DB.prototype._put = function(keyspace, req, consistency, table ) {
 
     if (!table) {
         table = 'data';
@@ -311,7 +533,7 @@ DB.prototype._put = function(keyspace, req, consistency, table) {
     var schema;
     if (table === 'meta') {
         schema = this.infoSchema;
-    } else {
+    } else if ( table === "data" ) {
         schema = this.schemaCache[keyspace];
     }
 
@@ -319,91 +541,29 @@ DB.prototype._put = function(keyspace, req, consistency, table) {
         throw new Error('Table not found!');
     }
 
-    var keys = [];
-    var params = [];
-    var indexKVMap = {};
-    var placeholders = [];
+    var batch = [];
+    var queryResult = this.buildPutQuery(req, keyspace, table, schema);
+    batch.push(queryResult);
 
-    for (var key in schema._indexAttributes) {
-        if (!req.attributes[key]) {
-            throw new Error("Index attribute " + key + " missing");
-        } else {
-            indexKVMap[key] = req.attributes[key];
-        }
-    }
-
-    for (key in req.attributes) {
-        var val = req.attributes[key];
-        if (val !== undefined) {
-            if (val.constructor === Object) {
-                val = JSON.stringify(val);
+    if (schema.secondaryIndexes) {
+        for ( var item in schema.secondaryIndexes) {
+            schema = this.schemaCache[keyspace]._restbase.indexSchema[item];
+            if (!schema) {
+                throw new Error('Table not found!');
             }
-            if (!schema._indexAttributes[key]) {
-                keys.push(key);
-                params.push(val);
-            }
-            placeholders.push('?');
+            queryResult = this.buildPutQuery( req, keyspace, item, schema);
+            batch.push(queryResult);
         }
     }
-
-    // switch between insert & update / upsert
-    // - insert for 'if not exists', or when no non-primary-key attributes are
-    //   specified
-    // - update when any non-primary key attributes are supplied
-    //   - Need to verify that all primary key members are supplied as well,
-    //     else error.
-
-    var cql = '', condResult;
-
-    if (req.if && req.if.constructor === String) {
-        req.if = req.if.trim().split(/\s+/).join(' ').toLowerCase();
-    }
-
-    var condRes = buildCondition(indexKVMap);
-
-    if (!keys.length || req.if === 'not exists') {
-
-        var proj = Object.keys(schema._indexAttributes).concat(keys).map(cassID).join(',');
-        cql = 'insert into ' + cassID(keyspace) + '.' + cassID(table)
-                + ' (' + proj + ') values (';
-        cql += placeholders.join(',') + ')';
-        params = condRes.params.concat(params);
-    } else if ( keys.length ) {
-        var updateProj = keys.map(cassID).join(' = ?,') + ' = ? ';
-        cql += 'update ' + cassID(keyspace) + '.' + cassID(table) +
-               ' set ' + updateProj + ' where ';
-        cql += condRes.cql;
-        params = params.concat(condRes.params);
-    } else {
-        throw new Error("Can't Update or Insert");
-    }
-
-    // Build up the condition
-    if (req.if) {
-        if (req.if === 'not exists') {
-            cql += ' if not exists ';
-        } else {
-            cql += ' if ';
-            condResult = buildCondition(req.if);
-            cql += condResult.cql;
-            params = params.concat(condResult.params);
-        }
-    }
-
-    // TODO: update indexes
-    // - if primary request is conditional: schedule a dependent transaction
-    // - else: run secondary updates in a single unconditional batch
 
     //console.log('cql', cql, 'params', JSON.stringify(params));
-    return this.client.executeAsPrepared_p(cql, params, consistency)
-    .then(function(result) {
+    return this.executeCql(batch, consistency, function(result) {
         var rows = result.rows;
         return {
             // XXX: check if condition failed!
             status: 201
         };
     });
-
 };
 
 
@@ -430,7 +590,7 @@ DB.prototype._delete = function (keyspace, req, consistency, table) {
     if (req.attributes) {
         cql += ' where ';
         var condResult = buildCondition(req.attributes);
-        cql += condResult.cql;
+        cql += condResult.query;
         params = condResult.params;
     }
 
@@ -538,16 +698,9 @@ DB.prototype._createTable = function (keyspace, req, tableName, consistency) {
         cql += ', ';
     }
 
-    if (!req.index || !req.index.hash) {
-        //console.log(req);
-        throw new Error("Missing index or hash key in table schema");
-    }
 
-    // Normalize the range index to an array
-    var rangeIndex = req.index.range || [];
-    if (!Array.isArray(rangeIndex)) {
-        rangeIndex = [req.index.range];
-    }
+    // Validate and Normalize the range index to an array
+    var rangeIndex = validateSchema(req);
 
     cql += 'primary key (';
     var indexBits = [cassID(req.index.hash)];
@@ -561,7 +714,7 @@ DB.prototype._createTable = function (keyspace, req, tableName, consistency) {
 
     if (req.index.order && rangeIndex.length) {
         var orders = req.index.order;
-        if (!Array.isArray(order)) {
+        if (!Array.isArray(orders)) {
             orders = [orders];
         }
         var orderBits = [];
@@ -587,61 +740,7 @@ DB.prototype._createTable = function (keyspace, req, tableName, consistency) {
     var tasks = [];
     if (req.secondaryIndexes) {
         for (var indexName in req.secondaryIndexes) {
-            var index = req.secondaryIndexes[indexName];
-
-            // Make sure we have an array for the range part of the index
-            if (index.range) {
-                if (!Array.isArray(index.range)) {
-                    index.range = [index.range];
-                }
-            } else {
-                index.range = [];
-            }
-
-            // Build up attributes
-            var attributes = {};
-            // copy over type info
-            attributes[index.hash] = req.attributes[index.hash];
-
-            // Make sure the main index keys are included in the new index
-            // First, the hash key.
-            if (!attributes[req.index.hash] && index.range.indexOf(req.index.hash) === -1) {
-                // Add in the original hash key as an additional range key
-                index.range.push(req.index.hash);
-            }
-            // Now the range key(s).
-            rangeIndex.forEach(function(att) {
-                if (!attributes[att] && index.range.indexOf(att) === -1) {
-                    // Add in the original hash key(s) as additional range
-                    // key(s)
-                    index.range.push(att);
-                }
-            });
-
-            // Now make sure that all range keys are also included in the
-            // attributes.
-            index.range.forEach(function(att) {
-                if (!attributes[att]) {
-                    attributes[att] = req.attributes[att];
-                }
-            });
-
-            // Finally, deal with projections
-            if (index.proj && Array.isArray(index.proj)) {
-                index.proj.forEach(function(attr) {
-                    if (!attributes[attr]) {
-                        attributes[attr] = req.attributes[attr];
-                    }
-                });
-            }
-
-            var indexSchema = {
-                name: indexName,
-                attributes: attributes,
-                index: index,
-                consistency: defaultConsistency
-            };
-
+            var indexSchema = generateIndexSchema(req, indexName);
             tasks.push(this._createTable(keyspace, indexSchema, 'i_' + indexName));
         }
         tasks.push(this.client.execute_p(cql, [], consistency));
