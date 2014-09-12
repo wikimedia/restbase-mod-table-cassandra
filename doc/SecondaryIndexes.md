@@ -120,6 +120,29 @@ Details:
   in ~5ms, so that's pretty efficient.
 - can dynamically adjust the granularity based on the indexed timebucket;
   secondary index will be automatically rebuilt
+- will need to insert one index entry in each time bucket -- algorithm TBD
+
+##### Variant: Additional index-only table
+- add another table without versioning (no tid column), but with time
+  bucketing to keep track of the available keys within this bucket:
+  `<timebucket><primary key>`
+- after establishing the possibly matching keys by querying on this table,
+  proceed to perform one query per key including timestamp on the fully
+  versioned index table (`<primary key><timeuuid>`) and filter out false
+  positives
+- need to figure out an algorithm to reliably maintain the bucket index
+    - need to transfer entries from preceding bucket
+    - could use union of matches while new bucket is being build; previous
+      bucket will potentially have more false positives
+- possible refinements:
+    - keep some additional information about *latest* entry in unversioned
+      table
+- pro-con:
+    - ++ small result set on first query (but some false positives likely)
+    - ++ can do just enough timestamp-based lookups to satisfy limit for paging
+    - + share versioned index table layout with non-range indexes
+    - - more queries, likely higher latency for small result sets
+
 
 ## Related
 - [CASSANDRA-2897: Secondary indexes without read-before-write](https://issues.apache.org/jira/browse/CASSANDRA-2897)
