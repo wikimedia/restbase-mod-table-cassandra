@@ -2,8 +2,9 @@
 
 require('prfun');
 var assert = require('assert');
-var cass = require('node-cassandra-cql');
+var cass = require('cassandra-driver');
 var uuid = require('node-uuid');
+var makeClient = require('./index.js');
 
 function tidFromDate(date) {
     // Create a new, deterministic timestamp
@@ -329,41 +330,18 @@ var ourQueryResult = {
     }
 };
 
-function promisifyClient (client, options) {
-    var methods = ['connect', 'shutdown', 'executeAsPrepared', 'execute', 'executeBatch'];
-    methods.forEach(function(method) {
-        //console.log(method, client[method]);
-        client[method + '_p'] = Promise.promisify(client[method].bind(client));
-    });
 
-    return client;
-}
-
-function makeClient () {
-    var client =  promisifyClient(new cass.Client({hosts: ['localhost'], keyspace: 'system'}));
-
-    var reconnectCB = function(err) {
-        if (err) {
-            // keep trying each 500ms
-            console.error('Cassandra connection error @ localhost :', err, '\nretrying..');
-            setTimeout(client.connect.bind(client, reconnectCB), 500);
-        }
-    };
-    client.on('connection', reconnectCB);
-    client.connect();
-    return new DB(client);
-}
-
-var DB = makeClient();
-
-// light-weight transactions
+var DB;
 
 describe('DB backend', function() {
+    this.timeout(15000);
+    before(function() { return makeClient({ contactPoints: ['localhost'], keyspace: 'system' })
+        .then(function(db) { DB = db; }); });
     describe('createTable', function() {
         it('should create a simple table', function() {
             this.timeout(15000);
             return DB.createTable('org.wikipedia.en', revisionedKVSchema)
-            .then(function(item) {
+                .then(function(item) {
                 deepEqual(item, {status:201});
             });
         });

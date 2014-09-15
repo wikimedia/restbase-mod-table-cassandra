@@ -8,7 +8,7 @@
     "restify": "2.x.x",
     "connect-busboy": "git+https://github.com/gwicke/connect-busboy.git#master",
     "node-uuid": "1.x.x",
-    "node-cassandra-cql": "git+https://github.com/gwicke/node-cassandra-cql.git#buffer_copy",
+    "cassandra-driver": "git+https://github.com/datastax/nodejs-driver.git#master",
     "routeswitch": "^0.3.2",
     "assert": "^1.1.1",
     "prfun": "^1.0.0"
