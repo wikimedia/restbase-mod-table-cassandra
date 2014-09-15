@@ -1,10 +1,10 @@
 "use strict";
 
-var cass = require('node-cassandra-cql');
+var cass = require('cassandra-driver');
 var DB = require('./db');
 
 function promisifyClient (client, options) {
-    var methods = ['connect', 'shutdown', 'executeAsPrepared', 'execute', 'executeBatch'];
+    var methods = ['connect', 'shutdown', 'execute', 'batch'];
     methods.forEach(function(method) {
         //console.log(method, client[method]);
         client[method + '_p'] = Promise.promisify(client[method].bind(client));

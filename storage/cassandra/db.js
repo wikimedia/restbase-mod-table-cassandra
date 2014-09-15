@@ -1,7 +1,7 @@
 "use strict";
 
 var crypto = require('crypto');
-var cass = require('node-cassandra-cql');
+var cass = require('cassandra-driver');
 var uuid = require('node-uuid');
 
 var defaultConsistency = cass.types.consistencies.one;
@@ -351,10 +351,10 @@ DB.prototype.buildPutQuery = function(req, keyspace, table, schema) {
 
 DB.prototype.executeCql = function(batch, consistency, thenCB) {
     if (batch.length === 1) {
-        return this.client.executeAsPrepared_p(batch[0].query, batch[0].params, consistency)
+        return this.client.execute_p(batch[0].query, batch[0].params, {consistency: consistency})
         .then(thenCB);
     } else {
-        return this.client.executeBatch_p(batch, consistency)
+        return this.client.batch_p(batch, {consistency: consistency})
         .then(thenCB);
     }
 };
@@ -500,9 +500,8 @@ DB.prototype._get = function (keyspace, req, consistency, table) {
     }
 
     //console.log(cql, params);
-    return this.client.executeAsPrepared_p(cql, params, consistency)
+    return this.client.execute_p(cql, params, {consistency: consistency})
     .then(function(result) {
-        //console.log(result);
         var rows = result.rows;
         // hide the columns property added by node-cassandra-cql
         // XXX: submit a patch to avoid adding it in the first place
@@ -612,13 +611,13 @@ DB.prototype._delete = function (keyspace, req, consistency, table) {
 
     // TODO: delete from indexes too!
 
-    return this.client.executeAsPrepared_p(cql, params, consistency);
+    return this.client.execute_p(cql, params, {consistency: consistency});
 };
 
 DB.prototype._createKeyspace = function (keyspace, consistency, options) {
     var cql = 'create keyspace ' + cassID(keyspace)
         + ' WITH REPLICATION = ' + options;
-    return this.client.execute_p(cql, [], consistency || defaultConsistency);
+    return this.client.execute_p(cql, [],  {consistency: consistency || defaultConsistency});
 };
 
 DB.prototype.createTable = function (reverseDomain, req) {
@@ -759,16 +758,16 @@ DB.prototype._createTable = function (keyspace, req, tableName, consistency) {
             var indexSchema = generateIndexSchema(req, indexName);
             tasks.push(this._createTable(keyspace, indexSchema, 'i_' + indexName));
         }
-        tasks.push(this.client.execute_p(cql, [], consistency));
+        tasks.push(this.client.execute_p(cql, [], {consistency: consistency}));
         return Promise.all(tasks);
     } else {
-        return this.client.execute_p(cql, [], consistency);
+        return this.client.execute_p(cql, [], {consistency: consistency});
     }
 };
 
 DB.prototype.dropTable = function (reverseDomain, table) {
     var keyspace = keyspaceName(reverseDomain, table);
-    return this.client.execute_p('drop keyspace ' + cassID(keyspace), [], defaultConsistency);
+    return this.client.execute_p('drop keyspace ' + cassID(keyspace), [], {consistency: defaultConsistency});
 };
 
 

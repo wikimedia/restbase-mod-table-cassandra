@@ -450,7 +450,7 @@ function makeRashomon (options) {
         storage: {
             "default": {
                 "type": "cassandra",
-                "hosts": ["localhost"],
+                "contactPoints": ["localhost"],
                 "id": "<uuid>",
                 "keyspace": "system",
                 "username": "test",
