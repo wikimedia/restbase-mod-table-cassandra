@@ -351,10 +351,10 @@ DB.prototype.buildPutQuery = function(req, keyspace, table, schema) {
 
 DB.prototype.executeCql = function(batch, consistency, thenCB) {
     if (batch.length === 1) {
-        return this.client.execute_p(batch[0].query, batch[0].params, {consistency: consistency})
+        return this.client.execute_p(batch[0].query, batch[0].params, {consistency: consistency, prepared: true})
         .then(thenCB);
     } else {
-        return this.client.batch_p(batch, {consistency: consistency})
+        return this.client.batch_p(batch, {consistency: consistency, prepared: true})
         .then(thenCB);
     }
 };
@@ -500,7 +500,7 @@ DB.prototype._get = function (keyspace, req, consistency, table) {
     }
 
     //console.log(cql, params);
-    return this.client.execute_p(cql, params, {consistency: consistency})
+    return this.client.execute_p(cql, params, {consistency: consistency, prepared:true})
     .then(function(result) {
         var rows = result.rows;
         // hide the columns property added by node-cassandra-cql
@@ -611,7 +611,7 @@ DB.prototype._delete = function (keyspace, req, consistency, table) {
 
     // TODO: delete from indexes too!
 
-    return this.client.execute_p(cql, params, {consistency: consistency});
+    return this.client.execute_p(cql, params, {consistency: consistency, prepared:true});
 };
 
 DB.prototype._createKeyspace = function (keyspace, consistency, options) {
