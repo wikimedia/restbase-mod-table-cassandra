@@ -1,13 +1,17 @@
-# [RESTBase](https://github.com/gwicke/restbase) table storage service backed by Cassandra 
+# [RESTBase](https://github.com/gwicke/restbase) table storage on Cassandra
 
 Provides a high-level table storage service abstraction similar to Amazon
 DynamoDB or Google DataStore, with a Cassandra backend. See [the design
 docs](https://github.com/gwicke/restbase-cassandra/tree/master/doc) for
 details and background.
+
+This is the default table storage backend for
+[RESTBase](https://github.com/gwicke/restbase), and automatically installed as
+an npm module dependency (`restbase-cassandra`). See the install instructions
+there.
   
 ## Status
-Prototype, not quite ready for production yet. Is automatically installed
-along with [RESTBase](https://github.com/gwicke/restbase).
+Prototype, not quite ready for production.
 
 Features:
 - basic table storage service with REST interface, backed by Cassandra
