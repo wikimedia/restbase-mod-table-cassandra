@@ -21,12 +21,16 @@ Features:
 - data insertion and retrieval by primary key, including range queries
 
 ### Next steps
-- More refined secondary index implementation
+- More refined [secondary
+  index](https://github.com/gwicke/restbase-cassandra/blob/master/doc/SecondaryIndexes.md)
+  implementation
     - range queries on secondary indexes
 - Refine HTTP interface & response formats, especially paging
-- Authentication (OAuth2 / JWT / JWS) and ACLs
-- [Transactions](https://github.com/gwicke/restbase-cassandra/blob/master/doc/Transactions.md): light-weight CAS and 2PC
+- Authentication (OAuth2 / JWT / JWS / auth service callbacks) and ACLs
+- [Transactions](https://github.com/gwicke/restbase-cassandra/blob/master/doc/Transactions.md):
+  light-weight CAS and 2PC
 - Get ready for production: robustness, performance, logging
+- Basic schema evolution support
 
 ## Contributors
 * Gabriel Wicke <gwicke@wikimedia.org>
