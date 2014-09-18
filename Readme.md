@@ -1,38 +1,29 @@
-# Rashomon
+# [RESTBase](https://github.com/gwicke/restbase) table storage service backed by Cassandra 
+
+Provides a high-level table storage service abstraction similar to Amazon
+DynamoDB or Google DataStore, with a Cassandra backend. See [the design
+docs](https://github.com/gwicke/restbase-cassandra/tree/master/doc) for
+details and background.
   
-Prototype storage front-end implementing a part of
-<https://www.mediawiki.org/wiki/User:GWicke/Notes/Storage>
-
-Implements a storage backend for
-[RestFace](https://github.com/gwicke/restface). See the install instructions
-there.
-
 ## Status
+Prototype, not quite ready for production yet. Is automatically installed
+along with [RESTBase](https://github.com/gwicke/restbase).
 
-Early prototype. Minimal storage and retrieval of revisioned blobs in Cassandra.
+Features:
+- basic table storage service with REST interface, backed by Cassandra
+- multi-tenant design: domain creation, prepared for per-domain ACLs
+- table creation with declarative JSON schemas
+- secondary index creation and basic maintenance
+- data insertion and retrieval by primary key, including range queries
 
-[![Build
-Status](https://travis-ci.org/gwicke/rashomon.svg?branch=master)](https://travis-ci.org/gwicke/rashomon)
+### Next steps
+- More refined secondary index implementation
+    - range queries on secondary indexes
+- Refine HTTP interface & response formats, especially paging
+- Authentication (OAuth2 / JWT / JWS) and ACLs
+- [Transactions](https://github.com/gwicke/restbase-cassandra/blob/master/doc/Transactions.md): light-weight CAS and 2PC
+- Get ready for production: robustness, performance, logging
 
-## Performance
-Initial testing with ab, rashomon and cassandra on an aging laptop gives these results:
-
-* 2900req/s for very small revisions
-* 5Gbit throughput for large wikitext revisions like Barack Obama
-
-## Troubleshooting
-### The server connection to Cassandra hangs when testing on localhost
-On Debian, open /etc/cassandra/cassandra-env.sh and uncomment/edit this line
-(localhost is key here):
-
-    JVM_OPTS="$JVM_OPTS -Djava.rmi.server.hostname=localhost"
-
-Restart cassandra. This might involve using kill, as the init scripts use the
-same rmi connection to control cassandra. After this fix, the command
-
-    nodetool status
-
-should return information and show your node as being up.
-
-### Contributors
+## Contributors
 * Gabriel Wicke <gwicke@wikimedia.org>
+* Hardik Juneja <hardikjuneja.hj@gmail.com>
