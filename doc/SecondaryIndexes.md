@@ -143,6 +143,14 @@ Details:
     - + share versioned index table layout with non-range indexes
     - - more queries, likely higher latency for small result sets
 
+## REST interface
+General idea: `bucket//indexName/key1/..`
+```
+/v1/en.wikipedia.org/pages.rev//indexName/key1/key2/
+  ?gt=foo&limit=10&ts_ge=20140312T20:22:33.3Z&ts_lt=20140312T20:22:33.3Z
+   ^^ key3 range limit  ^^ time limit
+```
+
 
 ## Related
 - [CASSANDRA-2897: Secondary indexes without read-before-write](https://issues.apache.org/jira/browse/CASSANDRA-2897)
