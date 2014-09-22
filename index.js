@@ -184,9 +184,7 @@ function makeRBCassandra (options) {
             "username": "test",
             "password": "test",
             "poolSize": 70,
-        },
-        handlers: {}
-        // bucket type -> handler config
+        }
     };
 
     var rb = new RBCassandra(options);
