@@ -4,7 +4,6 @@
  */
 
 // global includes
-var prfun = require('prfun');
 var fs = require('fs');
 var util = require('util');
 
@@ -94,7 +93,8 @@ RBCassandra.prototype.createTable = function (rb, req) {
                 body: {
                     type: 'table_creation_error',
                     title: 'Internal error while creating a table within the cassandra storage backend',
-                    stack: e.stack
+                    stack: e.stack,
+                    schema: req.body
                 }
             };
         });
@@ -103,12 +103,23 @@ RBCassandra.prototype.createTable = function (rb, req) {
 
 // Query a table
 RBCassandra.prototype.get = function (rb, req) {
+    var rp = req.params;
+    if (!rp.rest && !req.body) {
+        // Return the entire table
+        // XXX: Only list the hash keys?
+        req.body = {
+            table: rp.table,
+            limit: 10
+        };
+    }
     var domain = reverseDomain(req.params.domain);
     return this.store.get(domain, req.body)
     .then(function(res) {
         return {
-            status: 200,
-            body: res.items
+            status: res.items.length ? 200 : 404,
+            body: {
+                items: res.items
+            }
         };
     })
     .catch(function(e) {

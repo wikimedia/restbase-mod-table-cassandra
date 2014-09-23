@@ -31,11 +31,11 @@ function buildCondition (pred) {
         var cql = '';
         var predObj = pred[predKey];
         cql += cassID(predKey);
-        if (predObj.constructor === String) {
+        if (predObj.constructor !== Object) {
             // Default to equality
             cql += ' = ?';
             params.push(predObj);
-        } else if (predObj.constructor === Object) {
+        } else {
             var predKeys = Object.keys(predObj);
             if (predKeys.length === 1) {
                 var predOp = predKeys[0];
@@ -176,9 +176,9 @@ function generateIndexSchema (req, indexName) {
         _indexAttributes[items] = true;
     });
 
-    // TODO: Support indexes without a hash, by substituting an int column that defaults to 0 or the like. 
+    // TODO: Support indexes without a hash, by substituting an int column that defaults to 0 or the like.
     // This is useful for smallish indexes that need to be sorted / support range queries.
-    
+
     // Make sure the main index keys are included in the new index
     // First, the hash key.
     if (!attributes[req.index.hash] && range.indexOf(req.index.hash) === -1) {
@@ -349,14 +349,18 @@ DB.prototype.buildPutQuery = function(req, keyspace, table, schema) {
     return {query: cql, params: params};
 };
 
-DB.prototype.executeCql = function(batch, consistency, thenCB) {
+DB.prototype.executeCql = function(batch, consistency) {
+    var req;
     if (batch.length === 1) {
-        return this.client.execute_p(batch[0].query, batch[0].params, {consistency: consistency, prepared: true})
-        .then(thenCB);
+        req = this.client.execute_p(batch[0].query, batch[0].params, {consistency: consistency, prepared: true});
     } else {
-        return this.client.batch_p(batch, {consistency: consistency, prepared: true})
-        .then(thenCB);
+        req = this.client.batch_p(batch, {consistency: consistency, prepared: true});
     }
+    return req.catch(function(e) {
+        console.log(batch);
+        e.stack += '\n' + JSON.stringify(batch);
+        throw e;
+    });
 };
 
 DB.prototype.getSchema = function (reverseDomain, tableName) {
@@ -572,7 +576,8 @@ DB.prototype._put = function(keyspace, req, consistency, table ) {
     }
 
     //console.log('cql', cql, 'params', JSON.stringify(params));
-    return this.executeCql(batch, consistency, function(result) {
+    return this.executeCql(batch, consistency)
+    .then(function(result) {
         var rows = result.rows;
         return {
             // XXX: check if condition failed!
@@ -738,7 +743,7 @@ DB.prototype._createTable = function (keyspace, req, tableName, consistency) {
             var dir = orders[i];
             if (dir) {
                 if (dir.constructor !== String
-                        || ! dir.toLowerCase() in {'asc':1, 'desc':1})
+                        || ! {'asc':1, 'desc':1}[dir.toLowerCase()])
                 {
                     throw new Error('Invalid order direction in schema:\n' + req);
                 } else {
