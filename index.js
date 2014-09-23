@@ -76,7 +76,6 @@ RBCassandra.prototype.createTable = function (rb, req) {
         };
     })
     .catch(function(err) {
-        console.log(err.stack);
         return store.createTable(domain, req.body)
         .then(function() {
             return {
