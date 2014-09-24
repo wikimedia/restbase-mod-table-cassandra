@@ -171,7 +171,7 @@ RBCassandra.prototype.setup = function setup () {
     return backend(self.config.storage)
     .then(function(store) {
         self.store = store;
-        console.log('RB setup complete', self.handler);
+        // console.log('RB setup complete', self.handler);
         return self.handler;
     });
 };
