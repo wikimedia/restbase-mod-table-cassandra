@@ -1,3 +1,6 @@
+[![Build
+Status](https://travis-ci.org/gwicke/restbase-cassandra.svg?branch=master)](https://travis-ci.org/gwicke/restbase-cassandra)
+
 # [RESTBase](https://github.com/gwicke/restbase) table storage on Cassandra
 
 Provides a high-level table storage service abstraction similar to Amazon

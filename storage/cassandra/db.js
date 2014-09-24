@@ -509,9 +509,9 @@ DB.prototype._get = function (keyspace, req, consistency, table) {
         var rows = result.rows;
         // hide the columns property added by node-cassandra-cql
         // XXX: submit a patch to avoid adding it in the first place
-        for (var row in rows) {
-            row.columns = undefined;
-        }
+        rows.forEach(function(row) {
+            row.__columns = undefined;
+        });
         return {
             count: rows.length,
             items: rows
