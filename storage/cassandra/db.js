@@ -357,7 +357,7 @@ DB.prototype.executeCql = function(batch, consistency) {
         req = this.client.batch_p(batch, {consistency: consistency, prepared: true});
     }
     return req.catch(function(e) {
-        console.log(batch);
+        //console.log(batch);
         e.stack += '\n' + JSON.stringify(batch);
         throw e;
     });
