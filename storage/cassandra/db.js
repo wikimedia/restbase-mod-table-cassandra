@@ -31,7 +31,10 @@ function buildCondition (pred) {
         var cql = '';
         var predObj = pred[predKey];
         cql += cassID(predKey);
-        if (predObj.constructor !== Object) {
+        if (predObj === undefined) {
+            throw new Error('Query error: attribute ' + JSON.stringify(predKey)
+                    + ' is undefined');
+        } else if (predObj.constructor !== Object) {
             // Default to equality
             cql += ' = ?';
             params.push(predObj);
