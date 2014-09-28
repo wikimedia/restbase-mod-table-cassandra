@@ -143,6 +143,57 @@ Details:
     - + share versioned index table layout with non-range indexes
     - - more queries, likely higher latency for small result sets
 
+#### WIP alternative: Summary table plus versions per partition key
+- Most accesses are for latest data
+    - separate hot 'latest' data from cold historical data
+- Need compact index scan without timestamp dilution
+
+```javascript
+{
+    table: 'idx_foo_ever',  // could build additional indexes for time buckets
+    attributes: {
+        // index attributes
+        // remaining primary key attributes
+        // any projected attributes
+        _tid: 'timeuuid',       // tid of last matching entry
+        // tid of last update to partition key; index entry deleted if > _tid
+        _latest_tid: 'timeuuid' 
+    },
+    index: {
+        hash: '{defined hash column, or string column fixed to index name}',
+        range: ['{defined ranges}', '{remaining main table primary keys}'],
+        // In the special case where the partition key of data matches that of
+        // index we can make _latest_tid static, and don't have to check the
+        // data table
+        // static: _latest_tid
+    }
+}
+
+{
+    table: 'idx_foo_all',
+    attributes: {
+        // index attributes
+        // remaining primary key attributes
+        // any projected attributes
+        _tid: 'timeuuid'
+    },
+    index: {
+        hash: '{defined hash column, or string column fixed to index name}',
+        range: ['{defined ranges}', '{remaining main table primary keys}',
+        '_tid']
+    }
+}
+```
+
+##### Update algorithm
+- Write to `_ever` and `_all` on each update, using timestamp & writetime for
+  idempotency
+- Perform an index roll-up on `_all` similar to the one discussed earlier; update `_latest_tid` in `_ever` whenever the indexed value was removed (again, with writetime matching the time of the deletion to avoid overwriting later insertions)
+
+##### Read algorithm
+- Scan `_ever`. For each result, compare `_tid` and `_latest_tid`. If
+  `_latest_tid` < query time, check vs. data
+
 ## REST interface
 General idea: `bucket//indexName/key1/..`
 ```
@@ -153,6 +204,8 @@ General idea: `bucket//indexName/key1/..`
 
 
 ## Related
+- https://github.com/Netflix/s3mper
+- http://www.datastax.com/dev/blog/advanced-time-series-with-cassandra
 - [CASSANDRA-2897: Secondary indexes without read-before-write](https://issues.apache.org/jira/browse/CASSANDRA-2897)
 
 Still somewhat related:
