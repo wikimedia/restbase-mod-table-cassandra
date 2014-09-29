@@ -27,7 +27,87 @@ Example:
 
 # Secondary index updates
 
-## Selected strategy: versioned index + read repair
+## Strategy 1: Summary table plus versions per partition key
+- Most accesses are for latest data
+    - separate hot 'latest' data from cold historical data
+- Need compact index scan without timestamp dilution
+    - start out with an index for all values ever
+    - possibly time-bucket indexes in the future for quickly-updated indexes
+      like page length
+
+```javascript
+// Add a static _idx_updated: 'timeuuid' field to the primary data table to
+// track index update status
+
+{
+    table: 'idx_foo_ever',  // could build additional indexes for time buckets
+    attributes: {
+        // index attributes
+        // remaining primary key attributes
+        // any projected attributes
+        _tid: 'timeuuid',       // tid of last matching entry 
+        _deleted: 'timeuuid'    // tid of deletion change or null
+    },
+    index: {
+        hash: '{defined hash column, or string column fixed to index name}',
+        range: ['{defined ranges}', '{remaining main table primary keys}']
+    }
+}
+```
+
+### Updates
+- Write to `_ever` on each update, using the TIMESTAMP corresponding to the
+  entry's tid (plus some entropy from tid? - check!) for idempotency
+- Perform an index roll-up similar to the one discussed earlier:
+    - if `_idx_updated` <= now(): select primary key & indexed columns from
+      data table with tid >= `_idx_updated`
+    - else: select sibling entries only (two queries, each limit 1)
+    - walk results backwards and diff each row vs. preceding row
+        - if diff: for each index affected by that diff, update `_deleted` for
+          old value using that revision's TIMESTAMP
+    - finally, atomically update `_idx_updated` *if not changed* (CAS)
+        - set to the tid of the highest indexed row
+        - while this fails:
+            - wait for a second or two
+            - repeat the process from original `_idx_updated`
+            - then CAS vs. newly learned value
+                - if that fails, but `_idx_updated` now at latest tid: exit
+                  (another job succeeded)
+
+This method can also be used to rebuild the index from scratch (by selecting /
+streaming *all* entries and writing each index entry with its TIMESTAMP), or
+to rebuild the index around an insertion in the past.
+
+### Insertion of an entry with an old tid
+Call the index rebuild method between the neighboring tids. This means that we
+rely on the client doesn't go down while doing this. The assumption is that
+insertions in the past will be rare, and we can schedule an occasional index
+check / rebuild to catch any remaining issues.
+
+### Reads
+- Scan `_ever`. For each result, compare `_tid` and `_latest_tid`. Cross-check
+  vs. data iff:
+    - `_latest_tid` === `_tid` and a consistent read is requested
+    - `_tid` > query time
+
+### Fast eventually consistent reads
+Read requests using an index could be satisfied from the index only if all
+requested attributes are either part of the key, or were projected into the
+index via the proj property in the schema.
+
+The issue with doing this is consistency. We write out all index entries for a
+new table row along with the data, but don't immediately update index entries
+for an earlier version of the same row which might now non longer match the
+row's updated data. This means that index reads can return some false
+positives until the index is updated.
+
+For many applications occasionally getting some false positives in results is
+an acceptable trade-off for the performance gain of avoiding cross-checking
+each index result, so it seems to make sense to default to eventually
+consistent index reads & offer more consistent reads on request.
+
+
+## Strategy 2: versioned index + read repair
 Basic idea is to insert multiple index entries by `tid` (a `timeuuid`), so
 that the index essentially becomes versioned. Index layout: 
 ```javascript
@@ -49,14 +129,7 @@ that the index essentially becomes versioned. Index layout:
 
 - All index entries are written in batch on each write
 
-### First iteration: Just double-check on read 
-Double-check each index hit against the data row at requested timestamp, and
-keep adding results from index query until enough have checked out to satisfy
-the limit.
-
-### Longer term: Actually maintain a proper index
-
-#### Insertion of a new entry with a current tid
+### Insertion of a new entry with a current tid
 Run the following index rebuild procedure asynchronously after main write:
 
 - select primary key & indexed columns from data table with tid >=
@@ -79,13 +152,13 @@ the index around an insertion in the past. For this we'll want to use a
 streaming query, as supported in [the node-cassandra-cql eachRow
 method](https://github.com/jorgebay/node-cassandra-cql#clienteachrowquery-params-consistency-rowcallback-endcallback).
 
-#### Insertion of an entry with an old tid
+### Insertion of an entry with an old tid
 Call the index rebuild method between the neighboring tids. This means that we
 rely on the client doesn't go down while doing this. The assumption is that
 insertions in the past will be rare, and we can schedule an occasional index
 check / rebuild to catch any remaining issues.
 
-#### Read
+### Read
 - check if consistentUpTo is >= tid; return result if it is (or no result if
   tombstone)
 - if not: 
@@ -121,104 +194,6 @@ Details:
 - can dynamically adjust the granularity based on the indexed timebucket;
   secondary index will be automatically rebuilt
 - will need to insert one index entry in each time bucket -- algorithm TBD
-
-##### Variant: Additional index-only table
-- add another table without versioning (no tid column), but with time
-  bucketing to keep track of the available keys within this bucket:
-  `<timebucket><primary key>`
-- after establishing the possibly matching keys by querying on this table,
-  proceed to perform one query per key including timestamp on the fully
-  versioned index table (`<primary key><timeuuid>`) and filter out false
-  positives
-- need to figure out an algorithm to reliably maintain the bucket index
-    - need to transfer entries from preceding bucket
-    - could use union of matches while new bucket is being build; previous
-      bucket will potentially have more false positives
-- possible refinements:
-    - keep some additional information about *latest* entry in unversioned
-      table
-- pro-con:
-    - ++ small result set on first query (but some false positives likely)
-    - ++ can do just enough timestamp-based lookups to satisfy limit for paging
-    - + share versioned index table layout with non-range indexes
-    - - more queries, likely higher latency for small result sets
-
-#### WIP alternative: Summary table plus versions per partition key
-- Most accesses are for latest data
-    - separate hot 'latest' data from cold historical data
-- Need compact index scan without timestamp dilution
-
-```javascript
-// Add a static _idx_updated: 'timeuuid' field to the primary data table to
-// track index update status
-
-{
-    table: 'idx_foo_ever',  // could build additional indexes for time buckets
-    attributes: {
-        // index attributes
-        // remaining primary key attributes
-        // any projected attributes
-        _tid: 'timeuuid',       // tid of last matching entry
-        // tid of last update to partition key; index entry deleted > _tid
-        _latest_tid: 'timeuuid' 
-    },
-    index: {
-        hash: '{defined hash column, or string column fixed to index name}',
-        range: ['{defined ranges}', '{remaining main table primary keys}'],
-        // In the special case where the partition key of data matches that of
-        // index we can make _latest_tid static, and don't have to check the
-        // data table
-        // static: _latest_tid
-    }
-}
-
-{
-    table: 'idx_foo_all',
-    attributes: {
-        // index attributes
-        // remaining primary key attributes
-        // any projected attributes
-        _tid: 'timeuuid'
-    },
-    index: {
-        hash: '{defined hash column, or string column fixed to index name}',
-        range: ['{defined ranges}', '{remaining main table primary keys}',
-        '_tid']
-    }
-}
-```
-
-##### Updates
-- Write to `_ever` and `_all` on each update, using TIMESTAMP for idempotency
-- Perform an index roll-up similar to the one discussed earlier; update `_latest_tid` in `_ever` whenever the indexed value was removed (again, with writetime matching the time of the deletion to avoid overwriting later insertions)
-
-##### Reads
-- Scan `_ever`. For each result, compare `_tid` and `_latest_tid`. Cross-check
-  vs. data iff:
-    - `_latest_tid` === `_tid` and a consistent read is requested
-    - `_tid` > query time
-
-##### Avoiding checks on read
-Read requests using an index could be satisfied from the index only if all
-requested attributes are either part of the key, or were projected into the
-index via the proj property in the schema.
-
-The issue with doing this is consistency. We write out all index entries for a
-new table row along with the data, but don't immediately update index entries
-for an earlier version of the same row which might now non longer match the
-row's updated data. This means that index reads can return some false
-positives until the index is updated.
-
-For many applications occasionally getting some false positives in results is
-an acceptable trade-off for the performance gain of avoiding cross-checking
-each index result. For applications with higher consistency requirements there
-are two primary options:
-
-1) Cross-check all index entries against the primary data, or
-2) do a non-range query on the `_all` index table at a fixed time in the past.
-
-The latter could also be replaced by 1) at the cost of the extra cross-check.
-This would allow us to drop the `_all` table altogether.
 
 
 ## REST interface
