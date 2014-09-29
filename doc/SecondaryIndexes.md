@@ -1,6 +1,6 @@
 # Secondary index definition in table schema
 Example:
-```javascrip
+```javascript
 {
     attributes: {
         key: 'string',
@@ -149,6 +149,9 @@ Details:
 - Need compact index scan without timestamp dilution
 
 ```javascript
+// Add a static _idx_updated: 'timeuuid' field to the primary data table to
+// track index update status
+
 {
     table: 'idx_foo_ever',  // could build additional indexes for time buckets
     attributes: {
@@ -156,7 +159,7 @@ Details:
         // remaining primary key attributes
         // any projected attributes
         _tid: 'timeuuid',       // tid of last matching entry
-        // tid of last update to partition key; index entry deleted if > _tid
+        // tid of last update to partition key; index entry deleted > _tid
         _latest_tid: 'timeuuid' 
     },
     index: {
@@ -185,14 +188,38 @@ Details:
 }
 ```
 
-##### Update algorithm
-- Write to `_ever` and `_all` on each update, using timestamp & writetime for
-  idempotency
-- Perform an index roll-up on `_all` similar to the one discussed earlier; update `_latest_tid` in `_ever` whenever the indexed value was removed (again, with writetime matching the time of the deletion to avoid overwriting later insertions)
+##### Updates
+- Write to `_ever` and `_all` on each update, using TIMESTAMP for idempotency
+- Perform an index roll-up similar to the one discussed earlier; update `_latest_tid` in `_ever` whenever the indexed value was removed (again, with writetime matching the time of the deletion to avoid overwriting later insertions)
 
-##### Read algorithm
-- Scan `_ever`. For each result, compare `_tid` and `_latest_tid`. If
-  `_latest_tid` < query time, check vs. data
+##### Reads
+- Scan `_ever`. For each result, compare `_tid` and `_latest_tid`. Cross-check
+  vs. data iff:
+    - `_latest_tid` === `_tid` and a consistent read is requested
+    - `_tid` > query time
+
+##### Avoiding checks on read
+Read requests using an index could be satisfied from the index only if all
+requested attributes are either part of the key, or were projected into the
+index via the proj property in the schema.
+
+The issue with doing this is consistency. We write out all index entries for a
+new table row along with the data, but don't immediately update index entries
+for an earlier version of the same row which might now non longer match the
+row's updated data. This means that index reads can return some false
+positives until the index is updated.
+
+For many applications occasionally getting some false positives in results is
+an acceptable trade-off for the performance gain of avoiding cross-checking
+each index result. For applications with higher consistency requirements there
+are two primary options:
+
+1) Cross-check all index entries against the primary data, or
+2) do a non-range query on the `_all` index table at a fixed time in the past.
+
+The latter could also be replaced by 1) at the cost of the extra cross-check.
+This would allow us to drop the `_all` table altogether.
+
 
 ## REST interface
 General idea: `bucket//indexName/key1/..`
