@@ -36,9 +36,6 @@ Example:
       like page length
 
 ```javascript
-// Add a static _idx_updated: 'timeuuid' field to the primary data table to
-// track index update status
-
 {
     table: 'idx_foo_ever',  // could build additional indexes for time buckets
     attributes: {
@@ -53,6 +50,23 @@ Example:
         range: ['{defined ranges}', '{remaining main table primary keys}']
     }
 }
+
+
+{
+    table: 'idx_foo_status',
+    attributes: {
+        // primary key attributes up to tid
+        key: 'string', // example
+        // 'ever' or date prefix
+        _idx_bucket: 'string',
+        // index updated up to..
+        _updated_to: 'timeuuid'
+    },
+    index: {
+        hash: [/* primary key attributes up to tid */],
+        range: [_idx_bucket]
+    }
+}
 ```
 
 ### Updates
@@ -60,21 +74,21 @@ Example:
   corresponding to the entry's tid (plus some entropy from tid? - check!) for
   idempotency
 - Perform an index roll-up similar to the one discussed earlier:
-    - if `_idx_updated` <= TID: select primary key & indexed columns from
-      data table with tid >= `_idx_updated` (using key portion up to &
-      including any tid column)
+    - if `_updated_to` <= TID (e.g., new version): select primary key &
+      indexed columns from data table with tid >= `_updated_to` (using key
+      portion up to & including any tid column)
     - else: select tid sibling entries only (two queries, each limit 1)
     - walk results backwards and diff each row vs. preceding row
         - if diff: for each index affected by that diff, update `_deleted` for
           old value using that revision's TIMESTAMP
-    - finally, if insertion was new, atomically update `_idx_updated` *if not
+    - finally, if insertion was new, atomically update `_updated_to` *if not
       changed* (CAS)
         - set to the tid of the highest indexed row
         - while this fails:
             - wait for a second or two
-            - repeat the process from original `_idx_updated`
+            - repeat the process from original `_updated_to`
             - then CAS vs. newly learned value
-                - if that fails, but `_idx_updated` now at latest tid: exit
+                - if that fails, but `_updated_to` now at latest tid: exit
                   (another job succeeded)
 
 This method can also be used to rebuild the index from scratch (by selecting /
