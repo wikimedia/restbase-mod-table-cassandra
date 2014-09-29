@@ -27,7 +27,7 @@ Example:
 
 # Secondary index updates
 
-## Strategy 1: Un-versioned, but bucketed secondary index table
+## Strategy 1: Un-versioned, time-bucketed secondary index table(s)
 - Most accesses are for latest data
     - separate hot 'latest' data from cold historical data
 - Need compact index scan without timestamp dilution
