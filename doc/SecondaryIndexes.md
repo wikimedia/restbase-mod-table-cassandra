@@ -27,13 +27,17 @@ Example:
 
 # Secondary index updates
 
-## Strategy 1: Un-versioned, time-bucketed secondary index table(s)
+## Un-versioned, time-bucketed secondary index table(s)
+Design considerations:
+
 - Most accesses are for latest data
     - separate hot 'latest' data from cold historical data
 - Need compact index scan without timestamp dilution for range queries
     - start out with an index for all values ever
     - possibly time-bucket indexes in the future for quickly-updated indexes
       like page length
+
+### Index schema
 
 ```javascript
 {
@@ -109,95 +113,6 @@ the latest index entries. To avoid this, we can build indexes for static time
 windows, e.g. a month as in '2012-12' using both the raw data and the `_ever`
 index. This looks like a bit of work, but we can tackle & refine this later.
 
-## Strategy 2: versioned index + read repair
-Basic idea is to insert multiple index entries by `tid` (a `timeuuid`), so
-that the index essentially becomes versioned. Index layout: 
-```javascript
-{ 
-    attributes: {
-        // index attributes
-        // remaining primary index attributes
-        // any projected attributes
-        __consistentUpTo: 'timeuuid',
-        __tombstone: 'boolean'
-    }, 
-    index: {
-        hash: '{defined hash column, or string column fixed to index name}',
-        range: ['{defined ranges}', '{remaining main table primary keys}', 'tid'],
-        static: '__consistentUpTo'
-    }
-}
-```
-
-- All index entries are written in batch on each write
-
-### Insertion of a new entry with a current tid
-Run the following index rebuild procedure asynchronously after main write:
-
-- select primary key & indexed columns from data table with tid >=
-  consistentUpTo and <= now()
-- diff each row vs. preceding row
-    - if no diff in a given index: delete index entry (prune duplicates)
-    - if diff: insert entry with __tombstone: true for old value; upsert
-      index entry for new value (to account for concurrent updates)
-- finally, atomically update consistentUpTo *if not changed* (CAS)
-    - set to the tid of the highest indexed row
-    - while this fails:
-        - wait for a second or two
-        - repeat the process from original consistentUpTo
-        - then CAS vs. newly learned value
-            - if that fails, but consistentUpTo now at latest tid: exit
-              (another job succeeded)
-
-This method can also be used to rebuild the index from scratch, or to rebuild
-the index around an insertion in the past. For this we'll want to use a
-streaming query, as supported in [the node-cassandra-cql eachRow
-method](https://github.com/jorgebay/node-cassandra-cql#clienteachrowquery-params-consistency-rowcallback-endcallback).
-
-### Insertion of an entry with an old tid
-Call the index rebuild method between the neighboring tids. This means that we
-rely on the client doesn't go down while doing this. The assumption is that
-insertions in the past will be rare, and we can schedule an occasional index
-check / rebuild to catch any remaining issues.
-
-### Read
-- check if consistentUpTo is >= tid; return result if it is (or no result if
-  tombstone)
-- if not: 
-    - Double-check against the data row at the requested timestamp.
-    - Schedule an index rebuild from consistentUpTo.
-
-### Issue: range requests on secondary index of revisioned table
-A range request on one of the defined range indexes will fetch all matching
-index entries, including old ones if the underlying data is revisioned. This
-could potentially be a lot of entries.
-
-Coalescing time ranges with identical index entries as described in the index
-rebuild algorithm significantly reduces the number of index versions for
-rarely-changing attributes. It will however not do much for an index on a
-boolean that flips all the time. An example for this could be template link
-table entries for procedural pages / templates, e.g. {{editprotected}}.
-
-#### Idea: bucket index entries into time ranges
-The basic idea is to add a `timebucket` column to the index table, and then
-define a cassandra-native secondary index on this column. Range queries on the
-index can then be done with `and timebucket = '201401'`, which reduces the
-number of index versions.
-
-Details:
-
-- *partition key* determines nodes to query, so normally only 1-2 nodes
-- A predicate on a secondary index column triggers query evaluation using
-  the secondary index. This seems to scale fairly well, which suggests
-  that the ranges are narrowed down quickly without scanning the full
-  secondary index. Benchmarking with a table of 8 million rows & a native
-  secondary index of cardinality 1 indicates that a range query completes
-  in ~5ms, so that's pretty efficient.
-- can dynamically adjust the granularity based on the indexed timebucket;
-  secondary index will be automatically rebuilt
-- will need to insert one index entry in each time bucket -- algorithm TBD
-
-
 ## REST interface
 General idea: `bucket//indexName/key1/..`
 ```
@@ -205,7 +120,6 @@ General idea: `bucket//indexName/key1/..`
   ?gt=foo&limit=10&ts_ge=20140312T20:22:33.3Z&ts_lt=20140312T20:22:33.3Z
    ^^ key3 range limit  ^^ time limit
 ```
-
 
 ## Related
 - https://github.com/Netflix/s3mper
