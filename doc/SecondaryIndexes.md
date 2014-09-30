@@ -50,56 +50,25 @@ Example:
         range: ['{defined ranges}', '{remaining main table primary keys}']
     }
 }
-
-
-{
-    table: 'idx_foo_status',
-    attributes: {
-        // primary key attributes up to tid
-        key: 'string', // example
-        // 'ever' or date prefix
-        _idx_bucket: 'string',
-        // index updated up to..
-        _updated_to: 'timeuuid'
-    },
-    index: {
-        hash: [/* primary key attributes up to tid */],
-        range: [_idx_bucket]
-    }
-}
 ```
 
-### Updates
+### Writes
 - Write to `_ever` on each update (`_deleted` = null), using the TIMESTAMP
   corresponding to the entry's tid (plus some entropy from tid? - check!) for
   idempotency
-- Perform an index roll-up similar to the one discussed earlier:
-    - if `_updated_to` <= TID (e.g., new version): select primary key &
-      indexed columns from data table with tid >= `_updated_to` (using key
-      portion up to & including any tid column)
-    - else: select tid sibling entries only (two queries, each limit 1)
-    - walk results backwards and diff each row vs. preceding row
+- After the main write, look at sibling revisions to update the index with
+  values that no longer match (by setting `_deleted`):
+    - select sibling revisions: lets say 3 before, 1 after
+    - walk results in ascending order and diff each row vs. preceding row
         - if diff: for each index affected by that diff, update `_deleted` for
-          old value using that revision's TIMESTAMP
-    - finally, if insertion was new, atomically update `_updated_to` *if not
-      changed* (CAS)
-        - set to the tid of the highest indexed row
-        - while this fails:
-            - wait for a second or two
-            - repeat the process from original `_updated_to`
-            - then CAS vs. newly learned value
-                - if that fails, but `_updated_to` now at latest tid: exit
-                  (another job succeeded)
+          old value using that revision's TIMESTAMP (to make these updates
+          idempotent). If the value matches again at a later point, this write
+          will be a no-op as the TIMESTAMP will be lower than the later write.
 
 This method can also be used to rebuild the index from scratch (by selecting /
-streaming *all* entries and writing each index entry with its TIMESTAMP), or
-to rebuild the index around an insertion in the past.
-
-### Insertion of an entry with an old tid
-Call the index rebuild method between the neighboring tids. This means that we
-rely on the client doesn't go down while doing this. The assumption is that
-insertions in the past will be rare, and we can schedule an occasional index
-check / rebuild to catch any remaining issues.
+streaming *all* entries (for a given time range) and writing each index entry
+with its TIMESTAMP). In that case, the diffing can be interleaved with the
+index writes while streaming the data.
 
 ### Reads
 - Scan `_ever`. For each result, cross-check vs. data iff:
