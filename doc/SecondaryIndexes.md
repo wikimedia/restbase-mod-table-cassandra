@@ -125,6 +125,7 @@ General idea: `bucket//indexName/key1/..`
 - https://github.com/Netflix/s3mper
 - http://www.datastax.com/dev/blog/advanced-time-series-with-cassandra
 - [CASSANDRA-2897: Secondary indexes without read-before-write](https://issues.apache.org/jira/browse/CASSANDRA-2897)
+- http://jyates.github.io/2012/07/09/consistent-enough-secondary-indexes.html
 
 Still somewhat related:
 
