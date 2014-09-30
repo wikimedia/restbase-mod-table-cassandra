@@ -30,7 +30,7 @@ Example:
 ## Strategy 1: Un-versioned, time-bucketed secondary index table(s)
 - Most accesses are for latest data
     - separate hot 'latest' data from cold historical data
-- Need compact index scan without timestamp dilution
+- Need compact index scan without timestamp dilution for range queries
     - start out with an index for all values ever
     - possibly time-bucket indexes in the future for quickly-updated indexes
       like page length
@@ -54,8 +54,8 @@ Example:
 
 ### Writes
 - Write to `_ever` on each update (`_deleted` = null), using the TIMESTAMP
-  corresponding to the entry's tid (plus some entropy from tid? - check!) for
-  idempotency
+  corresponding to the entry's tid (plus some entropy from tid? - check that
+  nanoseconds aren't all 0!) for idempotency
 - After the main write, look at sibling revisions to update the index with
   values that no longer match (by setting `_deleted`):
     - select sibling revisions: lets say 3 before, 1 after
@@ -70,10 +70,20 @@ streaming *all* entries (for a given time range) and writing each index entry
 with its TIMESTAMP). In that case, the diffing can be interleaved with the
 index writes while streaming the data.
 
+The number of siblings to consider for the index update can be tuned to
+produce a high enough probability of a consistent result in face of some
+updating process failures. The cost is the size of the read, and duplicate
+writes for changed indexed items.
+
 ### Reads
 - Scan `_ever`. For each result, cross-check vs. data iff:
-    - `_deleted` == null and a consistent read is requested
+    - `_deleted` == null or `_deleted` > query time, and a consistent read is
+      requested
     - `_tid` > query time
+- Read repair:
+    - if `_tid` < query time and `_deleted` = null, but data doesn't match:
+      rebuild index for item versions since `_tid` (which implicitly sets
+      `_deleted`)
 
 ### Fast eventually consistent reads
 Read requests using an index could be satisfied from the index only if all
