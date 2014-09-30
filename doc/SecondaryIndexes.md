@@ -57,9 +57,10 @@ Design considerations:
 ```
 
 ### Writes
-- Write to `_ever` on each update (`_deleted` = null), using the TIMESTAMP
-  corresponding to the entry's tid (plus some entropy from tid? - check that
-  nanoseconds aren't all 0!) for idempotency
+- Write new index entries as part of a logged cassandra batch on each update
+  (`_deleted` = null), using the TIMESTAMP corresponding to the entry's tid
+  (plus some entropy from tid? - check that nanoseconds aren't all 0!) for
+  idempotency. Use local quorum consistency.
 - After the main write, look at sibling revisions to update the index with
   values that no longer match (by setting `_deleted`):
     - select sibling revisions: lets say 3 before, 1 after
@@ -80,14 +81,15 @@ updating process failures. The cost is the size of the read, and duplicate
 writes for changed indexed items.
 
 ### Reads
-- Scan `_ever`. For each result, cross-check vs. data iff:
+- Scan the index. For each result, cross-check vs. data iff:
     - `_deleted` == null or `_deleted` > query time, and a consistent read is
       requested
     - `_tid` > query time
 - Read repair:
     - if `_tid` < query time and `_deleted` = null, but data doesn't match:
       rebuild index for item versions since `_tid` (which implicitly sets
-      `_deleted`)
+      `_deleted`). To rule out race conditions vs. writes, we could perform
+      these check reads with local quorum.
 
 ### Fast eventually consistent reads
 Read requests using an index could be satisfied from the index only if all
@@ -106,12 +108,13 @@ each index result, so it seems to make sense to default to eventually
 consistent index reads & offer more consistent reads on request.
 
 ### Index time bucketing
-For indexes with fast-changing values, the `_ever` index will accumulate a lot
-of cruft with `_deleted` entries over time, which queries need to step over.
-Additionally, queries in the past are likely to only match a small subset of
-the latest index entries. To avoid this, we can build indexes for static time
-windows, e.g. a month as in '2012-12' using both the raw data and the `_ever`
-index. This looks like a bit of work, but we can tackle & refine this later.
+For indexes with fast-changing values, a single `_ever` index will accumulate
+a lot of cruft with `_deleted` entries over time, which queries need to step
+over.  Additionally, queries in the past are likely to only match a small
+subset of the latest index entries. To avoid this, we can build indexes for
+static time windows, e.g. a month as in '2012-12' using both the raw data and
+the `_ever` index. This looks like a bit of work, but we can tackle & refine
+this later.
 
 ## REST interface
 General idea: `bucket//indexName/key1/..`
