@@ -27,7 +27,7 @@ Example:
 
 # Secondary index updates
 
-## Un-versioned, time-bucketed secondary index table(s)
+## Time-bucketed secondary index table(s)
 Design considerations:
 
 - Most accesses are for latest data
@@ -38,6 +38,18 @@ Design considerations:
       like page length
 
 ### Index schema
+- If the data table does not have a timeuuid as its last primary key member (a
+  *version tid*), then we add one named `_tid`. This adds versioning to
+  otherwise unversioned tables, which lets us use the same index update
+  algorithms for both. We can purge old versions each time after updating all
+  corresponding indexes. We'll have to skip over old versions in queries on
+  this table to still provide the illusion of an unversioned table.
+- If the index definition includes the version tid, then we just insert an
+  index entry on each modification in the data table. There is no need to
+  insert a `_tid` field or a `_deleleted` field in the index, and there is
+  also no need to run the index maintenance described below.
+- If the index definition does *not* include the version tid, then we add both
+  `_tid` and `_deleted` non-key attributes as shown here:
 
 ```javascript
 {
@@ -46,7 +58,7 @@ Design considerations:
         // index attributes
         // remaining primary key attributes
         // any projected attributes
-        _tid: 'timeuuid',       // tid of last matching entry 
+        _tid: 'timeuuid',       // tid of last matching entry
         _deleted: 'timeuuid'    // tid of deletion change or null
     },
     index: {
@@ -56,7 +68,9 @@ Design considerations:
 }
 ```
 
-### Writes
+This is the case we are concerned with for the remainder of this description.
+
+### Index writes
 - Write new index entries as part of a logged cassandra batch on each update
   (`_deleted` = null), using the TIMESTAMP corresponding to the entry's tid
   (plus some entropy from tid? - check that nanoseconds aren't all 0!) for
@@ -80,7 +94,7 @@ produce a high enough probability of a consistent result in face of some
 updating process failures. The cost is the size of the read, and duplicate
 writes for changed indexed items.
 
-### Reads
+### Index reads
 - Scan the index. For each result, cross-check vs. data iff:
     - `_deleted` == null or `_deleted` > query time, and a consistent read is
       requested
