@@ -57,7 +57,6 @@ function buildCondition (pred) {
                         break;
                 default: throw new Error ('Operator ' + predOp + ' not supported!');
                 }
-
             } else {
                 throw new Error ('Invalid predicate ' + JSON.stringify(pred));
             }
@@ -163,10 +162,7 @@ function generateIndexSchema (req, indexName) {
 
     // Build up attributes
     var attributes = {
-        __consistentUpTo: 'timeuuid',
-        __tombstone: 'boolean'
     };
-    index.static = '__consistentUpTo';
 
     // copy over type info
     attributes[index.hash] = req.attributes[index.hash];
@@ -213,8 +209,23 @@ function generateIndexSchema (req, indexName) {
     if (!hasTid) {
         attributes._tid = 'timeuuid';
         range.push('_tid');
-        _indexAttributes._tid = 'timeuuid';
+        _indexAttributes._tid = true;
+        if (!req.secondaryIndexes[indexName].range) {
+            req.secondaryIndexes[indexName].range = ['_tid'];
+        } else if (Array.isArray(req.secondaryIndexes[indexName].range)) {
+            req.secondaryIndexes[indexName].range.push('_tid');
+        } else {
+            req.secondaryIndexes[indexName].range = [ req.secondaryIndexes[indexName].range ,'tid'];
+        }
+        attributes._deleted = 'timeuuid';
+        if (req.secondaryIndexes[indexName].proj) {
+            req.secondaryIndexes[indexName].proj.push('_deleted');
+        } else {
+            req.secondaryIndexes[indexName].proj = [];
+        }
+
     }
+
 
     // Finally, deal with projections
     if (index.proj && Array.isArray(index.proj)) {
@@ -231,7 +242,8 @@ function generateIndexSchema (req, indexName) {
         attributes: attributes,
         index: index,
         consistency: defaultConsistency,
-        _indexAttributes: _indexAttributes
+        _indexAttributes: _indexAttributes,
+        _hasTid: hasTid
     };
 
     return indexSchema;
@@ -243,6 +255,9 @@ function DB (client) {
 
     // cache keyspace -> schema
     this.schemaCache = {};
+
+    // Attribute <--> Index Map
+    this.indexAttrMap = {};
 }
 
 // Info table schema
@@ -273,7 +288,7 @@ DB.prototype.buildPutQuery = function(req, keyspace, table, schema) {
         _indexAttributes = schema._restbase._indexAttributes;
     } else {
         _indexAttributes = schema._indexAttributes;
-        table = "i_" + table;
+        table = "idx_" + table + "_ever";
     }
 
     if (!schema) {
@@ -281,19 +296,16 @@ DB.prototype.buildPutQuery = function(req, keyspace, table, schema) {
     }
 
     for (var key in _indexAttributes) {
-        if (key === '_tid') {
-            indexKVMap[key] = tidFromDate(new Date());
-        } else if (!req.attributes[key]) {
+        if (!req.attributes[key]) {
             throw new Error("Index attribute " + key + " missing");
         } else {
             indexKVMap[key] = req.attributes[key];
         }
     }
-
     for (key in req.attributes) {
         var val = req.attributes[key];
         if (val !== undefined && schema.attributes[key]) {
-            if (val.constructor === Object) {
+            if (val && val.constructor === Object) {
                 val = JSON.stringify(val);
             }
             if (!_indexAttributes[key]) {
@@ -304,7 +316,7 @@ DB.prototype.buildPutQuery = function(req, keyspace, table, schema) {
         }
     }
 
-    // switch between insert & update / upsert
+    // switch between insfert & update / upsert
     // - insert for 'if not exists', or when no non-primary-key attributes are
     //   specified
     // - update when any non-primary key attributes are supplied
@@ -456,12 +468,13 @@ DB.prototype.buildGetQuery = function(keyspace, req, consistency, table) {
         }
 
         newlimit = req.limit + Math.ceil(req.limit/4);
-        table = 'i_' + req.index;
+        table = 'idx_' + req.index + "_ever";
     }
 
     if (req.distinct) {
         proj = 'distinct ' + proj;
     }
+
     var cql = 'select ' + proj + ' from '
         + cassID(keyspace) + '.' + cassID(table);
 
@@ -517,9 +530,8 @@ DB.prototype.indexReads = function(keyspace, req, consistency, table, startKey, 
     };
 
     var internalColumns = {
-        __columns: true,
-        __consistentUpTo: true,
-        __tombstone: true
+        _deleted: true,
+        _tid: true
     };
 
 
@@ -663,8 +675,7 @@ DB.prototype.get = function (reverseDomain, req) {
 };
 
 DB.prototype._get = function (keyspace, req, consistency, table) {
-   
-    var batch = [];
+
     if (!table) {
         table = 'data';
     }
@@ -731,26 +742,161 @@ DB.prototype._put = function(keyspace, req, consistency, table ) {
     if (!schema) {
         throw new Error('Table not found!');
     }
+    if (schema.attributes._tid) {
+        req.attributes._tid = tidFromDate(new Date());
+    }
 
+    // insert into secondary Indexes first
     var batch = [];
-    var queryResult = this.buildPutQuery(req, keyspace, table, schema);
-    batch.push(queryResult);
-
+    var queryResult;
     if (schema.secondaryIndexes) {
         for ( var item in schema.secondaryIndexes) {
             schema = this.schemaCache[keyspace]._restbase.indexSchema[item];
             if (!schema) {
                 throw new Error('Table not found!');
             }
-            queryResult = this.buildPutQuery( req, keyspace, item, schema);
+            queryResult = this.buildPutQuery(req, keyspace, item, schema);
             batch.push(queryResult);
         }
     }
 
-    //console.log('cql', cql, 'params', JSON.stringify(params));
-    return this.executeCql(batch, consistency)
+    // insert into meta/data table
+    if (table === 'meta') {
+        schema = this.infoSchema;
+    } else if ( table === "data" ) {
+        schema = this.schemaCache[keyspace];
+    }
+
+    queryResult = this.buildPutQuery(req, keyspace, table, schema);
+    batch.push(queryResult);
+
+    //console.log(batch, schema);
+    var self = this;
+    return this.client.batch_p(batch, {consistency: consistency, prepared: true})
     .then(function(result) {
-        var rows = result.rows;
+        /* look at sibling revisions to update the index with values that no longer match
+        *   - select sibling revisions
+        *   - walk results in ascending order and diff each row vs. preceding row
+        *      - if diff: for each index affected by that diff, update _deleted for old value 
+        *        using that revision's TIMESTAMP.
+        */
+        if (schema.secondaryIndexes && schema.attributes._tid) {
+            // build new requests
+            var rows = result.rows;
+
+            var newReq1 = {
+                table: req.table,
+                attributes: {},
+                proj: {}
+            };
+            var newReq2 = {
+                table: req.table,
+                attributes: {},
+                proj: {}
+            };
+
+            // Data table _indexAttributes <--intersection--> secondary Indexes indexAttributes
+            for(var item in schema._restbase._indexAttributes) {
+                newReq1.attributes[item] = req.attributes[item];
+                newReq2.attributes[item] = req.attributes[item];
+            }
+
+            for (var secIndex in schema.secondaryIndexes) {
+                for (item in schema._restbase.indexSchema[secIndex]._indexAttributes) {
+                    if (!schema._restbase._indexAttributes[item]) {
+                        newReq1.proj[item] = req.attributes[item];
+                        newReq2.proj[item] = req.attributes[item];
+                    }
+                }
+            }
+
+            // select sibling revisions 
+            batch = [];
+            newReq1.attributes._tid = {'le': req.attributes._tid};
+            newReq1.limit = 3;
+            batch.push(self.buildGetQuery(keyspace, newReq1, consistency, table));
+            newReq2.attributes._tid = {'gt': req.attributes._tid};
+            newReq2.limit = 1;
+            batch.push(self.buildGetQuery(keyspace, newReq2, consistency, table));
+
+            var batchPromises = [];
+            batch.forEach(function(item) {
+                batchPromises.push(self.client.execute_p(item.query, item.params, item.options || {consistency: consistency, prepared: true}));
+            });
+            return Promise.all(batchPromises)
+            .then(function(results) {
+                // sort rows in ascending order
+                results[0].rows.sort(function(a, b){
+                    if(a._tid > b._tid) {
+                        return -1;
+                    }
+                });
+                var rows = results[0].rows.concat(results[1].rows);
+
+                var queue, hasDiff=false;
+                batch = [];
+                batchPromises = [];
+                // compare one row with another
+                for (var rowNo=0; rowNo<Object.keys(rows).length; rowNo++) {
+                    var row1 = rows[rowNo];
+                    var row2 = rows[rowNo + 1];
+                    queue = Object.keys(schema.secondaryIndexes);
+                    if (row1 && row2) {
+                        // diff both rows
+                        for (var item in schema.attributes) {
+                            if (row1[item] !== row2[item]) {
+                                // if diff: build a put query for requiered secondary indexes and push it to a batch
+                                if (self.indexAttrMap[keyspace][item]) {
+                                    self.indexAttrMap[keyspace][item].forEach(function(secIndex){
+                                        if (queue.indexOf(secIndex) !== -1) {
+                                            newReq1 = {
+                                                table: req.table,
+                                                attributes: {},
+                                            };
+                                            for(var attr in schema._restbase.indexSchema[secIndex].attributes) {
+                                                newReq1.attributes[attr] = row1[attr];
+                                            }
+                                            newReq1.attributes._deleted = req.attributes._tid;
+                                            newReq1.index = "idx_" + secIndex + "_ever";
+                                            batch.push(
+                                                // generate put query with _deleted = tuuid
+                                                self.buildPutQuery(newReq1, keyspace, secIndex, schema._restbase.indexSchema[secIndex])
+                                            );
+                                            queue.pop(secIndex);
+                                        }
+                                    });
+                                }
+                                hasDiff = true;
+                            }
+                        }
+                        if (hasDiff) {
+                            newReq1 = {
+                                table: req.table,
+                                attributes: { _deleted: req.attributes._tid }
+                            };
+                            for(item in req.attributes) {
+                                newReq1.attributes[item] = row1[item];
+                            }
+                            batch.push(
+                                // generate put query with _deleted = tuuid
+                                self.buildPutQuery(newReq1, keyspace, table, schema)
+                            );
+                        }
+                    }
+                }
+                // execute the batch
+                batch.forEach(function(item) {
+                    batchPromises.push(self.client.execute_p(item.query, item.params, item.options || {consistency: consistency, prepared: true}));
+                });
+                return Promise.all(batchPromises)
+                        .then(function(){
+                            return {
+                                // XXX: check if condition failed!
+                                status: 201
+                            };
+                        });
+            });
+        }
         return {
             // XXX: check if condition failed!
             status: 201
@@ -844,6 +990,7 @@ DB.prototype._createTable = function (keyspace, req, tableName, consistency) {
 
     // Figure out which columns are supposed to be static
     var statics = {};
+    var tasks = [], hasTid=true;
     if (req.index && req.index.static) {
         var s = req.index.static;
         if (Array.isArray(s)) {
@@ -852,6 +999,33 @@ DB.prototype._createTable = function (keyspace, req, tableName, consistency) {
             });
         } else {
             statics[s] = true;
+        }
+    }
+
+    // Validate and Normalize the range index to an array
+    var rangeIndex = validateSchema(req);
+
+    // XXX: Handle secondary indexes
+    if (req.secondaryIndexes) {
+        this.indexAttrMap[keyspace] = {};
+        for ( var item in req.attributes) {
+            this.indexAttrMap[keyspace][item] = [];
+        }
+        for (var indexName in req.secondaryIndexes) {
+            var indexSchema = generateIndexSchema(req, indexName);
+            for (item in indexSchema.attributes) {
+                if (this.indexAttrMap[keyspace][item]) {
+                    this.indexAttrMap[keyspace][item].push(indexName);
+                }
+            }
+            if (!indexSchema._hasTid) {
+                hasTid = false;
+                req.attributes._tid = 'timeuuid';
+                req.attributes._deleted = 'timeuuid';
+                req.index.range = rangeIndex;
+                req.index.range.push("_tid");
+            }
+            tasks.push(this._createTable(keyspace, indexSchema, 'idx_' + indexName +"_ever"));
         }
     }
 
@@ -890,15 +1064,12 @@ DB.prototype._createTable = function (keyspace, req, tableName, consistency) {
         cql += ', ';
     }
 
-
-    // Validate and Normalize the range index to an array
-    var rangeIndex = validateSchema(req);
-
     cql += 'primary key (';
     var indexBits = [cassID(req.index.hash)];
     rangeIndex.forEach(function(att) {
         indexBits.push(cassID(att));
     });
+
     cql += indexBits.join(',') + '))';
 
     // Default to leveled compaction strategy
@@ -927,19 +1098,8 @@ DB.prototype._createTable = function (keyspace, req, tableName, consistency) {
             cql += ' and clustering order by ( ' + orderBits.join(',') + ' )';
         }
     }
-
-    // XXX: Handle secondary indexes
-    var tasks = [];
-    if (req.secondaryIndexes) {
-        for (var indexName in req.secondaryIndexes) {
-            var indexSchema = generateIndexSchema(req, indexName);
-            tasks.push(this._createTable(keyspace, indexSchema, 'i_' + indexName));
-        }
-        tasks.push(this.client.execute_p(cql, [], {consistency: consistency}));
-        return Promise.all(tasks);
-    } else {
-        return this.client.execute_p(cql, [], {consistency: consistency});
-    }
+    tasks.push(this.client.execute_p(cql, [], {consistency: consistency}));
+    return Promise.all(tasks);
 };
 
 DB.prototype.dropTable = function (reverseDomain, table) {

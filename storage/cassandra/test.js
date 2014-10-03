@@ -147,11 +147,12 @@ var SchemaWithIndexWithoutTID = {
     },
     index: {
         hash: 'key',
-        //range: 'tid',
+        range: 'uri',
     },
     secondaryIndexes: {
         by_uri : {
             hash: 'uri',
+            range: 'key',
             proj : ["body"]
         }
     }
@@ -262,6 +263,41 @@ var putIndexQuery = {
     },
 };
 
+var putIndexQuery2 = {
+    table: "someTable2",
+    attributes: {
+        key: "test",
+        tid: tidFromDate(new Date()),
+        uri: "another/test/without/timeuuid"
+    },
+};
+
+var putIndexQuery3 = {
+    table: "someTable2",
+    attributes: {
+        key: "test4",
+        tid: tidFromDate(new Date()),
+        uri: "test/uri"
+    },
+};
+
+// simple query to test unversioned secondary indexes 
+var putIndexQuery4 = {
+    table: "someTable3",
+    attributes: {
+        key: "another test",
+        uri: "a uri"
+    },
+};
+
+var putIndexQuery5 = {
+    table: "someTable3",
+    attributes: {
+        key: "another test",
+        uri: "a uri",
+        body: "abcd"
+    }
+};
 
 // simple select query
 var simpleQuery = {
@@ -424,8 +460,23 @@ describe('DB backend', function() {
     });
     describe('put', function() {
         it('should perform a put query to test index update functionality ', function() {
-            return DB.put('org.wikipedia.en', putIndexQuery)
-            .then(function(result) {
+            return Promise.all([DB.put('org.wikipedia.en', putIndexQuery).then(function(result) {deepEqual(result, {status:201});}),
+                    DB.put('org.wikipedia.en', putIndexQuery3).then(function(result){deepEqual(result, {status:201});})
+                ]);
+        });
+    });
+    describe('put', function() {
+        it('should perform a put query to test unversioned index functionality ', function() {
+            return DB.put('org.wikipedia.en', putIndexQuery4)
+            .then(function(result){
+                deepEqual(result, {status:201});
+            });
+        });
+    });
+    describe('put', function() {
+        it('should perform a put query to test unversioned index update functionality ', function() {
+            return DB.put('org.wikipedia.en', putIndexQuery5)
+            .then(function(result){
                 deepEqual(result, {status:201});
             });
         });
@@ -448,12 +499,11 @@ describe('DB backend', function() {
     });
     describe('get', function() {
         it('should perform a index query', function() {
-            return DB.get('org.wikipedia.en', simpleIndexQuery)
-            .then(function(result) {
-                deepEqual(result.count, 1);
-            });
+            return Promise.all([DB.get('org.wikipedia.en', simpleIndexQuery).then(function(result){deepEqual(result.count, 1);}),
+                DB.get('org.wikipedia.en', simpleIndexQuery).then(function(result){deepEqual(result.count, 1);}),
+                DB.get('org.wikipedia.en', simpleIndexQuery).then(function(result){deepEqual(result.count, 1);})]);
         });
-    })
+    });
     describe('delete', function() {
         it('should perform a simple delete query', function() {
             return DB.delete('org.wikipedia.en', deleteQuery);
