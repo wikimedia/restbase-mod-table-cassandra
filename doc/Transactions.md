@@ -33,7 +33,7 @@ Can likely share infrastructure with multi-item transactions below.
     - retry aquiring the lock (wound-wait) for a limited time or abort / retry
       current transaction if other timeuuid is older
 - once everything is properly locked, atomically mark transaction as
-  *committed* by inserting now() tid
+  *committed* by inserting now() tid with CAS
     - perform all updates using commit tid
     - reset transactionids to null
     - finally delete transaction
@@ -43,14 +43,14 @@ Can likely share infrastructure with multi-item transactions below.
     - delete transaction
 
 ### Per-item readers
-- Read with tid <= now() for 
+- Read latest (or at timestamp in past)
 - No locking at any time
 
 ### Per-item writers
 - CAS on *both* tid & transactiontid = null
 - if both aren't equal:
     - check if transaction is still alive
-        - run clean-up if 
+        - run clean-up if it isn't
     - else: transaction is in progress; return mismatch
 
 ### Table requirements
