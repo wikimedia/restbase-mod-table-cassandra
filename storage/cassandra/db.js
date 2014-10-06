@@ -171,7 +171,7 @@ function generateIndexSchema (req, indexName) {
     // copy over type info
     attributes[index.hash] = req.attributes[index.hash];
 
-    // build index attribures for the schema
+    // build index attributes for the schema
     var _indexAttributes = {};
     _indexAttributes[index.hash] = true;
 
@@ -260,8 +260,6 @@ DB.prototype.infoSchema = {
 
 
 DB.prototype.buildPutQuery = function(req, keyspace, table, schema) {
-
-    // TODO: Think about how to insert tid for secondary index ranges
 
     var keys = [];
     var params = [];
@@ -420,35 +418,11 @@ DB.prototype._getSchema = function (keyspace, consistency) {
     });
 };
 
-DB.prototype.get = function (reverseDomain, req) {
-    var self = this;
-    var keyspace = keyspaceName(reverseDomain, req.table);
+DB.prototype.buildGetQuery = function(keyspace, req, consistency, table) {
 
-    // consistency
-    var consistency = defaultConsistency;
-    if (req.consistency && req.consistency in {all:1, localQuorum:1}) {
-        consistency = cass.types.consistencies[req.consistency];
-    }
-
-    if (!this.schemaCache[keyspace]) {
-        return this._getSchema(keyspace, defaultConsistency)
-        .then(function(schema) {
-            //console.log('schema', schema);
-            self.schemaCache[keyspace] = schema;
-            return self._get(keyspace, req, consistency);
-        });
-    } else {
-        return this._get(keyspace, req, consistency);
-    }
-};
-
-var getCache = {};
-
-DB.prototype._get = function (keyspace, req, consistency, table) {
-    if (!table) {
-        table = 'data';
-    }
     var proj = '*';
+    var cachedSchema = this.schemaCache[keyspace];
+
     if (req.proj) {
         if (Array.isArray(req.proj)) {
             proj = req.proj.map(cassID).join(',');
@@ -459,12 +433,29 @@ DB.prototype._get = function (keyspace, req, consistency, table) {
         // Work around 'order by' bug in cassandra when using *
         // Trying to change the natural sort order only works with a
         // projection in 2.0.9
-        var cachedSchema = this.schemaCache[keyspace];
         if (cachedSchema) {
             proj = Object.keys(cachedSchema.attributes).map(cassID).join(',');
         }
     }
-    if (req.index) {
+
+    if (req.limit && req.limit.constructor !== Number) {
+        req.limit = undefined;
+    }
+
+    var item, newlimit;
+    if (!req.index) {
+        // req should not have non primary key attr
+        for ( item in req.attributes ) {
+            if (!cachedSchema._restbase._indexAttributes[item]) {
+                throw new Error("Request attributes should contain only primary key attributes");
+            }
+        }
+    } else {
+        if (!cachedSchema.secondaryIndexes[req.index]) {
+            throw new Error("Index attributes is invalid");
+        }
+
+        newlimit = req.limit + Math.ceil(req.limit/4);
         table = 'i_' + req.index;
     }
 
@@ -502,13 +493,191 @@ DB.prototype._get = function (keyspace, req, consistency, table) {
         }
     }
 
-    if (req.limit && req.limit.constructor === Number) {
-        cql += ' limit ' + req.limit;
+    if (req.limit) {
+        cql += ' limit ' + req.limit||newlimit;
     }
 
-    //console.log(cql, params);
-    return this.client.execute_p(cql, params, {consistency: consistency, prepared:true})
-    .then(function(result) {
+    return {query: cql, params: params};
+};
+
+
+/*
+    Fetch index entries and compare them against data row for false positives
+    - if limit is fullfilled return
+    - else fetch more entries and compare again 
+*/
+DB.prototype.indexReads = function(keyspace, req, consistency, table, startKey, finalRows) {
+
+    // create new index query 
+    var newIndexReq = {
+        table: table,
+        index: req.index,
+        attributes: {},
+        limit: req.limit + Math.ceil(req.limit/4)
+    };
+
+    var internalColumns = {
+        __columns: true,
+        __consistentUpTo: true,
+        __tombstone: true
+    };
+
+
+    var cachedSchema = this.schemaCache[keyspace]._restbase.indexSchema[req.index];
+    for(var item in startKey) {
+        if ( !internalColumns[item] && cachedSchema._indexAttributes[item]) {
+            if (cachedSchema.attributes[item] === 'timeuuid' ) {
+                // TODO : change 'le' to requested range conditions
+                newIndexReq.attributes[item] = {'le': startKey[item]};
+            } else {
+                newIndexReq.attributes[item] = startKey[item];
+            }
+        }
+    }
+
+    var buildResult = this.buildGetQuery(keyspace, newIndexReq, consistency, table);
+    
+    var self = this;
+    var queries = [];
+    var lastrow;
+    return new Promise(function(resolve, reject){
+        // stream  the main data table
+        var stream = self.client.stream(buildResult.query, buildResult.params, {autoPage: true,
+                                                fetchSize: req.limit + Math.ceil(req.limit/4),
+                                                prepare: 1,
+                                                consistency: consistency})
+        .on('readable', function(){
+            var row = this.read();
+            for (row; row!=null; row=this.read()) {
+                lastrow = row;
+                var attributes = {};
+                var proj = {};
+                for (var attr in self.schemaCache[keyspace]._restbase._indexAttributes) {
+                    attributes[attr] = row[attr];
+                }
+                queries.push(self.buildGetQuery(keyspace, {
+                                                table: table,
+                                                attributes: attributes,
+                                                proj: proj,
+                                                limit: req.limit + Math.ceil(req.limit/4)},
+                                                consistency, table));
+                var finalRows = [];
+                if (finalRows.length<req.limit) {
+                    return self.indexReads(keyspace, req, consistency, table, lastrow, finalRows);
+                } else {
+                    return self.client.execute_p(item.query, item.params, item.options || {consistency: consistency, prepared: true})
+                    .then(function(results){
+                        if (finalRows.length < req.limit) {
+                            finalRows.push(results.rows[0]);
+                        }
+                    });
+                }
+            }
+        });
+    });
+};
+
+/*
+    Handler for request GET requests on secondary indexes.
+*/
+DB.prototype._getSecondaryIndex = function(keyspace, req, consistency, table, buildResult){
+
+    // TODO: handle '_tid' cases
+    var self = this;
+    return self.client.execute_p(buildResult.query, buildResult.params, {consistency: consistency, prepared: true})
+    .then(function(results) {
+        var queries = [];
+        var cachedSchema = self.schemaCache[keyspace];
+        
+        var newReq = {
+            table: table,
+            attributes: {},
+            limit: req.limit + Math.ceil(req.limit/4)
+        };
+
+        // build main data queries
+        for ( var rowno in results.rows ) {
+            for ( var attr in cachedSchema._restbase._indexAttributes ) {
+                newReq.attributes[attr] = results.rows[rowno][attr];
+            }
+            queries.push(self.buildGetQuery(keyspace, newReq, consistency, table));
+            newReq.attributes = {};
+        }
+
+        // prepare promises for batch execution
+        var batchPromises = [];
+        queries.forEach(function(item) {
+            batchPromises.push(self.client.execute_p(item.query, item.params, item.options || {consistency: consistency, prepared: true}));
+        });
+
+        // execute batch and check if limit is fulfilled
+        return Promise.all(batchPromises).then(function(batchResults){
+            var finalRows = [];
+            batchResults.forEach(function(item){
+                if (finalRows.length < req.limit) {
+                    finalRows.push(item.rows[0]);
+                }
+            });
+            return [finalRows, results.rows[rowno]];
+        });
+    })
+    .then(function(rows){
+        //TODO: handle case when limit > no of entries in table
+        if (rows[0].length<req.limit) {
+            return self.indexReads(keyspace, req, consistency, table, rows[1], rows[0]);
+        }
+        return rows[0];
+    }).then(function(rows){
+        // hide the columns property added by node-cassandra-cql
+        // XXX: submit a patch to avoid adding it in the first place
+        for (var row in rows) {
+            row.columns = undefined;
+        }
+        return {
+            count: rows.length,
+            items: rows
+        };
+    });
+};
+
+DB.prototype.get = function (reverseDomain, req) {
+    var self = this;
+    var keyspace = keyspaceName(reverseDomain, req.table);
+
+    // consistency
+    var consistency = defaultConsistency;
+    if (req.consistency && req.consistency in {all:1, localQuorum:1}) {
+        consistency = cass.types.consistencies[req.consistency];
+    }
+
+    if (!this.schemaCache[keyspace]) {
+        return this._getSchema(keyspace, defaultConsistency)
+        .then(function(schema) {
+            //console.log('schema', schema);
+            self.schemaCache[keyspace] = schema;
+            return self._get(keyspace, req, consistency);
+        });
+    } else {
+        return this._get(keyspace, req, consistency);
+    }
+};
+
+DB.prototype._get = function (keyspace, req, consistency, table) {
+   
+    var batch = [];
+    if (!table) {
+        table = 'data';
+    }
+
+    var buildResult = this.buildGetQuery(keyspace, req, consistency, table);
+
+    if (req.index) {
+        return this._getSecondaryIndex(keyspace, req, consistency, table, buildResult);
+    }
+
+    var self = this;
+    return self.client.execute_p(buildResult.query, buildResult.params, {consistency: consistency, prepared: true})
+    .then(function(result){
         var rows = result.rows;
         // hide the columns property added by node-cassandra-cql
         // XXX: submit a patch to avoid adding it in the first place
@@ -618,8 +787,8 @@ DB.prototype._delete = function (keyspace, req, consistency, table) {
     }
 
     // TODO: delete from indexes too!
-
-    return this.client.execute_p(cql, params, {consistency: consistency, prepared:true});
+    //console.log(cql, params);
+    return this.client.execute_p(cql, params, {consistency: consistency});
 };
 
 DB.prototype._createKeyspace = function (keyspace, consistency, options) {
