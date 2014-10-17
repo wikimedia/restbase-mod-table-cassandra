@@ -147,11 +147,12 @@ var SchemaWithIndexWithoutTID = {
     },
     index: {
         hash: 'key',
-        //range: 'tid',
+        range: 'uri',
     },
     secondaryIndexes: {
         by_uri : {
             hash: 'uri',
+            range: 'key',
             proj : ["body"]
         }
     }
@@ -204,7 +205,6 @@ var rangeKVSchema = {
 // simple insert query
 var simplePutQuery = {
     table: "someTable",
-    limit: 3,
     attributes: {
         key: 'testing',
         tid: tidFromDate(new Date('2013-08-08 18:43:58-0700')),
@@ -214,7 +214,6 @@ var simplePutQuery = {
 // simple insert query to test more than one range keys
 var anotherSimplePutQuery = {
     table: "someTable1",
-    limit: 3,
     attributes: {
         key: 'testing',
         tid: tidFromDate(new Date('2013-08-08 18:43:58-0700')),
@@ -260,11 +259,45 @@ var putIndexQuery = {
     attributes: {
         key: "another test",
         tid: tidFromDate(new Date('2013-08-11 18:43:58-0700')),
-        body: "<p>test<p>",
         uri: "a uri"
     },
 };
 
+var putIndexQuery2 = {
+    table: "someTable2",
+    attributes: {
+        key: "test",
+        tid: tidFromDate(new Date()),
+        uri: "another/test/without/timeuuid"
+    },
+};
+
+var putIndexQuery3 = {
+    table: "someTable2",
+    attributes: {
+        key: "test4",
+        tid: tidFromDate(new Date()),
+        uri: "test/uri"
+    },
+};
+
+// simple query to test unversioned secondary indexes 
+var putIndexQuery4 = {
+    table: "someTable3",
+    attributes: {
+        key: "another test",
+        uri: "a uri"
+    },
+};
+
+var putIndexQuery5 = {
+    table: "someTable3",
+    attributes: {
+        key: "another test",
+        uri: "a uri",
+        body: "abcd"
+    }
+};
 
 // simple select query
 var simpleQuery = {
@@ -278,15 +311,25 @@ var simpleQuery = {
 // simeple select query using between relation
 var betweenQuery = {
     table: "someTable",
-    //index: "key",
     //from: 'foo', // key to start the query from (paging)
-    proj: ["key", "tid"],
     limit: 3,
     attributes: {
         tid: { "BETWEEN": [ tidFromDate(new Date('2013-07-08 18:43:58-0700')),
                             tidFromDate(new Date('2013-08-08 18:43:58-0700'))] },
         key: "testing"
     }
+};
+
+// simple index query
+var simpleIndexQuery = {
+    table: "someTable2",
+    index: "by_uri",
+    attributes: {
+        key: "another test",
+        tid: { "le" : tidFromDate(new Date('2013-08-11 18:43:58-0700')) },
+        uri: "a uri"
+    },
+    limit: 1
 };
 
 // simple delete query
@@ -417,8 +460,23 @@ describe('DB backend', function() {
     });
     describe('put', function() {
         it('should perform a put query to test index update functionality ', function() {
-            return DB.put('org.wikipedia.en', putIndexQuery)
-            .then(function(result) {
+            return Promise.all([DB.put('org.wikipedia.en', putIndexQuery).then(function(result) {deepEqual(result, {status:201});}),
+                    DB.put('org.wikipedia.en', putIndexQuery3).then(function(result){deepEqual(result, {status:201});})
+                ]);
+        });
+    });
+    describe('put', function() {
+        it('should perform a put query to test unversioned index functionality ', function() {
+            return DB.put('org.wikipedia.en', putIndexQuery4)
+            .then(function(result){
+                deepEqual(result, {status:201});
+            });
+        });
+    });
+    describe('put', function() {
+        it('should perform a put query to test unversioned index update functionality ', function() {
+            return DB.put('org.wikipedia.en', putIndexQuery5)
+            .then(function(result){
                 deepEqual(result, {status:201});
             });
         });
@@ -437,6 +495,13 @@ describe('DB backend', function() {
             .then(function(result) {
                 deepEqual(result.count, 1);
             });
+        });
+    });
+    describe('get', function() {
+        it('should perform a index query', function() {
+            return Promise.all([DB.get('org.wikipedia.en', simpleIndexQuery).then(function(result){deepEqual(result.count, 1);}),
+                DB.get('org.wikipedia.en', simpleIndexQuery).then(function(result){deepEqual(result.count, 1);}),
+                DB.get('org.wikipedia.en', simpleIndexQuery).then(function(result){deepEqual(result.count, 1);})]);
         });
     });
     describe('delete', function() {
