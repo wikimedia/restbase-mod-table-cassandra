@@ -3,15 +3,16 @@
   "description": "RESTBase table storage on Cassandra",
   "version": "0.1.2",
   "dependencies": {
-    "request": "2.x.x",
-    "async": "0.x.x",
-    "restify": "2.x.x",
-    "connect-busboy": "git+https://github.com/gwicke/connect-busboy.git#master",
-    "node-uuid": "1.x.x",
-    "cassandra-driver": "git+https://github.com/datastax/nodejs-driver.git#master",
-    "routeswitch": "^0.3.2",
     "assert": "^1.1.1",
-    "prfun": "^1.0.0"
+    "async": "0.x.x",
+    "bluebird": "^2.3.10",
+    "cassandra-driver": "git+https://github.com/datastax/nodejs-driver.git#master",
+    "connect-busboy": "git+https://github.com/gwicke/connect-busboy.git#master",
+    "extend": "^2.0.0",
+    "node-uuid": "1.x.x",
+    "request": "2.x.x",
+    "restify": "2.x.x",
+    "routeswitch": "^0.3.2"
   },
   "scripts": {
     "test": "mocha"

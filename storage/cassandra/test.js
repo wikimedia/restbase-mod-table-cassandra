@@ -1,6 +1,8 @@
 "use strict";
 
-require('prfun');
+if (!global.Promise) {
+    global.promise = require('bluebird');
+}
 var assert = require('assert');
 var cass = require('cassandra-driver');
 var uuid = require('node-uuid');
@@ -77,11 +79,11 @@ var revisionedKVSchema = {
         // 'deleted', 'nomove' etc?
         restrictions: 'set<string>',
     },
-    index: {
-        hash: 'key',
-        range: 'tid',
-        static: 'latestTid'
-    }
+    index: [
+        { attribute: 'key', type: 'hash' },
+        { attribute: 'latestTid', type: 'static' },
+        { attribute: 'tid', type: 'range', order: 'desc' }
+    ]
 };
 
 // simple schema with more than one range keys
@@ -98,11 +100,12 @@ var anotherSimpleSchema = {
         // 'deleted', 'nomove' etc?
         restrictions: 'set<string>',
     },
-    index: {
-        hash: 'key',
-        range: ['tid', 'uri'],
-        static: 'latestTid'
-    }
+    index: [
+        { attribute: 'key', type: 'hash' },
+        { attribute: 'latestTid', type: 'static' },
+        { attribute: 'tid', type: 'range', order: 'desc' },
+        { attribute: 'uri', type: 'range', order: 'desc' }
+    ]
 };
 
 // simple schema with secondary index
@@ -119,15 +122,15 @@ var simpleSchemaWithIndex = {
         // 'deleted', 'nomove' etc?
         restrictions: 'set<string>',
     },
-    index: {
-        hash: 'key',
-        range: 'tid',
-    },
+    index: [
+        { attribute: 'key', type: 'hash' },
+        { attribute: 'tid', type: 'range', order: 'desc' },
+    ],
     secondaryIndexes: {
-        by_uri : {
-            hash: 'uri',
-            proj : ["body"]
-        }
+        by_uri : [
+            { attribute: 'uri', type: 'hash' },
+            { attribute: 'body', type: 'proj' }
+        ]
     }
 };
 
@@ -145,16 +148,16 @@ var SchemaWithIndexWithoutTID = {
         // 'deleted', 'nomove' etc?
         restrictions: 'set<string>',
     },
-    index: {
-        hash: 'key',
-        range: 'uri',
-    },
+    index: [
+        { attribute: 'key', type: 'hash' },
+        { attribute: 'uri', type: 'range', order: 'desc' },
+    ],
     secondaryIndexes: {
-        by_uri : {
-            hash: 'uri',
-            range: 'key',
-            proj : ["body"]
-        }
+        by_uri : [
+            { attribute: 'uri', type: 'hash' },
+            { attribute: 'key', type: 'range', order: 'desc' },
+            { attribute: 'body', type: 'proj' }
+        ]
     }
 };
 
@@ -176,9 +179,9 @@ var simpleKVSchema = {
         // 'deleted', 'nomove' etc?
         restrictions: 'set<string>',
     },
-    index: {
-        hash: 'uri'
-    }
+    index: [
+        { attribute: 'uri', type: 'hash' }
+    ]
 };
 
 var rangeKVSchema = {
@@ -196,10 +199,10 @@ var rangeKVSchema = {
         // 'deleted', 'nomove' etc?
         restrictions: 'set<string>',
     },
-    index: {
-        hash: 'prefix',
-        range: 'uri'
-    }
+    index: [
+        { attribute: 'prefix', type: 'hash' },
+        { attribute: 'uri', type: 'range', order: 'desc' }
+    ]
 };
 
 // simple insert query
@@ -281,7 +284,7 @@ var putIndexQuery3 = {
     },
 };
 
-// simple query to test unversioned secondary indexes 
+// simple query to test unversioned secondary indexes
 var putIndexQuery4 = {
     table: "someTable3",
     attributes: {

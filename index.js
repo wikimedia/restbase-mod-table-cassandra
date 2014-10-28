@@ -3,6 +3,13 @@
  * Cassandra-backed table storage service
  */
 
+if (!global.Promise) {
+    global.Promise = require('bluebird');
+}
+if (!Promise.promisify) {
+    Promise.promisify = require('bluebird').promisify;
+}
+
 // global includes
 var fs = require('fs');
 var util = require('util');
