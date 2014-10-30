@@ -1,0 +1,121 @@
+/*
+ * Some currently-unused test schemas & queries that could eventually be used
+ * in tests.
+ */
+
+// For comparison, this is how a query against Amazon DynamoDB looks like:
+var dynamoQuery = {
+    "TableName": "Thread",
+    "IndexName": "LastPostIndex",
+    "Select": "ALL_ATTRIBUTES",
+    "Limit":3,
+    "ConsistentRead": true,
+    "KeyConditions": {
+        "LastPostDateTime": {
+            "AttributeValueList": [
+                {
+                    "S": "20130101"
+                },
+                {
+                    "S": "20130115"
+                }
+            ],
+            "ComparisonOperator": "BETWEEN"
+        },
+        "ForumName": {
+            "AttributeValueList": [
+                {
+                    "S": "Amazon DynamoDB"
+                }
+            ],
+            "ComparisonOperator": "EQ"
+        }
+    },
+    "ReturnConsumedCapacity": "TOTAL"
+};
+
+var simpleKVSchema = {
+    // extra redundant info for primary bucket table reconstruction
+    domain: 'en.wikipedia.org',
+    table: 'someTable',
+    options: { storageClass: 'SimpleStrategy', durabilityLevel: 1 },
+    attributes: {
+        uri: 'string',
+        tid: 'timeuuid',
+        body: 'blob',
+        'content-type': 'string',
+        'content-length': 'varint',
+        'content-sha256': 'string',
+        // redirect
+        'content-location': 'string',
+        // 'deleted', 'nomove' etc?
+        restrictions: 'set<string>',
+    },
+    index: [
+        { attribute: 'uri', type: 'hash' }
+    ]
+};
+
+var rangeKVSchema = {
+    table: 'someTable',
+    attributes: {
+        prefix: 'string', // fixed or trie prefix, managed by bucket handler
+        uri: 'string',
+        tid: 'timeuuid',
+        body: 'blob',
+        'content-type': 'string',
+        'content-length': 'varint',
+        'content-sha256': 'string',
+        // redirect
+        'content-location': 'string',
+        // 'deleted', 'nomove' etc?
+        restrictions: 'set<string>',
+    },
+    index: [
+        { attribute: 'prefix', type: 'hash' },
+        { attribute: 'uri', type: 'range', order: 'desc' }
+    ]
+};
+
+var putIndexQuery2 = {
+    table: "someTable2",
+    attributes: {
+        key: "test",
+        tid: null; //tidFromDate(new Date()),
+        uri: "another/test/without/timeuuid"
+    },
+};
+
+
+// Potential syntax for dependent updates
+var ourPutQuery = {
+    method: 'put',
+    table: "someTable",
+    limit: 3,
+    // alternative: if: 'EXISTS'
+    if: {
+        LastPostDateTime: { "BETWEEN": ["20130101", "20130115"] },
+        ForumName: { "ne": "Amazon DynamoDB" }
+    },
+    attributes: {
+        LastPostDateTime: 'foo',
+        ForumName: 'bar'
+    },
+    // dependent requests
+    then: [
+        { /* more dependent requests */ }
+    ]
+};
+
+var ourQueryResult = {
+    status: 200,
+    then: [
+        {
+            /* dependent result */
+            status: 200
+        }
+    ],
+    next: {
+        /* pred matching next key to scan for paging */
+    }
+};
