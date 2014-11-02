@@ -6,10 +6,10 @@
     "assert": "^1.1.1",
     "async": "0.x.x",
     "bluebird": "^2.3.10",
-    "cassandra-driver": "git+https://github.com/datastax/nodejs-driver.git#master",
+    "cassandra-driver": "^1.0.1",
     "connect-busboy": "git+https://github.com/gwicke/connect-busboy.git#master",
     "extend": "^2.0.0",
-    "node-uuid": "1.x.x",
+    "node-uuid": "git+https://github.com/gwicke/node-uuid.git#master",
     "request": "2.x.x",
     "restify": "2.x.x",
     "routeswitch": "^0.3.2"
