@@ -44,7 +44,6 @@ var simpleIndexQuery = {
     index: "by_uri",
     attributes: {
         key: "another test",
-        tid: { "le" : tidFromDate(new Date('2013-08-11 18:43:58-0700')) },
         uri: "a uri"
     },
     limit: 1
@@ -136,8 +135,8 @@ describe('DB backend', function() {
                 ],
                 secondaryIndexes: {
                     by_uri : [
-                    { attribute: 'uri', type: 'hash' },
-                    { attribute: 'body', type: 'proj' }
+                        { attribute: 'uri', type: 'hash' },
+                        { attribute: 'body', type: 'proj' }
                     ]
                 }
             })
