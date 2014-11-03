@@ -38,18 +38,6 @@ function deepEqual (result, expected) {
 // FIXME: Use the REST interface!
 var DB = require('../lib/db.js');
 
-// simple index query
-var simpleIndexQuery = {
-    table: "someTable2",
-    index: "by_uri",
-    attributes: {
-        key: "another test",
-        uri: "a uri"
-    },
-    limit: 1
-};
-
-
 describe('DB backend', function() {
     before(function() {
         return makeClient({
@@ -65,7 +53,7 @@ describe('DB backend', function() {
             return DB.createTable('org.wikipedia.en', {
                 // keep extra redundant info for primary bucket table reconstruction
                 domain: 'en.wikipedia.org',
-                table: 'someTable',
+                table: 'simpleTable',
                 options: { storageClass: 'SimpleStrategy', durabilityLevel: 1 },
                 attributes: {
                     key: 'string',
@@ -81,9 +69,9 @@ describe('DB backend', function() {
                     restrictions: 'set<string>',
                 },
                 index: [
-                { attribute: 'key', type: 'hash' },
-                { attribute: 'latestTid', type: 'static' },
-                { attribute: 'tid', type: 'range', order: 'desc' }
+                    { attribute: 'key', type: 'hash' },
+                    { attribute: 'latestTid', type: 'static' },
+                    { attribute: 'tid', type: 'range', order: 'desc' }
                 ]
             })
             .then(function(item) {
@@ -93,7 +81,7 @@ describe('DB backend', function() {
         it('table with more than one range keys', function() {
             return DB.createTable('org.wikipedia.en', {
                 domain: 'en.wikipedia.org',
-                table: 'someTable1',
+                table: 'multiRangeTable',
                 options: { storageClass: 'SimpleStrategy', durabilityLevel: 1 },
                 attributes: {
                     key: 'string',
@@ -118,7 +106,7 @@ describe('DB backend', function() {
         it('table with secondary index', function() {
             return DB.createTable('org.wikipedia.en', {
                 domain: 'en.wikipedia.org',
-                table: 'someTable2',
+                table: 'simpleSecondaryIndexTable',
                 options: { storageClass: 'SimpleStrategy', durabilityLevel: 1 },
                 attributes: {
                     key: 'string',
@@ -147,7 +135,7 @@ describe('DB backend', function() {
         it('table with secondary index and no tid in range', function() {
             return DB.createTable('org.wikipedia.en', {
                 domain: 'en.wikipedia.org',
-                table: 'someTable3',
+                table: 'unversionedSecondaryIndexTable',
                 options: { storageClass: 'SimpleStrategy', durabilityLevel: 1 },
                 attributes: {
                     key: 'string',
@@ -179,7 +167,7 @@ describe('DB backend', function() {
     describe('put', function() {
         it('simple put insert', function() {
             return DB.put('org.wikipedia.en', {
-                table: "someTable",
+                table: 'simpleTable',
                 attributes: {
                     key: 'testing',
                     tid: tidFromDate(new Date('2013-08-08 18:43:58-0700')),
@@ -191,7 +179,7 @@ describe('DB backend', function() {
         });
         it('simple put insert query on table with more than one range keys', function() {
             return DB.put('org.wikipedia.en', {
-                table: "someTable1",
+                table: "multiRangeTable",
                 attributes: {
                     key: 'testing',
                     tid: tidFromDate(new Date('2013-08-08 18:43:58-0700')),
@@ -204,7 +192,7 @@ describe('DB backend', function() {
         });
         it('simple put update', function() {
             return DB.put('org.wikipedia.en', {
-                table: "someTable",
+                table: 'simpleTable',
                 attributes: {
                     key: "testing",
                     tid: tidFromDate(new Date('2013-08-09 18:43:58-0700')),
@@ -217,7 +205,7 @@ describe('DB backend', function() {
         });
         it('put with if not exists and non index attributes', function() {
             return DB.put('org.wikipedia.en', {
-                table: "someTable",
+                table: "simpleTable",
                 if : "not exists",
                 attributes: {
                     key: "testing if not exists",
@@ -231,7 +219,7 @@ describe('DB backend', function() {
         });
         it('put with if and non index attributes', function() {
             return DB.put('org.wikipedia.en', {
-                table: "someTable",
+                table: "simpleTable",
                 attributes: {
                     key: "another test",
                     tid: tidFromDate(new Date('2013-08-11 18:43:58-0700')),
@@ -246,20 +234,35 @@ describe('DB backend', function() {
         it('index update', function() {
             return Promise.all([
                 DB.put('org.wikipedia.en', {
-                    table: "someTable2",
+                    table: "simpleSecondaryIndexTable",
                     attributes: {
-                        key: "another test",
-                        tid: tidFromDate(new Date('2013-08-11 18:43:58-0700')),
-                        uri: "a uri"
+                        key: "test",
+                        tid: uuid.v1(),
+                        uri: "uri1",
+                        body: 'body1'
                     },
+                })
+                .then(function(result) {
+                    deepEqual(result, {status:201});
+
+                    return DB.put('org.wikipedia.en', {
+                    table: "simpleSecondaryIndexTable",
+                    attributes: {
+                        key: "test",
+                        tid: uuid.v1(),
+                        uri: "uri2",
+                        body: 'body2'
+                    },
+                    });
                 })
                 .then(function(result) {deepEqual(result, {status:201});}),
                 DB.put('org.wikipedia.en', {
-                    table: "someTable2",
+                    table: "simpleSecondaryIndexTable",
                     attributes: {
-                        key: "test4",
-                        tid: tidFromDate(new Date()),
-                        uri: "test/uri"
+                        key: "test3",
+                        tid: uuid.v1(),
+                        uri: "body3",
+                        body: 'body3'
                     },
                 })
                 .then(function(result){deepEqual(result, {status:201});})
@@ -267,7 +270,7 @@ describe('DB backend', function() {
         });
         it('unversioned index', function() {
             return DB.put('org.wikipedia.en', {
-                table: "someTable3",
+                table: "unversionedSecondaryIndexTable",
                 attributes: {
                     key: "another test",
                     uri: "a uri"
@@ -279,7 +282,7 @@ describe('DB backend', function() {
         });
         it('unversioned index update', function() {
             return DB.put('org.wikipedia.en', {
-                table: "someTable3",
+                table: "unversionedSecondaryIndexTable",
                 attributes: {
                     key: "another test",
                     uri: "a uri",
@@ -295,7 +298,7 @@ describe('DB backend', function() {
     describe('get', function() {
         it('simple between', function() {
             return DB.get('org.wikipedia.en', {
-                table: "someTable",
+                table: "simpleTable",
                 //from: 'foo', // key to start the query from (paging)
                 limit: 3,
                 attributes: {
@@ -310,7 +313,7 @@ describe('DB backend', function() {
         });
         it('simple get', function() {
             return DB.get('org.wikipedia.en', {
-                table: "someTable",
+                table: "simpleTable",
                 attributes: {
                     key: 'testing',
                     tid: tidFromDate(new Date('2013-08-08 18:43:58-0700'))
@@ -320,21 +323,42 @@ describe('DB backend', function() {
                 deepEqual(result.count, 1);
             });
         });
-        it('index query', function() {
-            return Promise.all([
-                DB.get('org.wikipedia.en', simpleIndexQuery)
-                .then(function(result){deepEqual(result.count, 1);}),
-                DB.get('org.wikipedia.en', simpleIndexQuery)
-                .then(function(result){deepEqual(result.count, 1);}),
-                DB.get('org.wikipedia.en', simpleIndexQuery)
-                .then(function(result){deepEqual(result.count, 1);})
-            ]);
+        it("index query for value that doesn't match any more", function() {
+            return DB.get('org.wikipedia.en', {
+                table: "simpleSecondaryIndexTable",
+                index: "by_uri",
+                attributes: {
+                    uri: "uri1"
+                },
+                limit: 1
+            })
+            .then(function(result){
+                deepEqual(result.items.length, 0);
+            });
+        });
+
+        it("index query for current value", function() {
+            return DB.get('org.wikipedia.en', {
+                table: "simpleSecondaryIndexTable",
+                index: "by_uri",
+                attributes: {
+                    uri: "uri2"
+                },
+                proj: ['uri', 'body'],
+                limit: 1
+            })
+            .then(function(result){
+                deepEqual(result.items, [{
+                    uri: "uri2",
+                    body: new Buffer("body2")
+                }]);
+            });
         });
     });
     describe('delete', function() {
         it('simple delete query', function() {
             return DB.delete('org.wikipedia.en', {
-                table: "someTable",
+                table: "simpleTable",
                 attributes: {
                     tid: tidFromDate(new Date('2013-08-09 18:43:58-0700')),
                     key: "testing"
@@ -347,10 +371,10 @@ describe('DB backend', function() {
         it('drop a simple table', function() {
             this.timeout(15000);
             return Promise.all([
-                DB.dropTable('org.wikipedia.en', 'someTable'),
-                DB.dropTable('org.wikipedia.en', 'someTable1'),
-                DB.dropTable('org.wikipedia.en', 'someTable2'),
-                DB.dropTable('org.wikipedia.en', 'someTable3')
+                DB.dropTable('org.wikipedia.en', 'simpleTable'),
+                DB.dropTable('org.wikipedia.en', 'multiRangeTable'),
+                DB.dropTable('org.wikipedia.en', 'simpleSecondaryIndexTable'),
+                DB.dropTable('org.wikipedia.en', 'unversionedSecondaryIndexTable')
             ]);
         });
     });
