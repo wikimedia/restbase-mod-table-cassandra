@@ -3,6 +3,13 @@
  * Cassandra-backed table storage service
  */
 
+if (!global.Promise) {
+    global.Promise = require('bluebird');
+}
+if (!Promise.promisify) {
+    Promise.promisify = require('bluebird').promisify;
+}
+
 // global includes
 var fs = require('fs');
 var util = require('util');
@@ -165,9 +172,7 @@ RBCassandra.prototype.put = function (rb, req) {
 RBCassandra.prototype.setup = function setup () {
     var self = this;
     // Set up storage backend
-    var moduleName = __dirname + '/storage/cassandra';
-    console.log(moduleName);
-    var backend = require(moduleName);
+    var backend = require('./lib/index');
     return backend(self.config.storage)
     .then(function(store) {
         self.store = store;

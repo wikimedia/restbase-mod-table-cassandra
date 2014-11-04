@@ -1,11 +1,6 @@
 {
 	"predef": [
-		"ve",
-
 		"setImmediate",
-
-		"QUnit",
-
 		"Map",
 		"Set"
 	],
