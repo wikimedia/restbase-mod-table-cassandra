@@ -232,41 +232,97 @@ describe('DB backend', function() {
             });
         });
         it('index update', function() {
-            return Promise.all([
-                DB.put('org.wikipedia.en', {
-                    table: "simpleSecondaryIndexTable",
-                    attributes: {
-                        key: "test",
-                        tid: uuid.v1(),
-                        uri: "uri1",
-                        body: 'body1'
-                    },
-                })
-                .then(function(result) {
-                    deepEqual(result, {status:201});
+            return DB.put('org.wikipedia.en', {
+                table: "simpleSecondaryIndexTable",
+                attributes: {
+                    key: "test",
+                    tid: uuid.v1(),
+                    uri: "uri1",
+                    body: 'body1'
+                },
+            })
+            .then(function(result) {
+                deepEqual(result, {status:201});
 
-                    return DB.put('org.wikipedia.en', {
+                return DB.put('org.wikipedia.en', {
+                table: "simpleSecondaryIndexTable",
+                attributes: {
+                    key: "test",
+                    tid: uuid.v1(),
+                    uri: "uri2",
+                    body: 'body2'
+                },
+                });
+            })
+            .then(function(result) {
+                deepEqual(result, {status:201});
+
+                return DB.put('org.wikipedia.en', {
                     table: "simpleSecondaryIndexTable",
                     attributes: {
                         key: "test",
                         tid: uuid.v1(),
-                        uri: "uri2",
-                        body: 'body2'
-                    },
-                    });
-                })
-                .then(function(result) {deepEqual(result, {status:201});}),
-                DB.put('org.wikipedia.en', {
-                    table: "simpleSecondaryIndexTable",
-                    attributes: {
-                        key: "test3",
-                        tid: uuid.v1(),
-                        uri: "body3",
+                        uri: "uri3",
                         body: 'body3'
                     },
-                })
-                .then(function(result){deepEqual(result, {status:201});})
-            ]);
+                });
+            })
+            .then(function(result) {
+                deepEqual(result, {status:201});
+
+                return DB.put('org.wikipedia.en', {
+                table: "simpleSecondaryIndexTable",
+                    attributes: {
+                        key: "test2",
+                        tid: uuid.v1(),
+                        uri: "uri1",
+                        body: 'test_body1'
+                    },
+                });
+            })
+            .then(function(result) {
+                deepEqual(result, {status:201});
+
+                return DB.put('org.wikipedia.en', {
+                table: "simpleSecondaryIndexTable",
+                attributes: {
+                    key: "test2",
+                    tid: uuid.v1(),
+                    uri: "uri2",
+                    body: 'test_body2'
+                },
+                });
+            })
+            .then(function(result) {
+                deepEqual(result, {status:201});
+
+                return DB.put('org.wikipedia.en', {
+                    table: "simpleSecondaryIndexTable",
+                    attributes: {
+                        key: "test2",
+                        tid: uuid.v1(),
+                        uri: "uri3",
+                        body: 'test_body3'
+                    },
+                });
+            })
+            .then(function(result) {
+                deepEqual(result, {status:201});
+
+                return DB.put('org.wikipedia.en', {
+                    table: "simpleSecondaryIndexTable",
+                    attributes: {
+                        key: "test2",
+                        tid: uuid.v1(),
+                        uri: "uri3",
+                        // Also test projection updates
+                        body: 'test_body3_modified'
+                    },
+                });
+            })
+            .then(function(result) {
+                deepEqual(result, {status:201});
+            });
         });
         it('unversioned index', function() {
             return DB.put('org.wikipedia.en', {
@@ -309,6 +365,17 @@ describe('DB backend', function() {
             })
             .then(function(result) {
                 deepEqual(result.count, 1);
+                deepEqual(result.items, [{ key: 'testing',
+                    tid: '28730300-0095-11e3-9234-0123456789ab',
+                    latestTid: null,
+                    _del: null,
+                    body: null,
+                    'content-length': null,
+                    'content-location': null,
+                    'content-sha256': null,
+                    'content-type': null,
+                    restrictions: null
+                }]);
             });
         });
         it('simple get', function() {
@@ -321,16 +388,37 @@ describe('DB backend', function() {
             })
             .then(function(result) {
                 deepEqual(result.count, 1);
+                deepEqual(result.items, [ { key: 'testing',
+                    tid: '28730300-0095-11e3-9234-0123456789ab',
+                    latestTid: null,
+                    _del: null,
+                    body: null,
+                    'content-length': null,
+                    'content-location': null,
+                    'content-sha256': null,
+                    'content-type': null,
+                    restrictions: null
+                } ]);
             });
         });
-        it("index query for value that doesn't match any more", function() {
+        it("index query for values that doesn't match any more", function() {
             return DB.get('org.wikipedia.en', {
                 table: "simpleSecondaryIndexTable",
                 index: "by_uri",
                 attributes: {
                     uri: "uri1"
-                },
-                limit: 1
+                }
+            })
+            .then(function(result){
+                deepEqual(result.items.length, 0);
+
+                return DB.get('org.wikipedia.en', {
+                    table: "simpleSecondaryIndexTable",
+                    index: "by_uri",
+                    attributes: {
+                        uri: "uri2"
+                    }
+                });
             })
             .then(function(result){
                 deepEqual(result.items.length, 0);
@@ -342,15 +430,19 @@ describe('DB backend', function() {
                 table: "simpleSecondaryIndexTable",
                 index: "by_uri",
                 attributes: {
-                    uri: "uri2"
+                    uri: "uri3"
                 },
-                proj: ['uri', 'body'],
-                limit: 1
+                proj: ['key', 'uri', 'body']
             })
             .then(function(result){
                 deepEqual(result.items, [{
-                    uri: "uri2",
-                    body: new Buffer("body2")
+                    key: "test2",
+                    uri: "uri3",
+                    body: new Buffer("test_body3_modified")
+                },{
+                    key: "test",
+                    uri: "uri3",
+                    body: new Buffer("body3")
                 }]);
             });
         });
