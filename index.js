@@ -189,19 +189,6 @@ RBCassandra.prototype.setup = function setup () {
  * object
  */
 function makeRBCassandra (options) {
-    // XXX: move to global config
-    options.config = {
-        sysdomain: "system.storoid", // reverse DNS notation
-        storage: {
-            "contactPoints": ["localhost"],
-            "id": "<uuid>",
-            "keyspace": "system",
-            "username": "test",
-            "password": "test",
-            "poolSize": 70,
-        }
-    };
-
     var rb = new RBCassandra(options);
     return rb.setup();
 }
