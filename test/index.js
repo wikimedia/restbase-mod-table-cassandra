@@ -41,8 +41,7 @@ var DB = require('../lib/db.js');
 describe('DB backend', function() {
     before(function() {
         return makeClient({
-            contactPoints: ['localhost'],
-            keyspace: 'system'
+            hosts: ['localhost']
         })
         .then(function(db) { DB = db; });
     });
