@@ -19,7 +19,7 @@ function reverseDomain (domain) {
 }
 
 function RBCassandra (options) {
-    this.config = options.config;
+    this.conf = options.conf;
     this.log = options.log;
     this.setup = this.setup.bind(this);
     this.store = null;
@@ -173,7 +173,7 @@ RBCassandra.prototype.setup = function setup () {
     var self = this;
     // Set up storage backend
     var backend = require('./lib/index');
-    return backend(self.config.storage)
+    return backend(self.conf)
     .then(function(store) {
         self.store = store;
         // console.log('RB setup complete', self.handler);
