@@ -53,7 +53,7 @@ describe('DB backend', function() {
                 // keep extra redundant info for primary bucket table reconstruction
                 domain: 'en.wikipedia.org',
                 table: 'simpleTable',
-                options: { storageClass: 'SimpleStrategy', durabilityLevel: 1 },
+                options: { durability: 'low' },
                 attributes: {
                     key: 'string',
                     tid: 'timeuuid',
@@ -81,7 +81,7 @@ describe('DB backend', function() {
             return DB.createTable('org.wikipedia.en', {
                 domain: 'en.wikipedia.org',
                 table: 'multiRangeTable',
-                options: { storageClass: 'SimpleStrategy', durabilityLevel: 1 },
+                options: { durability: 'low' },
                 attributes: {
                     key: 'string',
                     tid: 'timeuuid',
@@ -106,7 +106,7 @@ describe('DB backend', function() {
             return DB.createTable('org.wikipedia.en', {
                 domain: 'en.wikipedia.org',
                 table: 'simpleSecondaryIndexTable',
-                options: { storageClass: 'SimpleStrategy', durabilityLevel: 1 },
+                options: { durability: 'low' },
                 attributes: {
                     key: 'string',
                     tid: 'timeuuid',
@@ -135,7 +135,7 @@ describe('DB backend', function() {
             return DB.createTable('org.wikipedia.en', {
                 domain: 'en.wikipedia.org',
                 table: 'unversionedSecondaryIndexTable',
-                options: { storageClass: 'SimpleStrategy', durabilityLevel: 1 },
+                options: { durability: 'low' },
                 attributes: {
                     key: 'string',
                     //tid: 'timeuuid',
