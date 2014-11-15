@@ -29,8 +29,8 @@ function deepEqual (result, expected) {
     try {
         assert.deepEqual(result, expected);
     } catch (e) {
-        console.log('Expected:\n' + expected);
-        console.log('Result:\n' + result);
+        console.log('Expected:\n' + JSON.stringify(expected, null, 2));
+        console.log('Result:\n' + JSON.stringify(result, null, 2));
         throw e;
     }
 }
@@ -455,6 +455,92 @@ describe('DB backend', function() {
                     key: "testing"
                 }
             });
+        });
+    });
+
+    describe('types', function() {
+        it('create table', function() {
+            return DB.createTable('org.wikipedia.en', {
+                domain: 'en.wikipedia.org',
+                table: 'typeTable',
+                options: { durability: 'low' },
+                attributes: {
+                    string: 'string',
+                    blob: 'blob',
+                    set: 'set<string>',
+                    'int': 'int',
+                    varint: 'varint',
+                    //decimal: 'decimal',
+                    //'float': 'float',
+                    'double': 'double',
+                    'boolean': 'boolean',
+                    timeuuid: 'timeuuid',
+                    uuid: 'uuid',
+                    timestamp: 'timestamp',
+                    json: 'json'
+                },
+                index: [
+                    { attribute: 'string', type: 'hash' },
+                ]
+            })
+            .then(function(item) {
+                deepEqual(item, {status:201});
+            });
+        });
+        it('put', function() {
+            return DB.put('org.wikipedia.en', {
+                table: "typeTable",
+                attributes: {
+                    string: 'string',
+                    blob: new Buffer('blob'),
+                    set: ['bar','baz','foo'],
+                    'int': 1,
+                    varint: 1,
+                    //decimal: 1.2,
+                    //'float': 1.2,
+                    'double': 1.2,
+                    'boolean': true,
+                    timeuuid: 'c931ec94-6c31-11e4-b6d0-0f67e29867e0',
+                    uuid: 'd6938370-c996-4def-96fb-6af7ba9b6f72',
+                    timestamp: '2014-11-14T19:10:40.912Z',
+                    json: {
+                        foo: 'bar'
+                    }
+                }
+            })
+            .then(function(result){
+                deepEqual(result, {status:201});
+            });
+        });
+        it("get", function() {
+            return DB.get('org.wikipedia.en', {
+                table: "typeTable",
+                proj: ['string','blob','set','int','varint',
+                        'double','boolean','timeuuid','uuid',
+                        'timestamp','json']
+            })
+            .then(function(result){
+                deepEqual(result.items, [{
+                    string: 'string',
+                    blob: new Buffer('blob'),
+                    set: ['bar','baz','foo'],
+                    'int': 1,
+                    varint: 1,
+                    //decimal: 1.2,
+                    //'float': 1.2,
+                    'double': 1.2,
+                    'boolean': true,
+                    timeuuid: 'c931ec94-6c31-11e4-b6d0-0f67e29867e0',
+                    uuid: 'd6938370-c996-4def-96fb-6af7ba9b6f72',
+                    timestamp: '2014-11-14T19:10:40.912Z',
+                    json: {
+                        foo: 'bar'
+                    }
+                }]);
+            });
+        });
+        it('drop table', function() {
+            return DB.dropTable('org.wikipedia.en', 'typeTable');
         });
     });
 
