@@ -2,6 +2,7 @@
 Example:
 ```javascript
 {
+    // Attributes are typed key-value pairs
     attributes: {
         key: 'string',
         tid: 'timeuuid',
@@ -9,17 +10,17 @@ Example:
         value: 'string'
     },
     // primary index structure
-    index: {
-        hash: 'key',
-        range: 'tid'
+    index: [
+        { type: 'hash', attribute: 'key' },
+        { type: 'range', order: 'desc', attribute: 'tid' }
     },
-    // This is where all secondary indexes are defined.
+    // Optional secondary indexes on the attributes
     secondaryIndexes: {
         by_tid: {
-            hash: tid,
+            { type: 'hash', attribute: 'tid' },
             range: key, // implicit, all primary index attributes are included
             // Project some additional attributes into the secondary index
-            proj: ['length']
+            { type: 'proj', attribute: 'length' }
         }
     }
 }
