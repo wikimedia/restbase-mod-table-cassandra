@@ -494,6 +494,31 @@ describe('DB backend', function() {
                     string: 'string',
                     blob: new Buffer('blob'),
                     set: ['bar','baz','foo'],
+                    'int': -1,
+                    varint: -4503599627370496,
+                    //decimal: 1.2,
+                    //'float': 1.2,
+                    'double': 1.2,
+                    'boolean': true,
+                    timeuuid: 'c931ec94-6c31-11e4-b6d0-0f67e29867e0',
+                    uuid: 'd6938370-c996-4def-96fb-6af7ba9b6f72',
+                    timestamp: '2014-11-14T19:10:40.912Z',
+                    json: {
+                        foo: 'bar'
+                    }
+                }
+            })
+            .then(function(result){
+                deepEqual(result, {status:201});
+            });
+        });
+        it('put 2', function() {
+            return DB.put('org.wikipedia.en', {
+                table: "typeTable",
+                attributes: {
+                    string: 'string',
+                    blob: new Buffer('blob'),
+                    set: ['bar','baz','foo'],
                     'int': 1,
                     varint: 1,
                     //decimal: 1.2,
@@ -526,6 +551,22 @@ describe('DB backend', function() {
                     set: ['bar','baz','foo'],
                     'int': 1,
                     varint: 1,
+                    //decimal: 1.2,
+                    //'float': 1.2,
+                    'double': 1.2,
+                    'boolean': true,
+                    timeuuid: 'c931ec94-6c31-11e4-b6d0-0f67e29867e0',
+                    uuid: 'd6938370-c996-4def-96fb-6af7ba9b6f72',
+                    timestamp: '2014-11-14T19:10:40.912Z',
+                    json: {
+                        foo: 'bar'
+                    }
+                },{
+                    string: 'string',
+                    blob: new Buffer('blob'),
+                    set: ['bar','baz','foo'],
+                    'int': -1,
+                    varint: -4503599627370496,
                     //decimal: 1.2,
                     //'float': 1.2,
                     'double': 1.2,
