@@ -9,3 +9,7 @@ before_install:
 
 before_script:
   - sleep 5
+
+notifications:
+  email:
+    - services@wikimedia.org
