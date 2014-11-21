@@ -18,6 +18,7 @@
     "test": "mocha"
   },
   "devDependencies": {
-    "mocha": "x.x.x"
+    "mocha": "x.x.x",
+    "mocha-jshint": "0.0.9"
   }
 }
