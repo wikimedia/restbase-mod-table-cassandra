@@ -1,7 +1,7 @@
 {
   "name": "restbase-cassandra",
   "description": "RESTBase table storage on Cassandra",
-  "version": "0.2.5",
+  "version": "0.2.6",
   "dependencies": {
     "assert": "^1.1.1",
     "async": "0.x.x",
@@ -13,7 +13,7 @@
     "node-uuid": "git+https://github.com/gwicke/node-uuid.git#master",
     "request": "2.x.x",
     "restify": "2.x.x",
-    "routeswitch": "^0.5.1"
+    "routeswitch": "^0.5.2"
   },
   "scripts": {
     "test": "mocha"
