@@ -1,7 +1,7 @@
 {
   "name": "restbase-cassandra",
   "description": "RESTBase table storage on Cassandra",
-  "version": "0.2.6",
+  "version": "0.2.7",
   "dependencies": {
     "assert": "^1.1.1",
     "async": "0.x.x",
