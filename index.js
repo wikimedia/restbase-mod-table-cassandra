@@ -69,42 +69,28 @@ RBCassandra.prototype.createTable = function (rb, req) {
     var domain = reverseDomain(req.params.domain);
 
     // check if the domains table exists
-    return store.getSchema(domain, req.params.table)
+    return store.createTable(domain, req.body)
     .then(function() {
         return {
-            status: 409, // conflict
+            status: 201, // created
             body: {
-                type: 'table_exists',
-                title: 'Table already exists',
+                type: 'table_created',
+                title: 'Table was created.',
                 domain: req.params.domain,
                 table: req.params.table
             }
         };
     })
-    .catch(function(err) {
-        return store.createTable(domain, req.body)
-        .then(function() {
-            return {
-                status: 201, // created
-                body: {
-                    type: 'table_created',
-                    title: 'Table was created.',
-                    domain: req.params.domain,
-                    table: req.params.table
-                }
-            };
-        })
-        .catch(function(e) {
-            return {
-                status: 500,
-                body: {
-                    type: 'table_creation_error',
-                    title: 'Internal error while creating a table within the cassandra storage backend',
-                    stack: e.stack,
-                    schema: req.body
-                }
-            };
-        });
+    .catch(function(e) {
+        return {
+            status: 500,
+            body: {
+                type: 'table_creation_error',
+                title: 'Internal error while creating a table within the cassandra storage backend',
+                stack: e.stack,
+                schema: req.body
+            }
+        };
     });
 };
 
