@@ -584,7 +584,6 @@ describe('DB backend', function() {
                         { attribute: 'string', type: 'hash' },
                     ]
                 }
-            })
             .then(function(response) {
                 deepEqual(response.status, 201);
             });
@@ -665,7 +664,7 @@ describe('DB backend', function() {
                     set: ['bar','baz','foo'],
                     'int': 1,
                     varint: 1,
-                    //decimal: 1.2,
+                    decimal: 1.2,
                     //'float': 1.2,
                     'double': 1.2,
                     'boolean': true,
@@ -681,7 +680,7 @@ describe('DB backend', function() {
                     set: ['bar','baz','foo'],
                     'int': -1,
                     varint: -4503599627370496,
-                    //decimal: 1.2,
+                    decimal: 1.2,
                     //'float': 1.2,
                     'double': 1.2,
                     'boolean': true,
