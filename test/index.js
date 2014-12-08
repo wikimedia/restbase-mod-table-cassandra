@@ -195,7 +195,7 @@ describe('DB backend', function() {
                 attributes: {
                     key: "testing",
                     tid: tidFromDate(new Date('2013-08-09 18:43:58-0700')),
-                    body: "<p>Service Oriented Architecture</p>"
+                    body: new Buffer("<p>Service Oriented Architecture</p>")
                 }
             })
             .then(function(result) {
@@ -209,7 +209,7 @@ describe('DB backend', function() {
                 attributes: {
                     key: "testing if not exists",
                     tid: tidFromDate(new Date('2013-08-10 18:43:58-0700')),
-                    body: "<p>if not exists with non key attr</p>"
+                    body: new Buffer("<p>if not exists with non key attr</p>")
                 }
             })
             .then(function(result) {
@@ -222,9 +222,9 @@ describe('DB backend', function() {
                 attributes: {
                     key: "another test",
                     tid: tidFromDate(new Date('2013-08-11 18:43:58-0700')),
-                    body: "<p>test<p>"
+                    body: new Buffer("<p>test<p>")
                 },
-                if: { body: { "eq": "<p>Service Oriented Architecture</p>" } }
+                if: { body: { "eq": new Buffer("<p>Service Oriented Architecture</p>") } }
             })
             .then(function(result) {
                 deepEqual(result, {status:201});
