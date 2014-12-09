@@ -9,6 +9,8 @@ var assert = require('assert');
 var cass = require('cassandra-driver');
 var uuid = require('node-uuid');
 var makeClient = require('../lib/index');
+var testServer = require('../test/test_server.js');
+
 
 function tidFromDate(date) {
     // Create a new, deterministic timestamp
@@ -45,7 +47,10 @@ describe('DB backend', function() {
                 hosts: ['localhost']
             }
         })
-        .then(function(db) { DB = db; });
+        .then(function(db) {
+            DB = db;
+            return testServer();
+        });
     });
 
     describe('createTable', function() {
