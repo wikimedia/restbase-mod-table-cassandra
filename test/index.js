@@ -1,11 +1,6 @@
 "use strict";
 
-if (!global.Promise) {
-    global.Promise = require('bluebird');
-}
-if (!Promise.promisify) {
-    Promise.promisify = require('bluebird').promisify;
-}
+global.Promise = require('bluebird');
 
 // mocha defines to avoid JSHint breakage
 /* global describe, it, before, beforeEach, after, afterEach */
