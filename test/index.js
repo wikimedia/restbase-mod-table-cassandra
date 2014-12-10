@@ -454,6 +454,7 @@ describe('DB backend', function() {
     });
 
     describe('types', function() {
+        this.timeout(4000);
         it('create table', function() {
             return DB.createTable('org.wikipedia.en', {
                 domain: 'en.wikipedia.org',
