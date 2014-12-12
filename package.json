@@ -1,19 +1,18 @@
 {
   "name": "restbase-cassandra",
   "description": "RESTBase table storage on Cassandra",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "dependencies": {
-    "assert": "^1.1.1",
     "async": "0.x.x",
-    "bluebird": "^2.3.10",
+    "bluebird": "~2.3.10",
     "cassandra-codec": "~0.0.2",
-    "cassandra-driver": "^1.0.2",
+    "cassandra-driver": "~1.0.2",
     "connect-busboy": "git+https://github.com/gwicke/connect-busboy.git#master",
-    "extend": "^2.0.0",
+    "extend": "~2.0.0",
     "node-uuid": "git+https://github.com/gwicke/node-uuid.git#master",
     "request": "2.x.x",
     "restify": "2.x.x",
-    "routeswitch": "^0.5.2"
+    "routeswitch": "~0.6.3"
   },
   "scripts": {
     "test": "mocha"
