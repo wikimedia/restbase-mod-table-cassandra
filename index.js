@@ -28,6 +28,10 @@ function RBCassandra (options) {
                 // table creation
                 put: {
                     request_handler: this.createTable.bind(this)
+                },
+                // delete
+                delete: {
+                    request_handler: this.dropTable.bind(this)
                 }
             },
             '/v1/{domain}/{table}/': {
@@ -147,6 +151,25 @@ RBCassandra.prototype.put = function (rb, req) {
     });
 };
 
+RBCassandra.prototype.dropTable = function (rb, req) {
+    var domain = reverseDomain(req.params.domain);
+    return this.store.dropTable(domain, req.params.table)
+    .then(function(res) {
+        return {
+            status: 204 // done
+        };
+    })
+    .catch(function(e) {
+        return {
+            status: 500,
+            body: {
+                type: 'delete_error',
+                title: 'Internal error in Cassandra table storage backend',
+                stack: e.stack
+            }
+        };
+    });
+};
 
 /*
  * Setup / startup

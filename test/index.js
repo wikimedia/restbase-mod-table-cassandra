@@ -33,8 +33,6 @@ function deepEqual (result, expected) {
     }
 }
 
-
-// FIXME: Use the REST interface!
 var DB = require('../lib/db.js');
 
 describe('DB backend', function() {
@@ -544,6 +542,7 @@ describe('DB backend', function() {
             });
         });
     });
+    //TODO: implement this using http handler when alternate rest-url for delete item are supported 
     describe('delete', function() {
         it('simple delete query', function() {
             return DB.delete('local.test.cassandra.restbase', {
@@ -557,7 +556,7 @@ describe('DB backend', function() {
     });
 
     describe('types', function() {
-        this.timeout(4000);
+        this.timeout(5000);
         it('create table', function() {
             return router.request({
                 url: '/v1/restbase.cassandra.test.local/typeTable',
@@ -697,19 +696,40 @@ describe('DB backend', function() {
         });
         it('drop table', function() {
             this.timeout(15000);
-            return DB.dropTable('local.test.cassandra.restbase', 'typeTable');
+            return router.request({
+                url: "/v1/restbase.cassandra.test.local/typeTable",
+                method: "delete",
+                body: {}
+            });
         });
     });
 
     describe('dropTable', function() {
         this.timeout(15000);
         it('drop a simple table', function() {
-            return Promise.all([
-                DB.dropTable('local.test.cassandra.restbase', 'simpleTable'),
-                DB.dropTable('local.test.cassandra.restbase', 'multiRangeTable'),
-                DB.dropTable('local.test.cassandra.restbase', 'simpleSecondaryIndexTable'),
-                DB.dropTable('local.test.cassandra.restbase', 'unversionedSecondaryIndexTable')
-            ]);
+            return router.request({
+                url: "/v1/restbase.cassandra.test.local/simpleTable",
+                method: "delete",
+                body: {}
+            }).then(function() {
+                return router.request({
+                    url: "/v1/restbase.cassandra.test.local/multiRangeTable",
+                    method: "delete",
+                    body: {}
+                })
+            }).then(function() {
+                return router.request({
+                    url: "/v1/restbase.cassandra.test.local/simpleSecondaryIndexTable",
+                    method: "delete",
+                    body: {}
+                })
+            }).then(function() {
+                return router.request({
+                    url: "/v1/restbase.cassandra.test.local/unversionedSecondaryIndexTable",
+                    method: "delete",
+                    body: {}
+                })
+            });
         });
     });
 });
