@@ -58,11 +58,11 @@ describe('DB backend', function() {
         this.timeout(15000);
         it('simple table', function() {
             return router.request({
-                url: '/v1/en.wikipedia.org/simpleTable',
+                url: '/v1/restbase.cassandra.test.local/simpleTable',
                 method: 'put',
                 body: {
                     // keep extra redundant info for primary bucket table reconstruction
-                    domain: 'en.wikipedia.org',
+                    domain: 'restbase.cassandra.test.local',
                     table: 'simpleTable',
                     options: { durability: 'low' },
                     attributes: {
@@ -91,10 +91,10 @@ describe('DB backend', function() {
         });
         it('table with more than one range keys', function() {
             return router.request({
-                url: '/v1/en.wikipedia.org/multiRangeTable',
+                url: '/v1/restbase.cassandra.test.local/multiRangeTable',
                 method: 'put',
                 body: {
-                    domain: 'en.wikipedia.org',
+                    domain: 'restbase.cassandra.test.local',
                     table: 'multiRangeTable',
                     options: { durability: 'low' },
                     attributes: {
@@ -120,10 +120,10 @@ describe('DB backend', function() {
         });
         it('table with secondary index', function() {
             return router.request({
-                url: '/v1/en.wikipedia.org/simpleSecondaryIndexTable',
+                url: '/v1/restbase.cassandra.test.local/simpleSecondaryIndexTable',
                 method: 'put',
                 body: {
-                    domain: 'en.wikipedia.org',
+                    domain: 'restbase.cassandra.test.local',
                     table: 'simpleSecondaryIndexTable',
                     options: { durability: 'low' },
                     attributes: {
@@ -153,10 +153,10 @@ describe('DB backend', function() {
         });
         it('table with secondary index and no tid in range', function() {
             return router.request({
-                url: '/v1/en.wikipedia.org/unversionedSecondaryIndexTable',
+                url: '/v1/restbase.cassandra.test.local/unversionedSecondaryIndexTable',
                 method: 'put',
                 body: {
-                    domain: 'en.wikipedia.org',
+                    domain: 'restbase.cassandra.test.local',
                     table: 'unversionedSecondaryIndexTable',
                     options: { durability: 'low' },
                     attributes: {
@@ -190,7 +190,7 @@ describe('DB backend', function() {
     describe('put', function() {
         it('simple put insert', function() {
             return router.request({
-                url: '/v1/en.wikipedia.org/simpleTable/',
+                url: '/v1/restbase.cassandra.test.local/simpleTable/',
                 method: 'put',
                 body: {
                     table: 'simpleTable',
@@ -206,7 +206,7 @@ describe('DB backend', function() {
         });
         it('simple put insert query on table with more than one range keys', function() {
             return router.request({
-                url: '/v1/en.wikipedia.org/multiRangeTable/',
+                url: '/v1/restbase.cassandra.test.local/multiRangeTable/',
                 method: 'put',
                 body: {
                     table: "multiRangeTable",
@@ -223,7 +223,7 @@ describe('DB backend', function() {
         });
         it('simple put update', function() {
             return router.request({
-                url: '/v1/en.wikipedia.org/simpleTable/',
+                url: '/v1/restbase.cassandra.test.local/simpleTable/',
                 method: 'put',
                 body: {
                     table: 'simpleTable',
@@ -240,7 +240,7 @@ describe('DB backend', function() {
         });
         it('put with if not exists and non index attributes', function() {
             return router.request({
-                    url: '/v1/en.wikipedia.org/simpleTable/',
+                    url: '/v1/restbase.cassandra.test.local/simpleTable/',
                     method: 'put',
                     body: {
                         table: "simpleTable",
@@ -258,7 +258,7 @@ describe('DB backend', function() {
         });
         it('put with if and non index attributes', function() {
             return router.request({
-                url: '/v1/en.wikipedia.org/simpleTable/',
+                url: '/v1/restbase.cassandra.test.local/simpleTable/',
                 method: 'put',
                 body: {
                     table: "simpleTable",
@@ -276,7 +276,7 @@ describe('DB backend', function() {
         });
         it('index update', function() {
             return router.request({
-                url: '/v1/en.wikipedia.org/simpleSecondaryIndexTable/',
+                url: '/v1/restbase.cassandra.test.local/simpleSecondaryIndexTable/',
                 method: 'put',
                 body: {
                     table: "simpleSecondaryIndexTable",
@@ -292,7 +292,7 @@ describe('DB backend', function() {
                 deepEqual(response, {status:201});
 
                 return router.request({
-                    url: '/v1/en.wikipedia.org/simpleSecondaryIndexTable/',
+                    url: '/v1/restbase.cassandra.test.local/simpleSecondaryIndexTable/',
                     method: 'put',
                     body: {
                         table: "simpleSecondaryIndexTable",
@@ -309,7 +309,7 @@ describe('DB backend', function() {
                 deepEqual(response, {status:201});
 
                 return router.request({
-                    url: '/v1/en.wikipedia.org/simpleSecondaryIndexTable/',
+                    url: '/v1/restbase.cassandra.test.local/simpleSecondaryIndexTable/',
                     method: 'put',
                     body: {
                         table: "simpleSecondaryIndexTable",
@@ -326,7 +326,7 @@ describe('DB backend', function() {
                 deepEqual(response, {status:201});
 
                 return router.request({
-                    url: '/v1/en.wikipedia.org/simpleSecondaryIndexTable/',
+                    url: '/v1/restbase.cassandra.test.local/simpleSecondaryIndexTable/',
                     method: 'put',
                     body: {
                         table: "simpleSecondaryIndexTable",
@@ -343,7 +343,7 @@ describe('DB backend', function() {
                 deepEqual(response, {status:201});
 
                 return router.request({
-                    url: '/v1/en.wikipedia.org/simpleSecondaryIndexTable/',
+                    url: '/v1/restbase.cassandra.test.local/simpleSecondaryIndexTable/',
                     method: 'put',
                     body: {
                         table: "simpleSecondaryIndexTable",
@@ -359,7 +359,7 @@ describe('DB backend', function() {
             .then(function(response) {
                 deepEqual(response, {status:201});
                 return router.request({
-                    url: '/v1/en.wikipedia.org/simpleSecondaryIndexTable/',
+                    url: '/v1/restbase.cassandra.test.local/simpleSecondaryIndexTable/',
                     method: 'put',
                     body: {
                         table: "simpleSecondaryIndexTable",
@@ -376,7 +376,7 @@ describe('DB backend', function() {
                 deepEqual(response, {status:201});
 
                 return router.request({
-                    url: '/v1/en.wikipedia.org/simpleSecondaryIndexTable/',
+                    url: '/v1/restbase.cassandra.test.local/simpleSecondaryIndexTable/',
                     method: 'put',
                     body: {
                         table: "simpleSecondaryIndexTable",
@@ -396,7 +396,7 @@ describe('DB backend', function() {
         });
         it('unversioned index', function() {
             return router.request({
-                url: '/v1/en.wikipedia.org/unversionedSecondaryIndexTable/',
+                url: '/v1/restbase.cassandra.test.local/unversionedSecondaryIndexTable/',
                 method: 'put',
                 body: {
                     table: "unversionedSecondaryIndexTable",
@@ -412,7 +412,7 @@ describe('DB backend', function() {
         });
         it('unversioned index update', function() {
             return router.request({
-                url: '/v1/en.wikipedia.org/unversionedSecondaryIndexTable/',
+                url: '/v1/restbase.cassandra.test.local/unversionedSecondaryIndexTable/',
                 method: 'put',
                 body: {
                     table: "unversionedSecondaryIndexTable",
@@ -432,7 +432,7 @@ describe('DB backend', function() {
     describe('get', function() {
         it('simple between', function() {
             return router.request({
-                url: '/v1/en.wikipedia.org/simpleTable/',
+                url: '/v1/restbase.cassandra.test.local/simpleTable/',
                 method: 'get',
                 body: {
                     table: "simpleTable",
@@ -461,7 +461,7 @@ describe('DB backend', function() {
         });
         it('simple get', function() {
             return router.request({
-                url:'/v1/en.wikipedia.org/simpleTable/',
+                url:'/v1/restbase.cassandra.test.local/simpleTable/',
                 method: 'get',
                 body: {
                     table: "simpleTable",
@@ -488,7 +488,7 @@ describe('DB backend', function() {
         });
         it("index query for values that doesn't match any more", function() {
             return router.request({
-                url: "/v1/en.wikipedia.org/simpleSecondaryIndexTable/",
+                url: "/v1/restbase.cassandra.test.local/simpleSecondaryIndexTable/",
                 method: "get",
                 body: {
                     table: "simpleSecondaryIndexTable",
@@ -502,7 +502,7 @@ describe('DB backend', function() {
                 deepEqual(response.status, 404);
                 deepEqual(response.body.items.length, 0);
                 return router.request({
-                    url: "/v1/en.wikipedia.org/simpleSecondaryIndexTable/",
+                    url: "/v1/restbase.cassandra.test.local/simpleSecondaryIndexTable/",
                     method: "get",
                     body: {
                         table: "simpleSecondaryIndexTable",
@@ -520,7 +520,7 @@ describe('DB backend', function() {
 
         it("index query for current value", function() {
             return router.request({
-                url: "/v1/en.wikipedia.org/simpleSecondaryIndexTable/",
+                url: "/v1/restbase.cassandra.test.local/simpleSecondaryIndexTable/",
                 method: "get",
                 body: {
                     table: "simpleSecondaryIndexTable",
@@ -546,7 +546,7 @@ describe('DB backend', function() {
     });
     describe('delete', function() {
         it('simple delete query', function() {
-            return DB.delete('org.wikipedia.en', {
+            return DB.delete('local.test.cassandra.restbase', {
                 table: "simpleTable",
                 attributes: {
                     tid: tidFromDate(new Date('2013-08-09 18:43:58-0700')),
@@ -560,10 +560,10 @@ describe('DB backend', function() {
         this.timeout(4000);
         it('create table', function() {
             return router.request({
-                url: '/v1/en.wikipedia.org/typeTable',
+                url: '/v1/restbase.cassandra.test.local/typeTable',
                 method: 'put',
                 body: {
-                    domain: 'en.wikipedia.org',
+                    domain: 'restbase.cassandra.test.local',
                     table: 'typeTable',
                     options: { durability: 'low' },
                     attributes: {
@@ -592,7 +592,7 @@ describe('DB backend', function() {
         });
         it('put', function() {
             return router.request({
-                url: '/v1/en.wikipedia.org/typeTable/',
+                url: '/v1/restbase.cassandra.test.local/typeTable/',
                 method: 'put',
                 body: {
                     table: "typeTable",
@@ -621,7 +621,7 @@ describe('DB backend', function() {
         });
         it('put 2', function() {
             return router.request({
-                url: '/v1/en.wikipedia.org/typeTable/',
+                url: '/v1/restbase.cassandra.test.local/typeTable/',
                 method: 'put',
                 body: {
                     table: "typeTable",
@@ -650,7 +650,7 @@ describe('DB backend', function() {
         });
         it("get", function() {
             return router.request({
-                url: '/v1/en.wikipedia.org/typeTable/',
+                url: '/v1/restbase.cassandra.test.local/typeTable/',
                 method: 'get',
                 body: {
                     table: "typeTable",
@@ -697,7 +697,7 @@ describe('DB backend', function() {
         });
         it('drop table', function() {
             this.timeout(15000);
-            return DB.dropTable('org.wikipedia.en', 'typeTable');
+            return DB.dropTable('local.test.cassandra.restbase', 'typeTable');
         });
     });
 
@@ -705,10 +705,10 @@ describe('DB backend', function() {
         this.timeout(15000);
         it('drop a simple table', function() {
             return Promise.all([
-                DB.dropTable('org.wikipedia.en', 'simpleTable'),
-                DB.dropTable('org.wikipedia.en', 'multiRangeTable'),
-                DB.dropTable('org.wikipedia.en', 'simpleSecondaryIndexTable'),
-                DB.dropTable('org.wikipedia.en', 'unversionedSecondaryIndexTable')
+                DB.dropTable('local.test.cassandra.restbase', 'simpleTable'),
+                DB.dropTable('local.test.cassandra.restbase', 'multiRangeTable'),
+                DB.dropTable('local.test.cassandra.restbase', 'simpleSecondaryIndexTable'),
+                DB.dropTable('local.test.cassandra.restbase', 'unversionedSecondaryIndexTable')
             ]);
         });
     });
