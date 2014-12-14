@@ -36,7 +36,14 @@ var DB = require('../lib/db.js');
 describe('DB backend', function() {
     before(function() {
         return makeClient({
-            hosts: ['localhost']
+            log: function(level, msg) {
+                if (!/^info|verbose|debug/.test(level)) {
+                    console.log(level, msg);
+                }
+            },
+            conf: {
+                hosts: ['localhost']
+            }
         })
         .then(function(db) { DB = db; });
     });
