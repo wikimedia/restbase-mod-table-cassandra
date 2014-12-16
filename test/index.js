@@ -54,6 +54,29 @@ describe('DB backend', function() {
     });
     describe('createTable', function() {
         this.timeout(15000);
+        it('varint table', function() {
+            return router.request({
+                url: '/v1/restbase.cassandra.test.local/varintTable',
+                method: 'put',
+                body: {
+                    // keep extra redundant info for primary bucket table reconstruction
+                    domain: 'restbase.cassandra.test.local',
+                    table: 'varintTable',
+                    options: { durability: 'low' },
+                    attributes: {
+                        key: 'string',
+                        rev: 'varint',
+                    },
+                    index: [
+                        { attribute: 'key', type: 'hash' },
+                        { attribute: 'rev', type: 'range', order: 'desc' }
+                    ]
+                }
+            })
+            .then(function(response) {
+                deepEqual(response.status, 201);
+            });
+        });
         it('simple table', function() {
             return router.request({
                 url: '/v1/restbase.cassandra.test.local/simpleTable',
@@ -428,6 +451,89 @@ describe('DB backend', function() {
     });
 
     describe('get', function() {
+        it('varint predicates', function() {
+            return router.request({
+                url: '/v1/restbase.cassandra.test.local/varintTable/',
+                method: 'put',
+                body: {
+                    table: 'varintTable',
+                    attributes: {
+                        key: 'testing',
+                        rev: 1
+                    }
+                }
+            })
+            .then(function(item) {
+                deepEqual(item, {status:201});
+            })
+            .then(function () {
+                return router.request({
+                    url: '/v1/restbase.cassandra.test.local/varintTable/',
+                    method: 'put',
+                    body: {
+                        table: 'varintTable',
+                        attributes: {
+                            key: 'testing',
+                            rev: 5
+                        }
+                    }
+                });
+            })
+            .then(function(item) {
+                deepEqual(item, {status:201});
+            })
+            .then(function () {
+                return router.request({
+                    url: '/v1/restbase.cassandra.test.local/varintTable/',
+                    method: 'get',
+                    body: {
+                        table: 'varintTable',
+                        limit: 3,
+                        attributes: {
+                            key: 'testing',
+                            rev: 1
+                        }
+                    }
+                });
+            })
+            .then(function(result) {
+                deepEqual(result.body.items.length, 1);
+            })
+            .then(function () {
+                return router.request({
+                    url: '/v1/restbase.cassandra.test.local/varintTable/',
+                    method: 'get',
+                    body: {
+                        table: 'varintTable',
+                        limit: 3,
+                        attributes: {
+                            key: 'testing',
+                            rev: { gt: 1 }
+                        }
+                    }
+                });
+            })
+            .then(function(result) {
+                deepEqual(result.body.items.length, 1);
+            })
+            .then(function () {
+                return router.request({
+                    url: '/v1/restbase.cassandra.test.local/varintTable/',
+                    method: 'get',
+                    body: {
+                        table: 'varintTable',
+                        limit: 3,
+                        attributes: {
+                            key: 'testing',
+                            rev: { ge: 1 }
+                        }
+                    }
+                });
+            })
+            .then(function(result) {
+                deepEqual(result.body.items.length, 2);
+            });
+        });
         it('simple between', function() {
             return router.request({
                 url: '/v1/restbase.cassandra.test.local/simpleTable/',
@@ -708,27 +814,33 @@ describe('DB backend', function() {
         this.timeout(15000);
         it('drop a simple table', function() {
             return router.request({
-                url: "/v1/restbase.cassandra.test.local/simpleTable",
+                url: "/v1/restbase.cassandra.test.local/varintTable",
                 method: "delete",
                 body: {}
+            }).then(function() {
+                return router.request({
+                    url: "/v1/restbase.cassandra.test.local/simpleTable",
+                    method: "delete",
+                    body: {}
+                });
             }).then(function() {
                 return router.request({
                     url: "/v1/restbase.cassandra.test.local/multiRangeTable",
                     method: "delete",
                     body: {}
-                })
+                });
             }).then(function() {
                 return router.request({
                     url: "/v1/restbase.cassandra.test.local/simpleSecondaryIndexTable",
                     method: "delete",
                     body: {}
-                })
+                });
             }).then(function() {
                 return router.request({
                     url: "/v1/restbase.cassandra.test.local/unversionedSecondaryIndexTable",
                     method: "delete",
                     body: {}
-                })
+                });
             });
         });
     });
