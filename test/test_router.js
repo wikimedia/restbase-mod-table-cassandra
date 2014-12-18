@@ -39,7 +39,7 @@ router.makeRouter = function(req) {
 	var self = this;
 	var conf = setupConfigDefaults();
 	var opt = {
-		log: console.log,
+		log: function(){},
 		conf: conf
 	};
 

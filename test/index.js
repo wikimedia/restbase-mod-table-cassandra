@@ -677,7 +677,7 @@ describe('DB backend', function() {
                         set: 'set<string>',
                         'int': 'int',
                         varint: 'varint',
-                        //decimal: 'decimal',
+                        decimal: 'decimal',
                         //'float': 'float',
                         'double': 'double',
                         'boolean': 'boolean',
@@ -690,8 +690,7 @@ describe('DB backend', function() {
                         { attribute: 'string', type: 'hash' },
                     ]
                 }
-            })
-            .then(function(response) {
+            }).then(function(response) {
                 deepEqual(response.status, 201);
             });
         });
@@ -707,7 +706,7 @@ describe('DB backend', function() {
                         set: ['bar','baz','foo'],
                         'int': -1,
                         varint: -4503599627370496,
-                        //decimal: 1.2,
+                        decimal: '1.2',
                         //'float': 1.2,
                         'double': 1.2,
                         'boolean': true,
@@ -736,7 +735,7 @@ describe('DB backend', function() {
                         set: ['bar','baz','foo'],
                         'int': 1,
                         varint: 1,
-                        //decimal: 1.2,
+                        decimal: '1.4',
                         //'float': 1.2,
                         'double': 1.2,
                         'boolean': true,
@@ -759,7 +758,7 @@ describe('DB backend', function() {
                 method: 'get',
                 body: {
                     table: "typeTable",
-                    proj: ['string','blob','set','int','varint',
+                    proj: ['string','blob','set','int','varint', 'decimal',
                             'double','boolean','timeuuid','uuid',
                             'timestamp','json']
                 }
@@ -771,7 +770,7 @@ describe('DB backend', function() {
                     set: ['bar','baz','foo'],
                     'int': 1,
                     varint: 1,
-                    //decimal: 1.2,
+                    decimal: '1.4',
                     //'float': 1.2,
                     'double': 1.2,
                     'boolean': true,
@@ -787,7 +786,7 @@ describe('DB backend', function() {
                     set: ['bar','baz','foo'],
                     'int': -1,
                     varint: -4503599627370496,
-                    //decimal: 1.2,
+                    decimal: '1.2',
                     //'float': 1.2,
                     'double': 1.2,
                     'boolean': true,
