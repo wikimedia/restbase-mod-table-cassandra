@@ -5,7 +5,7 @@
   "dependencies": {
     "async": "0.x.x",
     "bluebird": "~2.3.10",
-    "cassandra-codec": "~0.0.2",
+    "cassandra-codec": "~0.0.3",
     "cassandra-driver": "~1.0.2",
     "connect-busboy": "git+https://github.com/gwicke/connect-busboy.git#master",
     "extend": "~2.0.0",
