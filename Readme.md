@@ -10,8 +10,14 @@ This is the default table storage backend for
 an npm module dependency (`restbase-cassandra`). See the install instructions
 there.
   
+## Issue tracking
+
+We use [Phabricator to track
+issues](https://phabricator.wikimedia.org/maniphest/task/create/?projects=PHID-PROJ-xdgck5inpvozg2uwmj3f). See the [list of current issues in RESTBase-cassandra](https://phabricator.wikimedia.org/tag/restbase-cassandra/).
+
 ## Status
-Prototype, not quite ready for production.
+
+Preparing for production.
 
 [![Build Status](https://travis-ci.org/gwicke/restbase-cassandra.svg?branch=master)](https://travis-ci.org/gwicke/restbase-cassandra)
 
