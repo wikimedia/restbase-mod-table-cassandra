@@ -31,6 +31,22 @@ function usage(exit_code) {
 }
 
 
+function parse_data(data_str) {
+    var ret;
+    try {
+        ret = JSON.parse(data_str);
+    } catch(err) {
+        try {
+            ret = eval('(' + data_str + ')');
+        } catch(eval_err) {
+            console.log("Error while parsing input data: %s", eval_err.message);
+            process.exit(2);
+        }
+    }
+    return ret;
+}
+
+
 var args = process.argv.slice(2);
 if (args == null || args.length == 0) {
     usage();
@@ -69,11 +85,11 @@ args.forEach(function(arg, index, array) {
                 opts.method = arg.toLowerCase();
                 exp_method = false;
             } else if (exp_data) {
-                opts.data = opts.is_json ? JSON.parse( arg ) : arg;
+                opts.data = opts.is_json ? parse_data( arg ) : arg;
                 exp_data = false;
             } else if (exp_fname) {
                 var data = fs.readFileSync(arg, {encoding: 'utf8'});
-                opts.data = opts.is_json ? JSON.parse( data ) : data;
+                opts.data = opts.is_json ? parse_data( data ) : data;
                 exp_fname = false;
             } else {
                 if (arg[0] == '/') {
