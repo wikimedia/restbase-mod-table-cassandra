@@ -87,7 +87,7 @@ args.forEach(function(arg, index, array) {
         case '-j':
             opts.is_json = true;
             if (typeof opts.data === String && opts.data.length) {
-                opts.data = JSON.parse(opts.data);
+                opts.data = parse_data(opts.data);
             }
             break;
         default:
