@@ -47,6 +47,16 @@ function parse_data(data_str) {
 }
 
 
+function tidFromDate(date) {
+    return uuid.v1({
+        node: [0x01, 0x23, 0x45, 0x67, 0x89, 0xab],
+        clockseq: 0x1234,
+        msecs: date.getTime(),
+        nsecs: 0
+    });
+}
+
+
 var args = process.argv.slice(2);
 if (args == null || args.length == 0) {
     usage();
