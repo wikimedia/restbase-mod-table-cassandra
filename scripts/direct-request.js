@@ -10,8 +10,8 @@ var uuid = require('node-uuid');
 var makeClient = require('../lib/index');
 var router = require('../test/test_router.js');
 var DB = require('../lib/db.js');
+var fs = require('fs');
 var util = require('util');
-
 
 
 function usage(exit_code) { 
@@ -21,13 +21,15 @@ function usage(exit_code) {
     console.log("  options:");
     console.log("    -m <method>  the method to use, default: get");
     console.log("    -d <data>    the data to use as the request body");
-    console.log("    -j           interpret data as a JSON");
+    console.log("    -f <fname>   load data from file <fname>");
+    console.log("    -j           interpret data as JSON");
     console.log("    -h           print this help and exit");
     console.log("  <api-path>     the path to route the request to");
     if (typeof exit_code === 'undefined')
         exit_code = 1;
     process.exit(exit_code);
 }
+
 
 var args = process.argv.slice(2);
 if (args == null || args.length == 0) {
@@ -42,6 +44,7 @@ var opts = {
 };
 var exp_method = false;
 var exp_data = false;
+var exp_fname = false;
 args.forEach(function(arg, index, array) {
     switch(arg) {
         case '-h':
@@ -51,6 +54,9 @@ args.forEach(function(arg, index, array) {
             break;
         case '-d':
             exp_data = true;
+            break;
+        case '-f':
+            exp_fname = true;
             break;
         case '-j':
             opts.is_json = true;
@@ -65,6 +71,10 @@ args.forEach(function(arg, index, array) {
             } else if (exp_data) {
                 opts.data = opts.is_json ? JSON.parse( arg ) : arg;
                 exp_data = false;
+            } else if (exp_fname) {
+                var data = fs.readFileSync(arg, {encoding: 'utf8'});
+                opts.data = opts.is_json ? JSON.parse( data ) : data;
+                exp_fname = false;
             } else {
                 if (arg[0] == '/') {
                     opts.path = arg;
