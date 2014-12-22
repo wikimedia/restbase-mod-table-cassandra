@@ -1,0 +1,109 @@
+#!/usr/bin/env node
+"use strict";
+
+
+global.Promise = require('bluebird');
+
+var cass = require('cassandra-driver');
+var RouteSwitch = require('routeswitch');
+var uuid = require('node-uuid');
+var makeClient = require('../lib/index');
+var router = require('../test/test_router.js');
+var DB = require('../lib/db.js');
+var util = require('util');
+
+
+
+function usage(exit_code) { 
+    var node_bin = process.argv[0];
+    var script_bin = process.argv[1];
+    console.log("Usage: %s %s [options] <api-path>", node_bin, script_bin);
+    console.log("  options:");
+    console.log("    -m <method>  the method to use, default: get");
+    console.log("    -d <data>    the data to use as the request body");
+    console.log("    -j           interpret data as a JSON");
+    console.log("    -h           print this help and exit");
+    console.log("  <api-path>     the path to route the request to");
+    if (typeof exit_code === 'undefined')
+        exit_code = 1;
+    process.exit(exit_code);
+}
+
+var args = process.argv.slice(2);
+if (args == null || args.length == 0) {
+    usage();
+}
+
+var opts = {
+    path: null,
+    method: 'get',
+    data: null,
+    is_json: false
+};
+var exp_method = false;
+var exp_data = false;
+args.forEach(function(arg, index, array) {
+    switch(arg) {
+        case '-h':
+            usage();
+        case '-m':
+            exp_method = true;
+            break;
+        case '-d':
+            exp_data = true;
+            break;
+        case '-j':
+            opts.is_json = true;
+            if (typeof opts.data === String && opts.data.length) {
+                opts.data = JSON.parse(opts.data);
+            }
+            break;
+        default:
+            if (exp_method) {
+                opts.method = arg.toLowerCase();
+                exp_method = false;
+            } else if (exp_data) {
+                opts.data = opts.is_json ? JSON.parse( arg ) : arg;
+                exp_data = false;
+            } else {
+                if (arg[0] == '/') {
+                    opts.path = arg;
+                } else {
+                    opts.path = '/' + arg;
+                }
+            }
+    }
+});
+
+if (!opts.path || !opts.path.length) {
+    console.log("The path is obligatory!");
+    usage();
+}
+
+
+makeClient({
+    log: console.log,
+    conf: {
+        hosts: ['localhost']
+    }
+})
+.then(function(db) {
+    DB = db;
+    return router.makeRouter();
+}).then(function(r_obj) {
+    var req = {
+        url: opts.path,
+        method: opts.method
+    };
+    if (opts.data !== null) {
+        req.body = opts.data;
+    }
+    console.log("#~> REQ : %s", util.inspect(req));
+    return r_obj.request(req);
+}).then(function(response) {
+    console.log("#~> RESP: %s", util.inspect(response));
+    process.exit();
+}).catch(function(err) {
+    console.log("#~> ERR : %s", util.inspect(err));
+});
+
