@@ -5,11 +5,10 @@
 global.Promise = require('bluebird');
 
 var cass = require('cassandra-driver');
-var RouteSwitch = require('routeswitch');
-var uuid = require('node-uuid');
 var makeClient = require('../lib/index');
 var router = require('../test/test_router.js');
 var DB = require('../lib/db.js');
+var dbu = require('../lib/dbutils.js');
 var fs = require('fs');
 var util = require('util');
 
@@ -48,12 +47,7 @@ function parse_data(data_str) {
 
 
 function tidFromDate(date) {
-    return uuid.v1({
-        node: [0x01, 0x23, 0x45, 0x67, 0x89, 0xab],
-        clockseq: 0x1234,
-        msecs: date.getTime(),
-        nsecs: 0
-    });
+    return dbu.tidFromDate(date);
 }
 
 
