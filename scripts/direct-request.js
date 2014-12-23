@@ -46,11 +46,6 @@ function parse_data(data_str) {
 }
 
 
-function tidFromDate(date) {
-    return dbu.tidFromDate(date);
-}
-
-
 var args = process.argv.slice(2);
 if (args == null || args.length == 0) {
     usage();
