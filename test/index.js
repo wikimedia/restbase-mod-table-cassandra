@@ -10,18 +10,10 @@ var cass = require('cassandra-driver');
 var RouteSwitch = require('routeswitch');
 var uuid = require('node-uuid');
 var makeClient = require('../lib/index');
+var dbu = require('../lib/dbutils.js');
 //TODO: change this name 
 var router = require('../test/test_router.js');
 
-function tidFromDate(date) {
-    // Create a new, deterministic timestamp
-    return uuid.v1({
-        node: [0x01, 0x23, 0x45, 0x67, 0x89, 0xab],
-        clockseq: 0x1234,
-        msecs: date.getTime(),
-        nsecs: 0
-    });
-}
 
 function deepEqual (result, expected) {
     try {
@@ -217,7 +209,7 @@ describe('DB backend', function() {
                     table: 'simpleTable',
                     attributes: {
                         key: 'testing',
-                        tid: tidFromDate(new Date('2013-08-08 18:43:58-0700')),
+                        tid: dbu.tidFromDate(new Date('2013-08-08 18:43:58-0700')),
                     }
                 }
             })
@@ -233,7 +225,7 @@ describe('DB backend', function() {
                     table: "multiRangeTable",
                     attributes: {
                         key: 'testing',
-                        tid: tidFromDate(new Date('2013-08-08 18:43:58-0700')),
+                        tid: dbu.tidFromDate(new Date('2013-08-08 18:43:58-0700')),
                         uri: "test"
                     },
                 }
@@ -250,7 +242,7 @@ describe('DB backend', function() {
                     table: 'simpleTable',
                     attributes: {
                         key: "testing",
-                        tid: tidFromDate(new Date('2013-08-09 18:43:58-0700')),
+                        tid: dbu.tidFromDate(new Date('2013-08-09 18:43:58-0700')),
                         body: new Buffer("<p>Service Oriented Architecture</p>")
                     }
                 }
@@ -268,7 +260,7 @@ describe('DB backend', function() {
                         if : "not exists",
                         attributes: {
                             key: "testing if not exists",
-                            tid: tidFromDate(new Date('2013-08-10 18:43:58-0700')),
+                            tid: dbu.tidFromDate(new Date('2013-08-10 18:43:58-0700')),
                             body: new Buffer("<p>if not exists with non key attr</p>")
                     }
                 }
@@ -285,7 +277,7 @@ describe('DB backend', function() {
                     table: "simpleTable",
                     attributes: {
                         key: "another test",
-                        tid: tidFromDate(new Date('2013-08-11 18:43:58-0700')),
+                        tid: dbu.tidFromDate(new Date('2013-08-11 18:43:58-0700')),
                         body: new Buffer("<p>test<p>")
                     },
                     if: { body: { "eq": new Buffer("<p>Service Oriented Architecture</p>") } }
@@ -543,8 +535,8 @@ describe('DB backend', function() {
                     //from: 'foo', // key to start the query from (paging)
                     limit: 3,
                     attributes: {
-                        tid: { "BETWEEN": [ tidFromDate(new Date('2013-07-08 18:43:58-0700')),
-                        tidFromDate(new Date('2013-08-08 18:43:58-0700'))] },
+                        tid: { "BETWEEN": [ dbu.tidFromDate(new Date('2013-07-08 18:43:58-0700')),
+                        dbu.tidFromDate(new Date('2013-08-08 18:43:58-0700'))] },
                         key: "testing"
                     }
                 }
@@ -571,7 +563,7 @@ describe('DB backend', function() {
                     table: "simpleTable",
                     attributes: {
                         key: 'testing',
-                        tid: tidFromDate(new Date('2013-08-08 18:43:58-0700'))
+                        tid: dbu.tidFromDate(new Date('2013-08-08 18:43:58-0700'))
                     }
                 }
             })
@@ -654,7 +646,7 @@ describe('DB backend', function() {
             return DB.delete('local.test.cassandra.restbase', {
                 table: "simpleTable",
                 attributes: {
-                    tid: tidFromDate(new Date('2013-08-09 18:43:58-0700')),
+                    tid: dbu.tidFromDate(new Date('2013-08-09 18:43:58-0700')),
                     key: "testing"
                 }
             });
