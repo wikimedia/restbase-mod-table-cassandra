@@ -19,7 +19,8 @@ issues](https://phabricator.wikimedia.org/maniphest/task/create/?projects=PHID-P
 
 Preparing for production.
 
-[![Build Status](https://travis-ci.org/gwicke/restbase-cassandra.svg?branch=master)](https://travis-ci.org/gwicke/restbase-cassandra)
+[![Build Status](https://travis-ci.org/wikimedia/restbase-cassandra.svg?branch=master)](https://travis-ci.org/wikimedia/restbase-cassandra)
+[![coverage status](https://coveralls.io/repos/wikimedia/restbase-cassandra/badge.png)](https://coveralls.io/r/wikimedia/restbase-cassandra)
 
 Features:
 - basic table storage service with REST interface, backed by Cassandra
