@@ -71,12 +71,13 @@ describe('DB backend', function() {
         });
         it('simple table', function() {
             return router.request({
-                url: '/v1/restbase.cassandra.test.local/simpleTable',
+                url: '/v1/restbase.cassandra.test.local/simple-table',
                 method: 'put',
                 body: {
                     // keep extra redundant info for primary bucket table reconstruction
                     domain: 'restbase.cassandra.test.local',
-                    table: 'simpleTable',
+                    table: 'simple-table',
+                    consistency: 'localQuorum',
                     options: { durability: 'low' },
                     attributes: {
                         key: 'string',
@@ -203,10 +204,11 @@ describe('DB backend', function() {
     describe('put', function() {
         it('simple put insert', function() {
             return router.request({
-                url: '/v1/restbase.cassandra.test.local/simpleTable/',
+                url: '/v1/restbase.cassandra.test.local/simple-table/',
                 method: 'put',
                 body: {
-                    table: 'simpleTable',
+                    table: 'simple-table',
+                    consistency: 'localQuorum',
                     attributes: {
                         key: 'testing',
                         tid: dbu.tidFromDate(new Date('2013-08-08 18:43:58-0700')),
@@ -236,10 +238,10 @@ describe('DB backend', function() {
         });
         it('simple put update', function() {
             return router.request({
-                url: '/v1/restbase.cassandra.test.local/simpleTable/',
+                url: '/v1/restbase.cassandra.test.local/simple-table/',
                 method: 'put',
                 body: {
-                    table: 'simpleTable',
+                    table: 'simple-table',
                     attributes: {
                         key: "testing",
                         tid: dbu.tidFromDate(new Date('2013-08-09 18:43:58-0700')),
@@ -253,10 +255,10 @@ describe('DB backend', function() {
         });
         it('put with if not exists and non index attributes', function() {
             return router.request({
-                    url: '/v1/restbase.cassandra.test.local/simpleTable/',
+                    url: '/v1/restbase.cassandra.test.local/simple-table/',
                     method: 'put',
                     body: {
-                        table: "simpleTable",
+                        table: "simple-table",
                         if : "not exists",
                         attributes: {
                             key: "testing if not exists",
@@ -271,10 +273,10 @@ describe('DB backend', function() {
         });
         it('put with if and non index attributes', function() {
             return router.request({
-                url: '/v1/restbase.cassandra.test.local/simpleTable/',
+                url: '/v1/restbase.cassandra.test.local/simple-table/',
                 method: 'put',
                 body: {
-                    table: "simpleTable",
+                    table: "simple-table",
                     attributes: {
                         key: "another test",
                         tid: dbu.tidFromDate(new Date('2013-08-11 18:43:58-0700')),
@@ -440,6 +442,22 @@ describe('DB backend', function() {
                 deepEqual(response, {status:201});
             });
         });
+        it('try a put on a non existing table', function() {
+            return router.request({
+                url: '/v1/restbase.cassandra.test.local/unknownTable/',
+                method: 'put',
+                body: {
+                    table: 'unknownTable',
+                    attributes: {
+                        key: 'testing',
+                        tid: dbu.tidFromDate(new Date('2013-08-08 18:43:58-0700')),
+                    }
+                }
+            })
+            .then(function(response) {
+                deepEqual(response.status, 500);
+            });
+        });
     });
 
     describe('get', function() {
@@ -449,6 +467,7 @@ describe('DB backend', function() {
                 method: 'put',
                 body: {
                     table: 'varintTable',
+                    consistency: 'localQuorum',
                     attributes: {
                         key: 'testing',
                         rev: 1
@@ -528,10 +547,10 @@ describe('DB backend', function() {
         });
         it('simple between', function() {
             return router.request({
-                url: '/v1/restbase.cassandra.test.local/simpleTable/',
+                url: '/v1/restbase.cassandra.test.local/simple-table/',
                 method: 'get',
                 body: {
-                    table: "simpleTable",
+                    table: "simple-table",
                     //from: 'foo', // key to start the query from (paging)
                     limit: 3,
                     attributes: {
@@ -557,10 +576,10 @@ describe('DB backend', function() {
         });
         it('simple get', function() {
             return router.request({
-                url:'/v1/restbase.cassandra.test.local/simpleTable/',
+                url:'/v1/restbase.cassandra.test.local/simple-table/',
                 method: 'get',
                 body: {
-                    table: "simpleTable",
+                    table: "simple-table",
                     attributes: {
                         key: 'testing',
                         tid: dbu.tidFromDate(new Date('2013-08-08 18:43:58-0700'))
@@ -584,10 +603,10 @@ describe('DB backend', function() {
         });
         it('simple get with paging', function() {
             return router.request({
-                url:'/v1/restbase.cassandra.test.local/simpleTable/',
+                url:'/v1/restbase.cassandra.test.local/simple-table/',
                 method: 'get',
                 body: {
-                    table: "simpleTable",
+                    table: "simple-table",
                     pageSize: 1,
                     attributes: {
                         key: 'testing',
@@ -597,10 +616,10 @@ describe('DB backend', function() {
             .then(function(response) {
                 deepEqual(response.body.items.length, 1);
                 return router.request({
-                    url:'/v1/restbase.cassandra.test.local/simpleTable/',
+                    url:'/v1/restbase.cassandra.test.local/simple-table/',
                     method: 'get',
                     body: {
-                        table: "simpleTable",
+                        table: "simple-table",
                         pageSize: 1,
                         next: response.body.next,
                         attributes: {
@@ -654,7 +673,6 @@ describe('DB backend', function() {
                 deepEqual(response.body.items.length, 0);
             });
         });
-
         it("index query for current value", function() {
             return router.request({
                 url: "/v1/restbase.cassandra.test.local/simpleSecondaryIndexTable/",
@@ -680,12 +698,28 @@ describe('DB backend', function() {
                 }]);
             });
         });
+        it('try a get on a non existing table', function() {
+            return router.request({
+                url: '/v1/restbase.cassandra.test.local/unknownTable/',
+                method: 'get',
+                body: {
+                    table: 'unknownTable',
+                    attributes: {
+                        key: 'testing',
+                        tid: dbu.tidFromDate(new Date('2013-08-08 18:43:58-0700')),
+                    }
+                }
+            })
+            .then(function(response) {
+                deepEqual(response.status, 500);
+            });
+        });
     });
     //TODO: implement this using http handler when alternate rest-url for delete item are supported 
     describe('delete', function() {
         it('simple delete query', function() {
             return DB.delete('local.test.cassandra.restbase', {
-                table: "simpleTable",
+                table: "simple-table",
                 attributes: {
                     tid: dbu.tidFromDate(new Date('2013-08-09 18:43:58-0700')),
                     key: "testing"
@@ -877,7 +911,7 @@ describe('DB backend', function() {
                 body: {}
             }).then(function() {
                 return router.request({
-                    url: "/v1/restbase.cassandra.test.local/simpleTable",
+                    url: "/v1/restbase.cassandra.test.local/simple-table",
                     method: "delete",
                     body: {}
                 });
