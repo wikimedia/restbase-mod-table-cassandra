@@ -14,7 +14,9 @@ function setupConfigDefaults(conf) {
             keyspace: "system",
             username: "cassandra",
             password: "cassandra",
-            defaultConsistency: 'one'
+            defaultConsistency: 'one',
+            salt_key: "secret",
+            maxLimit: 250
         };
     }
     return conf;

@@ -588,7 +588,7 @@ describe('DB backend', function() {
                 method: 'get',
                 body: {
                     table: "simpleTable",
-                    paging: 1,
+                    pageSize: 1,
                     attributes: {
                         key: 'testing',
                     }
@@ -601,13 +601,13 @@ describe('DB backend', function() {
                     method: 'get',
                     body: {
                         table: "simpleTable",
-                        paging: "true",
+                        pageSize: 1,
                         next: response.body.next,
                         attributes: {
                             key: 'testing',
                         }
                     }
-                })
+                });
             })
             .then(function(response) {
                 deepEqual(response.body.items[0], { key: 'testing',
@@ -621,7 +621,7 @@ describe('DB backend', function() {
                     'content-type': null,
                     restrictions: null
                 });
-            });
+            })
         });
         it("index query for values that doesn't match any more", function() {
             return router.request({
