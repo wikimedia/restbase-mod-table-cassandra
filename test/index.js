@@ -582,6 +582,47 @@ describe('DB backend', function() {
                 } ]);
             });
         });
+        it('simple get with paging', function() {
+            return router.request({
+                url:'/v1/restbase.cassandra.test.local/simpleTable/',
+                method: 'get',
+                body: {
+                    table: "simpleTable",
+                    paging: 1,
+                    attributes: {
+                        key: 'testing',
+                    }
+                }
+            })
+            .then(function(response) {
+                deepEqual(response.body.items.length, 1);
+                return router.request({
+                    url:'/v1/restbase.cassandra.test.local/simpleTable/',
+                    method: 'get',
+                    body: {
+                        table: "simpleTable",
+                        paging: "true",
+                        next: response.body.next,
+                        attributes: {
+                            key: 'testing',
+                        }
+                    }
+                })
+            })
+            .then(function(response) {
+                deepEqual(response.body.items[0], { key: 'testing',
+                    tid: '28730300-0095-11e3-9234-0123456789ab',
+                    latestTid: null,
+                    _del: null,
+                    body: null,
+                    'content-length': null,
+                    'content-location': null,
+                    'content-sha256': null,
+                    'content-type': null,
+                    restrictions: null
+                });
+            });
+        });
         it("index query for values that doesn't match any more", function() {
             return router.request({
                 url: "/v1/restbase.cassandra.test.local/simpleSecondaryIndexTable/",

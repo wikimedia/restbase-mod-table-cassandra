@@ -112,9 +112,7 @@ RBCassandra.prototype.get = function (rb, req) {
     .then(function(res) {
         return {
             status: res.items.length ? 200 : 404,
-            body: {
-                items: res.items
-            }
+            body: res
         };
     })
     .catch(function(e) {
