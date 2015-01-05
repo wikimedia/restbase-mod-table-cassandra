@@ -676,7 +676,9 @@ describe('DB backend', function() {
                         timeuuid: 'timeuuid',
                         uuid: 'uuid',
                         timestamp: 'timestamp',
-                        json: 'json'
+                        json: 'json',
+                        int_set: 'set<varint>',
+                        json_set: 'set<json>'
                     },
                     index: [
                         { attribute: 'string', type: 'hash' },
@@ -707,7 +709,13 @@ describe('DB backend', function() {
                         timestamp: '2014-11-14T19:10:40.912Z',
                         json: {
                             foo: 'bar'
-                        }
+                        },
+                        int_set: [123456, 2567, 598765],
+                        json_set: [
+                            {one: 1, two: 'two'},
+                            {foo: 'bar'},
+                            {test: [{a: 'b'}, 3]}
+                        ]
                     }
                 }
             })
@@ -736,7 +744,12 @@ describe('DB backend', function() {
                         timestamp: '2014-11-14T19:10:40.912Z',
                         json: {
                             foo: 'bar'
-                        }
+                        },
+                        int_set: [0, 9, 8, 7, 6, 5, 4, 3, 2, 1],
+                        json_set: [
+                            {test: [{a: 'b'}, 3]},
+                            {another: 'string'}
+                        ]
                     }
                 }
             })
@@ -752,10 +765,12 @@ describe('DB backend', function() {
                     table: "typeTable",
                     proj: ['string','blob','set','int','varint', 'decimal',
                             'double','boolean','timeuuid','uuid',
-                            'timestamp','json']
+                            'timestamp','json', 'int_set', 'json_set']
                 }
             })
             .then(function(response){
+                // note: Cassandra orders sets, so the expected rows are
+                // slightly different than the original, supplied ones
                 deepEqual(response.body.items, [{
                     string: 'string',
                     blob: new Buffer('blob'),
@@ -771,7 +786,12 @@ describe('DB backend', function() {
                     timestamp: '2014-11-14T19:10:40.912Z',
                     json: {
                         foo: 'bar'
-                    }
+                    },
+                    int_set: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9],
+                    json_set: [
+                        {another: 'string'},
+                        {test: [{a: 'b'}, 3]}
+                    ]
                 },{
                     string: 'string',
                     blob: new Buffer('blob'),
@@ -787,7 +807,13 @@ describe('DB backend', function() {
                     timestamp: '2014-11-14T19:10:40.912Z',
                     json: {
                         foo: 'bar'
-                    }
+                    },
+                    int_set: [2567, 123456, 598765],
+                    json_set: [
+                        {foo: 'bar'},
+                        {one: 1, two: 'two'},
+                        {test: [{a: 'b'}, 3]}
+                    ]
                 }]);
             });
         });
