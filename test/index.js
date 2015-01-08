@@ -25,6 +25,10 @@ function deepEqual (result, expected) {
     }
 }
 
+function roundDecimal(item) {
+    return Math.round( item * 100) / 100;
+}
+
 var DB = require('../lib/db.js');
 
 describe('DB backend', function() {
@@ -745,7 +749,7 @@ describe('DB backend', function() {
                         'int': 'int',
                         varint: 'varint',
                         decimal: 'decimal',
-                        //'float': 'float',
+                        'float': 'float',
                         'double': 'double',
                         'boolean': 'boolean',
                         timeuuid: 'timeuuid',
@@ -776,7 +780,7 @@ describe('DB backend', function() {
                         'int': 'set<int>',
                         varint: 'set<varint>',
                         decimal: 'set<decimal>',
-                        //'float': 'float',
+                        'float': 'set<float>',
                         'double': 'set<double>',
                         'boolean': 'set<boolean>',
                         timeuuid: 'set<timeuuid>',
@@ -805,7 +809,7 @@ describe('DB backend', function() {
                         'int': -1,
                         varint: -4503599627370496,
                         decimal: '1.2',
-                        //'float': 1.2,
+                        'float': -1.1,
                         'double': 1.2,
                         'boolean': true,
                         timeuuid: 'c931ec94-6c31-11e4-b6d0-0f67e29867e0',
@@ -834,7 +838,7 @@ describe('DB backend', function() {
                         'int': 1,
                         varint: 1,
                         decimal: '1.4',
-                        //'float': 1.2,
+                        'float': -3.434,
                         'double': 1.2,
                         'boolean': true,
                         timeuuid: 'c931ec94-6c31-11e4-b6d0-0f67e29867e0',
@@ -862,7 +866,7 @@ describe('DB backend', function() {
                         set: ['bar','baz','foo'],
                         varint: [-4503599627370496,12233232],
                         decimal: ['1.2','1.6'],
-                        //'float': 1.2,
+                        'float': [1.3, 1.1],
                         'double': [1.2, 1.567],
                         'boolean': [true, false],
                         timeuuid: ['c931ec94-6c31-11e4-b6d0-0f67e29867e0'],
@@ -888,13 +892,13 @@ describe('DB backend', function() {
                 body: {
                     table: "typeTable",
                     proj: ['string','blob','set','int','varint', 'decimal',
-                            'double','boolean','timeuuid','uuid',
+                            'float', 'double','boolean','timeuuid','uuid',
                             'timestamp','json']
                 }
             })
             .then(function(response){
-                // note: Cassandra orders sets, so the expected rows are
-                // slightly different than the original, supplied ones
+                response.body.items[0].float = roundDecimal(response.body.items[0].float);
+                response.body.items[1].float = roundDecimal(response.body.items[1].float);
                 deepEqual(response.body.items, [{
                     string: 'string',
                     blob: new Buffer('blob'),
@@ -902,7 +906,7 @@ describe('DB backend', function() {
                     'int': 1,
                     varint: 1,
                     decimal: '1.4',
-                    //'float': 1.2,
+                    'float': -3.43,
                     'double': 1.2,
                     'boolean': true,
                     timeuuid: 'c931ec94-6c31-11e4-b6d0-0f67e29867e0',
@@ -918,7 +922,7 @@ describe('DB backend', function() {
                     'int': -1,
                     varint: -4503599627370496,
                     decimal: '1.2',
-                    //'float': 1.2,
+                    'float': -1.1,
                     'double': 1.2,
                     'boolean': true,
                     timeuuid: 'c931ec94-6c31-11e4-b6d0-0f67e29867e0',
@@ -937,13 +941,15 @@ describe('DB backend', function() {
                 body: {
                     table: "typeSetsTable",
                     proj: ['string','blob','set','int','varint', 'decimal',
-                            'double','boolean','timeuuid','uuid',
+                            'double','boolean','timeuuid','uuid', 'float',
                             'timestamp','json']
                 }
             })
             .then(function(response){
                 // note: Cassandra orders sets, so the expected rows are
                 // slightly different than the original, supplied ones
+                response.body.items[0].float = [roundDecimal(response.body.items[0].float[0]), 
+                                                roundDecimal(response.body.items[0].float[1])];
                 deepEqual(response.body.items, [{
                     string: 'string',
                     blob: [new Buffer('blob')],
@@ -951,7 +957,7 @@ describe('DB backend', function() {
                     'int': [2567, 123456, 598765],
                     varint: [-4503599627370496,12233232],
                     decimal: ['1.2','1.6'],
-                    //'float': 1.2,
+                    'float': [1.1, 1.3],
                     'double': [1.2, 1.567],
                     'boolean': [false, true],
                     timeuuid: ['c931ec94-6c31-11e4-b6d0-0f67e29867e0'],
