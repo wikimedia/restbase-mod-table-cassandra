@@ -205,7 +205,7 @@ describe('DB backend', function() {
         });
         it('throws Error on updating above table', function() {
             return router.request({
-                url: '/v1/restbase.cassandra.test.local/simple-table',
+                uri: '/restbase.cassandra.test.local/sys/table/simple-table',
                 method: 'put',
                 body: {
                     // keep extra redundant info for primary bucket table reconstruction
@@ -231,7 +231,7 @@ describe('DB backend', function() {
                     ]
                 }
             }).then(function(response){
-                deepEqual(response.status, 500);
+                deepEqual(response.status, 400);
             });
         });
     });
