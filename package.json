@@ -12,10 +12,15 @@
     "node-uuid": "git+https://github.com/gwicke/node-uuid.git#master",
     "request": "2.x.x",
     "restify": "2.x.x",
-    "routeswitch": "~0.6.3"
+    "routeswitch": "~0.6.3",
+    "istanbul": "0.3.5",
+    "mocha-lcov-reporter": "0.0.1",
+    "coveralls": "2.11.2"
   },
   "scripts": {
-    "test": "mocha"
+    "test": "mocha",
+    "coverage": "istanbul cover _mocha -- -R spec",
+    "coveralls": "cat ./coverage/lcov.info | coveralls"
   },
   "devDependencies": {
     "mocha": "x.x.x",
