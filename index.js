@@ -22,45 +22,10 @@ function RBCassandra (options) {
     this.setup = this.setup.bind(this);
     this.store = null;
     this.handler = {
-        paths: {
-            // Table creation
-            '/v1/{domain}/{table}': {
-                // table creation
-                put: {
-                    request_handler: this.createTable.bind(this)
-                },
-                // delete
-                delete: {
-                    request_handler: this.dropTable.bind(this)
-                }
-            },
-            '/v1/{domain}/{table}/': {
-                put: {
-                    request_handler: this.put.bind(this)
-                },
-                // query
-                get: {
-                    request_handler: this.get.bind(this)
-                }
-            },
-            '/v1/{domain}/{table}/{+rest}': {
-                put: {
-                    request_handler: this.put.bind(this)
-                },
-                // query
-                get: {
-                    request_handler: this.get.bind(this)
-                }
-            }
-            //'/v1/{domain}/{bucket}/{+rest}': {
-            //    PUT: {
-            //        handler: this.handleAll.bind(this)
-            //    },
-            //    GET: {
-            //        handler: this.handleAll.bind(this)
-            //    }
-            //}
-        }
+        createTable: this.createTable.bind(this),
+        dropTable: this.dropTable.bind(this),
+        get: this.get.bind(this),
+        put: this.put.bind(this)
     };
 }
 
