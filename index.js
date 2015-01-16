@@ -25,7 +25,7 @@ function RBCassandra (options) {
         module_info: {
             spec: null, // Re-export from spec module
             test: null, // Spec test function from spec module
-            dependencies: [],
+            dependencies: {},
             resources: [] // Dynamic resource dependencies, specific to implementation
         },
         createTable: this.createTable.bind(this),
