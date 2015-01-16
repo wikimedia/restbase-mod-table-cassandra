@@ -22,6 +22,12 @@ function RBCassandra (options) {
     this.setup = this.setup.bind(this);
     this.store = null;
     this.handler = {
+        module_info: {
+            spec: null, // Re-export from spec module
+            test: null, // Spec test function from spec module
+            dependencies: {},
+            resources: [] // Dynamic resource dependencies, specific to implementation
+        },
         createTable: this.createTable.bind(this),
         dropTable: this.dropTable.bind(this),
         get: this.get.bind(this),
