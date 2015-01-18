@@ -22,10 +22,12 @@ function RBCassandra (options) {
     this.setup = this.setup.bind(this);
     this.store = null;
     this.handler = {
-        createTable: this.createTable.bind(this),
-        dropTable: this.dropTable.bind(this),
-        get: this.get.bind(this),
-        put: this.put.bind(this)
+        operations: {
+            createTable: this.createTable.bind(this),
+            dropTable: this.dropTable.bind(this),
+            get: this.get.bind(this),
+            put: this.put.bind(this)
+        }
     };
 }
 
