@@ -9,7 +9,11 @@ if (!global.Promise) {
 
 // global includes
 var fs = require('fs');
+var yaml = require('js-yaml');
 var util = require('util');
+
+// TODO: move to separate package!
+var spec = yaml.safeLoad(fs.readFileSync(__dirname + '/table.yaml'));
 
 function reverseDomain (domain) {
     return domain.toLowerCase().split('.').reverse().join('.');
@@ -22,6 +26,7 @@ function RBCassandra (options) {
     this.setup = this.setup.bind(this);
     this.store = null;
     this.handler = {
+        spec: spec,
         operations: {
             createTable: this.createTable.bind(this),
             dropTable: this.dropTable.bind(this),
