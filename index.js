@@ -9,7 +9,11 @@ if (!global.Promise) {
 
 // global includes
 var fs = require('fs');
+var yaml = require('js-yaml');
 var util = require('util');
+
+// TODO: move to separate package!
+var spec = yaml.safeLoad(fs.readFileSync(__dirname + '/table.yaml'));
 
 function reverseDomain (domain) {
     return domain.toLowerCase().split('.').reverse().join('.');
@@ -22,16 +26,13 @@ function RBCassandra (options) {
     this.setup = this.setup.bind(this);
     this.store = null;
     this.handler = {
-        module_info: {
-            spec: null, // Re-export from spec module
-            test: null, // Spec test function from spec module
-            dependencies: {},
-            resources: [] // Dynamic resource dependencies, specific to implementation
-        },
-        createTable: this.createTable.bind(this),
-        dropTable: this.dropTable.bind(this),
-        get: this.get.bind(this),
-        put: this.put.bind(this)
+        spec: spec,
+        operations: {
+            createTable: this.createTable.bind(this),
+            dropTable: this.dropTable.bind(this),
+            get: this.get.bind(this),
+            put: this.put.bind(this)
+        }
     };
 }
 
@@ -114,7 +115,8 @@ RBCassandra.prototype.put = function (rb, req) {
             body: {
                 type: 'update_error',
                 title: 'Internal error in Cassandra table storage backend',
-                stack: e.stack
+                stack: e.stack,
+                req: req
             }
         };
     });
