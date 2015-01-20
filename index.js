@@ -115,7 +115,8 @@ RBCassandra.prototype.put = function (rb, req) {
             body: {
                 type: 'update_error',
                 title: 'Internal error in Cassandra table storage backend',
-                stack: e.stack
+                stack: e.stack,
+                req: req
             }
         };
     });

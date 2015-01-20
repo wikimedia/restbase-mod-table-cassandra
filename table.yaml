@@ -10,16 +10,17 @@ paths:
     delete:
       operationId: dropTable
 
-  /{table}/:
-    get: &get
-      operationId: get
-    post: *get
-    put:
-      operationId: put
-
-  #/{table}/{+rest}:
-  /{table}/{rest}:
+  /{table}/{+path}:
     get:
       operationId: get
-    put:
+    put: &put
       operationId: put
+    post: *put
+
+  /{table}/:
+    get:
+      operationId: get
+    put: &put
+      operationId: put
+    post: *put
+
