@@ -24,7 +24,7 @@ function setupConfigDefaults(conf) {
 
 var router = {};
 router.request = function(req) {
-    var match = this.newRouter.match(req.url);
+    var match = this.newRouter.match(req.uri);
     if (match) {
         req.params = match.params;
         var handler = match.methods[req.method.toLowerCase()];
@@ -34,10 +34,10 @@ router.request = function(req) {
                 return item;
             });
         } else {
-            throw new Error('No handler for ' + req.method + ' ' + req.url);
+            throw new Error('No handler for ' + req.method + ' ' + req.uri);
         }
     } else {
-        throw new Error('No match for ' + req.method + ' ' + req.url);
+        throw new Error('No match for ' + req.method + ' ' + req.uri);
     }
 };
 
