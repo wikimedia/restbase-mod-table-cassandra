@@ -67,7 +67,7 @@ router.makeRouter = function(req) {
 
     return require('../index.js')(opt)
     .then(function(modDef) {
-        self.newRouter = new RouteSwitch.fromHandlers([flatHandlerFromModDef(modDef, '/{domain}/sys')]);
+        self.newRouter = new RouteSwitch.fromHandlers([flatHandlerFromModDef(modDef, '/{domain}/sys/table')]);
         return self;
     })
     .catch(function(e) {

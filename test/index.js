@@ -52,7 +52,7 @@ describe('DB backend', function() {
         this.timeout(15000);
         it('varint table', function() {
             return router.request({
-                url: '/v1/restbase.cassandra.test.local/varintTable',
+                url: '/restbase.cassandra.test.local/sys/table/varintTable',
                 method: 'put',
                 body: {
                     // keep extra redundant info for primary bucket table reconstruction
@@ -75,7 +75,7 @@ describe('DB backend', function() {
         });
         it('simple table', function() {
             return router.request({
-                url: '/v1/restbase.cassandra.test.local/simple-table',
+                url: '/restbase.cassandra.test.local/sys/table/simple-table',
                 method: 'put',
                 body: {
                     // keep extra redundant info for primary bucket table reconstruction
@@ -109,7 +109,7 @@ describe('DB backend', function() {
         });
         it('table with more than one range keys', function() {
             return router.request({
-                url: '/v1/restbase.cassandra.test.local/multiRangeTable',
+                url: '/restbase.cassandra.test.local/sys/table/multiRangeTable',
                 method: 'put',
                 body: {
                     domain: 'restbase.cassandra.test.local',
@@ -138,7 +138,7 @@ describe('DB backend', function() {
         });
         it('table with secondary index', function() {
             return router.request({
-                url: '/v1/restbase.cassandra.test.local/simpleSecondaryIndexTable',
+                url: '/restbase.cassandra.test.local/sys/table/simpleSecondaryIndexTable',
                 method: 'put',
                 body: {
                     domain: 'restbase.cassandra.test.local',
@@ -171,7 +171,7 @@ describe('DB backend', function() {
         });
         it('table with secondary index and no tid in range', function() {
             return router.request({
-                url: '/v1/restbase.cassandra.test.local/unversionedSecondaryIndexTable',
+                url: '/restbase.cassandra.test.local/sys/table/unversionedSecondaryIndexTable',
                 method: 'put',
                 body: {
                     domain: 'restbase.cassandra.test.local',
@@ -208,7 +208,7 @@ describe('DB backend', function() {
     describe('put', function() {
         it('simple put insert', function() {
             return router.request({
-                url: '/v1/restbase.cassandra.test.local/simple-table/',
+                url: '/restbase.cassandra.test.local/sys/table/simple-table/',
                 method: 'put',
                 body: {
                     table: 'simple-table',
@@ -225,7 +225,7 @@ describe('DB backend', function() {
         });
         it('simple put insert query on table with more than one range keys', function() {
             return router.request({
-                url: '/v1/restbase.cassandra.test.local/multiRangeTable/',
+                url: '/restbase.cassandra.test.local/sys/table/multiRangeTable/',
                 method: 'put',
                 body: {
                     table: "multiRangeTable",
@@ -242,7 +242,7 @@ describe('DB backend', function() {
         });
         it('simple put update', function() {
             return router.request({
-                url: '/v1/restbase.cassandra.test.local/simple-table/',
+                url: '/restbase.cassandra.test.local/sys/table/simple-table/',
                 method: 'put',
                 body: {
                     table: 'simple-table',
@@ -259,7 +259,7 @@ describe('DB backend', function() {
         });
         it('put with if not exists and non index attributes', function() {
             return router.request({
-                    url: '/v1/restbase.cassandra.test.local/simple-table/',
+                    url: '/restbase.cassandra.test.local/sys/table/simple-table/',
                     method: 'put',
                     body: {
                         table: "simple-table",
@@ -277,7 +277,7 @@ describe('DB backend', function() {
         });
         it('put with if and non index attributes', function() {
             return router.request({
-                url: '/v1/restbase.cassandra.test.local/simple-table/',
+                url: '/restbase.cassandra.test.local/sys/table/simple-table/',
                 method: 'put',
                 body: {
                     table: "simple-table",
@@ -295,7 +295,7 @@ describe('DB backend', function() {
         });
         it('index update', function() {
             return router.request({
-                url: '/v1/restbase.cassandra.test.local/simpleSecondaryIndexTable/',
+                url: '/restbase.cassandra.test.local/sys/table/simpleSecondaryIndexTable/',
                 method: 'put',
                 body: {
                     table: "simpleSecondaryIndexTable",
@@ -311,7 +311,7 @@ describe('DB backend', function() {
                 deepEqual(response, {status:201});
 
                 return router.request({
-                    url: '/v1/restbase.cassandra.test.local/simpleSecondaryIndexTable/',
+                    url: '/restbase.cassandra.test.local/sys/table/simpleSecondaryIndexTable/',
                     method: 'put',
                     body: {
                         table: "simpleSecondaryIndexTable",
@@ -328,7 +328,7 @@ describe('DB backend', function() {
                 deepEqual(response, {status:201});
 
                 return router.request({
-                    url: '/v1/restbase.cassandra.test.local/simpleSecondaryIndexTable/',
+                    url: '/restbase.cassandra.test.local/sys/table/simpleSecondaryIndexTable/',
                     method: 'put',
                     body: {
                         table: "simpleSecondaryIndexTable",
@@ -345,7 +345,7 @@ describe('DB backend', function() {
                 deepEqual(response, {status:201});
 
                 return router.request({
-                    url: '/v1/restbase.cassandra.test.local/simpleSecondaryIndexTable/',
+                    url: '/restbase.cassandra.test.local/sys/table/simpleSecondaryIndexTable/',
                     method: 'put',
                     body: {
                         table: "simpleSecondaryIndexTable",
@@ -362,7 +362,7 @@ describe('DB backend', function() {
                 deepEqual(response, {status:201});
 
                 return router.request({
-                    url: '/v1/restbase.cassandra.test.local/simpleSecondaryIndexTable/',
+                    url: '/restbase.cassandra.test.local/sys/table/simpleSecondaryIndexTable/',
                     method: 'put',
                     body: {
                         table: "simpleSecondaryIndexTable",
@@ -378,7 +378,7 @@ describe('DB backend', function() {
             .then(function(response) {
                 deepEqual(response, {status:201});
                 return router.request({
-                    url: '/v1/restbase.cassandra.test.local/simpleSecondaryIndexTable/',
+                    url: '/restbase.cassandra.test.local/sys/table/simpleSecondaryIndexTable/',
                     method: 'put',
                     body: {
                         table: "simpleSecondaryIndexTable",
@@ -395,7 +395,7 @@ describe('DB backend', function() {
                 deepEqual(response, {status:201});
 
                 return router.request({
-                    url: '/v1/restbase.cassandra.test.local/simpleSecondaryIndexTable/',
+                    url: '/restbase.cassandra.test.local/sys/table/simpleSecondaryIndexTable/',
                     method: 'put',
                     body: {
                         table: "simpleSecondaryIndexTable",
@@ -415,7 +415,7 @@ describe('DB backend', function() {
         });
         it('unversioned index', function() {
             return router.request({
-                url: '/v1/restbase.cassandra.test.local/unversionedSecondaryIndexTable/',
+                url: '/restbase.cassandra.test.local/sys/table/unversionedSecondaryIndexTable/',
                 method: 'put',
                 body: {
                     table: "unversionedSecondaryIndexTable",
@@ -431,7 +431,7 @@ describe('DB backend', function() {
         });
         it('unversioned index update', function() {
             return router.request({
-                url: '/v1/restbase.cassandra.test.local/unversionedSecondaryIndexTable/',
+                url: '/restbase.cassandra.test.local/sys/table/unversionedSecondaryIndexTable/',
                 method: 'put',
                 body: {
                     table: "unversionedSecondaryIndexTable",
@@ -448,7 +448,7 @@ describe('DB backend', function() {
         });
         it('try a put on a non existing table', function() {
             return router.request({
-                url: '/v1/restbase.cassandra.test.local/unknownTable/',
+                url: '/restbase.cassandra.test.local/sys/table/unknownTable/',
                 method: 'put',
                 body: {
                     table: 'unknownTable',
@@ -467,7 +467,7 @@ describe('DB backend', function() {
     describe('get', function() {
         it('varint predicates', function() {
             return router.request({
-                url: '/v1/restbase.cassandra.test.local/varintTable/',
+                url: '/restbase.cassandra.test.local/sys/table/varintTable/',
                 method: 'put',
                 body: {
                     table: 'varintTable',
@@ -483,7 +483,7 @@ describe('DB backend', function() {
             })
             .then(function () {
                 return router.request({
-                    url: '/v1/restbase.cassandra.test.local/varintTable/',
+                    url: '/restbase.cassandra.test.local/sys/table/varintTable/',
                     method: 'put',
                     body: {
                         table: 'varintTable',
@@ -499,7 +499,7 @@ describe('DB backend', function() {
             })
             .then(function () {
                 return router.request({
-                    url: '/v1/restbase.cassandra.test.local/varintTable/',
+                    url: '/restbase.cassandra.test.local/sys/table/varintTable/',
                     method: 'get',
                     body: {
                         table: 'varintTable',
@@ -516,7 +516,7 @@ describe('DB backend', function() {
             })
             .then(function () {
                 return router.request({
-                    url: '/v1/restbase.cassandra.test.local/varintTable/',
+                    url: '/restbase.cassandra.test.local/sys/table/varintTable/',
                     method: 'get',
                     body: {
                         table: 'varintTable',
@@ -533,7 +533,7 @@ describe('DB backend', function() {
             })
             .then(function () {
                 return router.request({
-                    url: '/v1/restbase.cassandra.test.local/varintTable/',
+                    url: '/restbase.cassandra.test.local/sys/table/varintTable/',
                     method: 'get',
                     body: {
                         table: 'varintTable',
@@ -551,7 +551,7 @@ describe('DB backend', function() {
         });
         it('simple between', function() {
             return router.request({
-                url: '/v1/restbase.cassandra.test.local/simple-table/',
+                url: '/restbase.cassandra.test.local/sys/table/simple-table/',
                 method: 'get',
                 body: {
                     table: "simple-table",
@@ -580,7 +580,7 @@ describe('DB backend', function() {
         });
         it('simple get', function() {
             return router.request({
-                url:'/v1/restbase.cassandra.test.local/simple-table/',
+                url:'/restbase.cassandra.test.local/sys/table/simple-table/',
                 method: 'get',
                 body: {
                     table: "simple-table",
@@ -607,7 +607,7 @@ describe('DB backend', function() {
         });
         it('simple get with paging', function() {
             return router.request({
-                url:'/v1/restbase.cassandra.test.local/simple-table/',
+                url:'/restbase.cassandra.test.local/sys/table/simple-table/',
                 method: 'get',
                 body: {
                     table: "simple-table",
@@ -620,7 +620,7 @@ describe('DB backend', function() {
             .then(function(response) {
                 deepEqual(response.body.items.length, 1);
                 return router.request({
-                    url:'/v1/restbase.cassandra.test.local/simple-table/',
+                    url:'/restbase.cassandra.test.local/sys/table/simple-table/',
                     method: 'get',
                     body: {
                         table: "simple-table",
@@ -648,7 +648,7 @@ describe('DB backend', function() {
         });
         it("index query for values that doesn't match any more", function() {
             return router.request({
-                url: "/v1/restbase.cassandra.test.local/simpleSecondaryIndexTable/",
+                url: "/restbase.cassandra.test.local/sys/table/simpleSecondaryIndexTable/",
                 method: "get",
                 body: {
                     table: "simpleSecondaryIndexTable",
@@ -662,7 +662,7 @@ describe('DB backend', function() {
                 deepEqual(response.status, 404);
                 deepEqual(response.body.items.length, 0);
                 return router.request({
-                    url: "/v1/restbase.cassandra.test.local/simpleSecondaryIndexTable/",
+                    url: "/restbase.cassandra.test.local/sys/table/simpleSecondaryIndexTable/",
                     method: "get",
                     body: {
                         table: "simpleSecondaryIndexTable",
@@ -679,7 +679,7 @@ describe('DB backend', function() {
         });
         it("index query for current value", function() {
             return router.request({
-                url: "/v1/restbase.cassandra.test.local/simpleSecondaryIndexTable/",
+                url: "/restbase.cassandra.test.local/sys/table/simpleSecondaryIndexTable/",
                 method: "get",
                 body: {
                     table: "simpleSecondaryIndexTable",
@@ -704,7 +704,7 @@ describe('DB backend', function() {
         });
         it('try a get on a non existing table', function() {
             return router.request({
-                url: '/v1/restbase.cassandra.test.local/unknownTable/',
+                url: '/restbase.cassandra.test.local/sys/table/unknownTable/',
                 method: 'get',
                 body: {
                     table: 'unknownTable',
@@ -736,7 +736,7 @@ describe('DB backend', function() {
         this.timeout(5000);
         it('create table', function() {
             return router.request({
-                url: '/v1/restbase.cassandra.test.local/typeTable',
+                url: '/restbase.cassandra.test.local/sys/table/typeTable',
                 method: 'put',
                 body: {
                     domain: 'restbase.cassandra.test.local',
@@ -767,7 +767,7 @@ describe('DB backend', function() {
         });
         it('create sets table', function() {
             return router.request({
-                url: '/v1/restbase.cassandra.test.local/typeSetsTable',
+                url: '/restbase.cassandra.test.local/sys/table/typeSetsTable',
                 method: 'put',
                 body: {
                     domain: 'restbase.cassandra.test.local',
@@ -798,7 +798,7 @@ describe('DB backend', function() {
         }); 
         it('put', function() {
             return router.request({
-                url: '/v1/restbase.cassandra.test.local/typeTable/',
+                url: '/restbase.cassandra.test.local/sys/table/typeTable/',
                 method: 'put',
                 body: {
                     table: "typeTable",
@@ -827,7 +827,7 @@ describe('DB backend', function() {
         });
         it('put 2', function() {
             return router.request({
-                url: '/v1/restbase.cassandra.test.local/typeTable/',
+                url: '/restbase.cassandra.test.local/sys/table/typeTable/',
                 method: 'put',
                 body: {
                     table: "typeTable",
@@ -856,7 +856,7 @@ describe('DB backend', function() {
         });
         it('put sets', function() {
             return router.request({
-                url: '/v1/restbase.cassandra.test.local/typeSetsTable/',
+                url: '/restbase.cassandra.test.local/sys/table/typeSetsTable/',
                 method: 'put',
                 body: {
                     table: "typeSetsTable",
@@ -887,7 +887,7 @@ describe('DB backend', function() {
         });
         it("get", function() {
             return router.request({
-                url: '/v1/restbase.cassandra.test.local/typeTable/',
+                url: '/restbase.cassandra.test.local/sys/table/typeTable/',
                 method: 'get',
                 body: {
                     table: "typeTable",
@@ -936,7 +936,7 @@ describe('DB backend', function() {
         });
         it("get sets", function() {
             return router.request({
-                url: '/v1/restbase.cassandra.test.local/typeSetsTable/',
+                url: '/restbase.cassandra.test.local/sys/table/typeSetsTable/',
                 method: 'get',
                 body: {
                     table: "typeSetsTable",
@@ -974,12 +974,12 @@ describe('DB backend', function() {
         it('drop tables', function() {
             this.timeout(15000);
             return router.request({
-                url: "/v1/restbase.cassandra.test.local/typeTable",
+                url: "/restbase.cassandra.test.local/sys/table/typeTable",
                 method: "delete",
                 body: {}
             }).then(function() {
                 return router.request({
-                    url: "/v1/restbase.cassandra.test.local/typeSetsTable",
+                    url: "/restbase.cassandra.test.local/sys/table/typeSetsTable",
                     method: "delete",
                     body: {}
                 });
@@ -991,30 +991,30 @@ describe('DB backend', function() {
         this.timeout(15000);
         it('drop some simple table', function() {
             return router.request({
-                url: "/v1/restbase.cassandra.test.local/varintTable",
+                url: "/restbase.cassandra.test.local/sys/table/varintTable",
                 method: "delete",
                 body: {}
             }).then(function() {
                 return router.request({
-                    url: "/v1/restbase.cassandra.test.local/simple-table",
+                    url: "/restbase.cassandra.test.local/sys/table/simple-table",
                     method: "delete",
                     body: {}
                 });
             }).then(function() {
                 return router.request({
-                    url: "/v1/restbase.cassandra.test.local/multiRangeTable",
+                    url: "/restbase.cassandra.test.local/sys/table/multiRangeTable",
                     method: "delete",
                     body: {}
                 });
             }).then(function() {
                 return router.request({
-                    url: "/v1/restbase.cassandra.test.local/simpleSecondaryIndexTable",
+                    url: "/restbase.cassandra.test.local/sys/table/simpleSecondaryIndexTable",
                     method: "delete",
                     body: {}
                 });
             }).then(function() {
                 return router.request({
-                    url: "/v1/restbase.cassandra.test.local/unversionedSecondaryIndexTable",
+                    url: "/restbase.cassandra.test.local/sys/table/unversionedSecondaryIndexTable",
                     method: "delete",
                     body: {}
                 });
