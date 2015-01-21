@@ -15,7 +15,7 @@ paths:
     delete:
       operationId: dropTable
 
-  /{table}/{+path}:
+  /{table}/{+rest}:
     get: *get
     put: *put
     post: *put
