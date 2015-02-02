@@ -9,7 +9,11 @@ if (!global.Promise) {
 
 // global includes
 var fs = require('fs');
+var yaml = require('js-yaml');
 var util = require('util');
+
+// TODO: move to separate package!
+var spec = yaml.safeLoad(fs.readFileSync(__dirname + '/table.yaml'));
 
 function reverseDomain (domain) {
     return domain.toLowerCase().split('.').reverse().join('.');
@@ -22,44 +26,12 @@ function RBCassandra (options) {
     this.setup = this.setup.bind(this);
     this.store = null;
     this.handler = {
-        paths: {
-            // Table creation
-            '/v1/{domain}/{table}': {
-                // table creation
-                put: {
-                    request_handler: this.createTable.bind(this)
-                },
-                // delete
-                delete: {
-                    request_handler: this.dropTable.bind(this)
-                }
-            },
-            '/v1/{domain}/{table}/': {
-                put: {
-                    request_handler: this.put.bind(this)
-                },
-                // query
-                get: {
-                    request_handler: this.get.bind(this)
-                }
-            },
-            '/v1/{domain}/{table}/{+rest}': {
-                put: {
-                    request_handler: this.put.bind(this)
-                },
-                // query
-                get: {
-                    request_handler: this.get.bind(this)
-                }
-            }
-            //'/v1/{domain}/{bucket}/{+rest}': {
-            //    PUT: {
-            //        handler: this.handleAll.bind(this)
-            //    },
-            //    GET: {
-            //        handler: this.handleAll.bind(this)
-            //    }
-            //}
+        spec: spec,
+        operations: {
+            createTable: this.createTable.bind(this),
+            dropTable: this.dropTable.bind(this),
+            get: this.get.bind(this),
+            put: this.put.bind(this)
         }
     };
 }
@@ -143,7 +115,8 @@ RBCassandra.prototype.put = function (rb, req) {
             body: {
                 type: 'update_error',
                 title: 'Internal error in Cassandra table storage backend',
-                stack: e.stack
+                stack: e.stack,
+                req: req
             }
         };
     });

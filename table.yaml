@@ -1,0 +1,27 @@
+swagger: '2.0'
+info:
+  version: '0.0.1'
+  title: RESTBase table storage interface
+  description: Generic table storage interface optimized for distributed backends 
+templates:
+  get: &get
+    operationId: get
+  put: &put
+    operationId: put
+paths:
+  /{table}:
+    put:
+      operationId: createTable
+    delete:
+      operationId: dropTable
+
+  /{table}/{+rest}:
+    get: *get
+    put: *put
+    post: *put
+
+  /{table}/:
+    get: *get
+    put: *put
+    post: *put
+
