@@ -11,7 +11,7 @@ var RouteSwitch = require('routeswitch');
 var uuid = require('node-uuid');
 var makeClient = require('../lib/index');
 var dbu = require('../lib/dbutils.js');
-//TODO: change this name 
+//TODO: change this name
 var router = require('../test/test_router.js');
 
 
@@ -719,7 +719,7 @@ describe('DB backend', function() {
             });
         });
     });
-    //TODO: implement this using http handler when alternate rest-url for delete item are supported 
+    //TODO: implement this using http handler when alternate rest-url for delete item are supported
     describe('delete', function() {
         it('simple delete query', function() {
             return DB.delete('local.test.cassandra.restbase', {
@@ -759,7 +759,14 @@ describe('DB backend', function() {
                     },
                     index: [
                         { attribute: 'string', type: 'hash' },
-                    ]
+                    ],
+                    secondaryIndexes: {
+                        test: [
+                            { attribute: 'int', type: 'hash' },
+                            { attribute: 'string', type: 'range' },
+                            { attribute: 'boolean', type: 'range' }
+                        ]
+                    }
                 }
             }).then(function(response) {
                 deepEqual(response.status, 201);
@@ -795,7 +802,7 @@ describe('DB backend', function() {
             }).then(function(response) {
                 deepEqual(response.status, 201);
             });
-        }); 
+        });
         it('put', function() {
             return router.request({
                 uri: '/restbase.cassandra.test.local/sys/table/typeTable/',
@@ -885,7 +892,7 @@ describe('DB backend', function() {
                 deepEqual(response, {status:201});
             });
         });
-        it("get", function() {
+        it("get typeTable", function() {
             return router.request({
                 uri: '/restbase.cassandra.test.local/sys/table/typeTable/',
                 method: 'get',
@@ -934,6 +941,21 @@ describe('DB backend', function() {
                 }]);
             });
         });
+        it("get typeTable index", function() {
+            return router.request({
+                uri: '/restbase.cassandra.test.local/sys/table/typeTable/',
+                method: 'get',
+                body: {
+                    table: "typeTable",
+                    index: 'test',
+                    proj: ['int']
+                }
+            })
+            .then(function(response){
+                response.body.items[0].int = 1;
+                response.body.items[1].int = -1;
+            });
+        });
         it("get sets", function() {
             return router.request({
                 uri: '/restbase.cassandra.test.local/sys/table/typeSetsTable/',
@@ -948,7 +970,7 @@ describe('DB backend', function() {
             .then(function(response){
                 // note: Cassandra orders sets, so the expected rows are
                 // slightly different than the original, supplied ones
-                response.body.items[0].float = [roundDecimal(response.body.items[0].float[0]), 
+                response.body.items[0].float = [roundDecimal(response.body.items[0].float[0]),
                                                 roundDecimal(response.body.items[0].float[1])];
                 deepEqual(response.body.items, [{
                     string: 'string',
