@@ -7,7 +7,7 @@ details and background.
 
 This is the default table storage backend for
 [RESTBase](https://github.com/gwicke/restbase), and automatically installed as
-an npm module dependency (`restbase-cassandra`). See the install instructions
+an npm module dependency (`restbase-mod-table-cassandra`). See the install instructions
 there.
   
 ## Issue tracking
@@ -19,8 +19,8 @@ issues](https://phabricator.wikimedia.org/maniphest/task/create/?projects=PHID-P
 
 Preparing for production.
 
-[![Build Status](https://travis-ci.org/wikimedia/restbase-cassandra.svg?branch=master)](https://travis-ci.org/wikimedia/restbase-cassandra)
-[![coverage status](https://coveralls.io/repos/wikimedia/restbase-cassandra/badge.png)](https://coveralls.io/r/wikimedia/restbase-cassandra)
+[![Build Status](https://travis-ci.org/wikimedia/restbase-mod-table-cassandra.svg?branch=master)](https://travis-ci.org/wikimedia/restbase-mod-table-cassandra)
+[![coverage status](https://coveralls.io/repos/wikimedia/restbase-mod-table-cassandra/badge.svg)](https://coveralls.io/r/wikimedia/restbase-mod-table-cassandra)
 
 Features:
 - basic table storage service with REST interface, backed by Cassandra
