@@ -644,7 +644,7 @@ describe('DB backend', function() {
                     'content-type': null,
                     restrictions: null
                 });
-            })
+            });
         });
         it("index query for values that doesn't match any more", function() {
             return router.request({
@@ -861,6 +861,41 @@ describe('DB backend', function() {
                 deepEqual(response, {status:201});
             });
         });
+        it('put typeSetsTable, nulls and equivalents', function() {
+            return router.request({
+                uri: '/restbase.cassandra.test.local/sys/table/typeSetsTable/',
+                method: 'put',
+                body: {
+                    table: "typeSetsTable",
+                    attributes: {
+                        string: 'nulls',
+                        set: [],
+                        blob: [],
+                        'int': [],
+                        varint: null
+                    }
+                }
+            })
+            .then(function(response){
+                deepEqual(response, {status:201});
+            });
+        });
+        it('get typeSetsTable, nulls and equivalents', function() {
+            return router.request({
+                uri: '/restbase.cassandra.test.local/sys/table/typeSetsTable/',
+                method: 'get',
+                body: {
+                    table: "typeSetsTable",
+                    attributes: {
+                        string: 'nulls'
+                    }
+                }
+            })
+            .then(function(res) {
+                deepEqual(res.body.items[0].string, 'nulls');
+                deepEqual(res.body.items[0].blob, null);
+            });
+        });
         it('put sets', function() {
             return router.request({
                 uri: '/restbase.cassandra.test.local/sys/table/typeSetsTable/',
@@ -972,7 +1007,7 @@ describe('DB backend', function() {
                 // slightly different than the original, supplied ones
                 response.body.items[0].float = [roundDecimal(response.body.items[0].float[0]),
                                                 roundDecimal(response.body.items[0].float[1])];
-                deepEqual(response.body.items, [{
+                deepEqual(response.body.items[0], {
                     string: 'string',
                     blob: [new Buffer('blob')],
                     set: ['bar','baz','foo'],
@@ -990,7 +1025,7 @@ describe('DB backend', function() {
                         {one: 1, two: 'two'},
                         {test: [{a: 'b'}, 3]}
                     ]
-                }]);
+                });
             });
         });
         it('drop tables', function() {
