@@ -1,7 +1,5 @@
 "use strict";
 
-global.Promise = require('bluebird');
-
 // mocha defines to avoid JSHint breakage
 /* global describe, it, before, beforeEach, after, afterEach */
 
