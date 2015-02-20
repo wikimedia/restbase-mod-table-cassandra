@@ -80,7 +80,15 @@ describe('DB backend', function() {
                     domain: 'restbase.cassandra.test.local',
                     table: 'simple-table',
                     consistency: 'localQuorum',
-                    options: { durability: 'low' },
+                    options: {
+                        durability: 'low',
+                        compression: [
+                            {
+                                algorithm: 'deflate',
+                                block_size: 256
+                            }
+                        ]
+                    },
                     attributes: {
                         key: 'string',
                         tid: 'timeuuid',
