@@ -7,16 +7,8 @@
     "bluebird": "~2.3.10",
     "cassandra-codec": "~0.0.3",
     "cassandra-driver": "~1.0.3",
-    "connect-busboy": "git+https://github.com/gwicke/connect-busboy.git#master",
-    "coveralls": "2.11.2",
-    "extend": "~2.0.0",
-    "istanbul": "0.3.5",
     "js-yaml": "^3.2.5",
-    "mocha-lcov-reporter": "0.0.1",
-    "node-uuid": "git+https://github.com/gwicke/node-uuid.git#master",
-    "request": "2.x.x",
-    "restify": "2.x.x",
-    "routeswitch": "~0.6.3"
+    "node-uuid": "git+https://github.com/gwicke/node-uuid.git#master"
   },
   "repository": {
     "type": "git",
@@ -28,6 +20,11 @@
     "coveralls": "cat ./coverage/lcov.info | coveralls"
   },
   "devDependencies": {
+    "coveralls": "2.11.2",
+    "routeswitch": "~0.6.3",
+    "extend": "~2.0.0",
+    "istanbul": "0.3.5",
+    "mocha-lcov-reporter": "0.0.1",
     "mocha": "x.x.x",
     "mocha-jshint": "0.0.9"
   }
