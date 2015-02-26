@@ -1,7 +1,7 @@
 {
   "name": "restbase-mod-table-cassandra",
   "description": "RESTBase table storage on Cassandra",
-  "version": "0.4.7",
+  "version": "0.4.8",
   "dependencies": {
     "async": "0.x.x",
     "bluebird": "~2.3.10",
