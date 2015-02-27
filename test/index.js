@@ -5,7 +5,10 @@
 
 var assert = require('assert');
 var cass = require('cassandra-driver');
+var Uuid = cass.types.Uuid;
 var TimeUuid = cass.types.TimeUuid;
+var Integer = cass.types.Integer;
+var BigDecimal = cass.types.BigDecimal;
 var RouteSwitch = require('routeswitch');
 var makeClient = require('../lib/index');
 var dbu = require('../lib/dbutils.js');
@@ -252,7 +255,7 @@ describe('DB backend', function() {
                     consistency: 'localQuorum',
                     attributes: {
                         key: 'testing',
-                        tid: TimeUuid.fromDate(new Date('2013-08-08 18:43:58-0700')),
+                        tid: dbu.tidFromDate(new Date('2013-08-08 18:43:58-0700')),
                     }
                 }
             })
@@ -268,7 +271,7 @@ describe('DB backend', function() {
                     table: "multiRangeTable",
                     attributes: {
                         key: 'testing',
-                        tid: TimeUuid.fromDate(new Date('2013-08-08 18:43:58-0700')),
+                        tid: dbu.tidFromDate(new Date('2013-08-08 18:43:58-0700')),
                         uri: "test"
                     },
                 }
@@ -285,7 +288,7 @@ describe('DB backend', function() {
                     table: 'simple-table',
                     attributes: {
                         key: "testing",
-                        tid: TimeUuid.fromDate(new Date('2013-08-09 18:43:58-0700')),
+                        tid: dbu.tidFromDate(new Date('2013-08-09 18:43:58-0700')),
                         body: new Buffer("<p>Service Oriented Architecture</p>")
                     }
                 }
@@ -303,7 +306,7 @@ describe('DB backend', function() {
                         if : "not exists",
                         attributes: {
                             key: "testing if not exists",
-                            tid: TimeUuid.fromDate(new Date('2013-08-10 18:43:58-0700')),
+                            tid: dbu.tidFromDate(new Date('2013-08-10 18:43:58-0700')),
                             body: new Buffer("<p>if not exists with non key attr</p>")
                     }
                 }
@@ -320,7 +323,7 @@ describe('DB backend', function() {
                     table: "simple-table",
                     attributes: {
                         key: "another test",
-                        tid: TimeUuid.fromDate(new Date('2013-08-11 18:43:58-0700')),
+                        tid: dbu.tidFromDate(new Date('2013-08-11 18:43:58-0700')),
                         body: new Buffer("<p>test<p>")
                     },
                     if: { body: { "eq": new Buffer("<p>Service Oriented Architecture</p>") } }
@@ -491,7 +494,7 @@ describe('DB backend', function() {
                     table: 'unknownTable',
                     attributes: {
                         key: 'testing',
-                        tid: TimeUuid.fromDate(new Date('2013-08-08 18:43:58-0700')),
+                        tid: dbu.tidFromDate(new Date('2013-08-08 18:43:58-0700')),
                     }
                 }
             })
@@ -595,15 +598,15 @@ describe('DB backend', function() {
                     //from: 'foo', // key to start the query from (paging)
                     limit: 3,
                     attributes: {
-                        tid: { "BETWEEN": [ TimeUuid.fromDate(new Date('2013-07-08 18:43:58-0700')),
-                        TimeUuid.fromDate(new Date('2013-08-08 18:45:58-0700'))] },
+                        tid: { "BETWEEN": [ dbu.tidFromDate(new Date('2013-07-08 18:43:58-0700')),
+                        dbu.tidFromDate(new Date('2013-08-08 18:45:58-0700'))] },
                         key: "testing"
                     }
                 }
             }).then(function(response) {
                 response= response.body;
                 deepEqual(response.items, [{ key: 'testing',
-                    tid: '28730300-0095-11e3-9234-0123456789ab',
+                    tid: TimeUuid.fromString('28730300-0095-11e3-9234-0123456789ab'),
                     latestTid: null,
                     _del: null,
                     body: null,
@@ -623,15 +626,14 @@ describe('DB backend', function() {
                     table: "simple-table",
                     attributes: {
                         key: 'testing',
-                        tid: TimeUuid.fromDate(new Date('2013-08-08 18:43:58-0700'))
+                        tid: dbu.tidFromDate(new Date('2013-08-08 18:43:58-0700'))
                     }
                 }
             })
             .then(function(response) {
-                console.log(response);
                 deepEqual(response.body.items.length, 1);
                 deepEqual(response.body.items, [ { key: 'testing',
-                    tid: '28730300-0095-11e3-9234-0123456789ab',
+                    tid: TimeUuid.fromString('28730300-0095-11e3-9234-0123456789ab'),
                     latestTid: null,
                     _del: null,
                     body: null,
@@ -672,7 +674,7 @@ describe('DB backend', function() {
             })
             .then(function(response) {
                 deepEqual(response.body.items[0], { key: 'testing',
-                    tid: '28730300-0095-11e3-9234-0123456789ab',
+                    tid: TimeUuid.fromString('28730300-0095-11e3-9234-0123456789ab'),
                     latestTid: null,
                     _del: null,
                     body: null,
@@ -697,6 +699,7 @@ describe('DB backend', function() {
                 }
             })
             .then(function(response){
+                console.log(JSON.stringify(response, null, 2));
                 deepEqual(response.status, 404);
                 deepEqual(response.body.items.length, 0);
                 return router.request({
@@ -748,7 +751,7 @@ describe('DB backend', function() {
                     table: 'unknownTable',
                     attributes: {
                         key: 'testing',
-                        tid: TimeUuid.fromDate(new Date('2013-08-08 18:43:58-0700')),
+                        tid: dbu.tidFromDate(new Date('2013-08-08 18:43:58-0700')),
                     }
                 }
             })
@@ -763,7 +766,7 @@ describe('DB backend', function() {
             return DB.delete('local.test.cassandra.restbase', {
                 table: "simple-table",
                 attributes: {
-                    tid: TimeUuid.fromDate(new Date('2013-08-09 18:43:58-0700')),
+                    tid: dbu.tidFromDate(new Date('2013-08-09 18:43:58-0700')),
                     key: "testing"
                 }
             });
@@ -984,13 +987,13 @@ describe('DB backend', function() {
                     blob: new Buffer('blob'),
                     set: ['bar','baz','foo'],
                     'int': 1,
-                    varint: 1,
-                    decimal: '1.4',
+                    varint: Integer.ONE,
+                    decimal: BigDecimal.fromNumber(1.4),
                     'float': -3.43,
                     'double': 1.2,
                     'boolean': true,
-                    timeuuid: 'c931ec94-6c31-11e4-b6d0-0f67e29867e0',
-                    uuid: 'd6938370-c996-4def-96fb-6af7ba9b6f72',
+                    timeuuid: TimeUuid.fromString('c931ec94-6c31-11e4-b6d0-0f67e29867e0'),
+                    uuid: Uuid.fromString('d6938370-c996-4def-96fb-6af7ba9b6f72'),
                     timestamp: '2014-11-14T19:10:40.912Z',
                     json: {
                         foo: 'bar'
@@ -1000,13 +1003,13 @@ describe('DB backend', function() {
                     blob: new Buffer('blob'),
                     set: ['bar','baz','foo'],
                     'int': -1,
-                    varint: -4503599627370496,
-                    decimal: '1.2',
+                    varint: Integer.fromNumber(-4503599627370496),
+                    decimal: BigDecimal.fromNumber(1.2),
                     'float': -1.1,
                     'double': 1.2,
                     'boolean': true,
-                    timeuuid: 'c931ec94-6c31-11e4-b6d0-0f67e29867e0',
-                    uuid: 'd6938370-c996-4def-96fb-6af7ba9b6f72',
+                    timeuuid: TimeUuid.fromString('c931ec94-6c31-11e4-b6d0-0f67e29867e0'),
+                    uuid: Uuid.fromString('d6938370-c996-4def-96fb-6af7ba9b6f72'),
                     timestamp: '2014-11-14T19:10:40.912Z',
                     json: {
                         foo: 'bar'
@@ -1050,12 +1053,18 @@ describe('DB backend', function() {
                     blob: [new Buffer('blob')],
                     set: ['bar','baz','foo'],
                     'int': [2567, 123456, 598765],
-                    varint: [-4503599627370496,12233232],
-                    decimal: ['1.2','1.6'],
+                    varint: [
+                        Integer.fromNumber(-4503599627370496),
+                        Integer.fromNumber(12233232)
+                    ],
+                    decimal: [
+                        BigDecimal.fromNumber(1.2),
+                        BigDecimal.fromNumber(1.6)
+                    ],
                     'double': [1.2, 1.567],
                     'boolean': [false, true],
-                    timeuuid: ['c931ec94-6c31-11e4-b6d0-0f67e29867e0'],
-                    uuid: ['d6938370-c996-4def-96fb-6af7ba9b6f72'],
+                    timeuuid: [TimeUuid.fromString('c931ec94-6c31-11e4-b6d0-0f67e29867e0')],
+                    uuid: [Uuid.fromString('d6938370-c996-4def-96fb-6af7ba9b6f72')],
                     'float': [1.1, 1.3],
                     timestamp: ['2014-11-14T19:10:40.912Z', '2014-12-14T19:10:40.912Z'],
                     json: [
