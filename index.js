@@ -64,7 +64,8 @@ RBCassandra.prototype.createTable = function (rb, req) {
                 type: 'table_creation_error',
                 title: 'Internal error while creating a table within the cassandra storage backend',
                 stack: e.stack,
-                schema: req.body
+                err: e,
+                req: req
             }
         };
     });
@@ -94,8 +95,10 @@ RBCassandra.prototype.get = function (rb, req) {
             status: 500,
             body: {
                 type: 'query_error',
-                title: 'Internal error in Cassandra table storage backend',
-                stack: e.stack
+                title: 'Error in Cassandra table storage backend',
+                stack: e.stack,
+                err: e,
+                req: req
             }
         };
     });
@@ -118,6 +121,7 @@ RBCassandra.prototype.put = function (rb, req) {
                 type: 'update_error',
                 title: 'Internal error in Cassandra table storage backend',
                 stack: e.stack,
+                err: e,
                 req: req
             }
         };
@@ -138,7 +142,9 @@ RBCassandra.prototype.dropTable = function (rb, req) {
             body: {
                 type: 'delete_error',
                 title: 'Internal error in Cassandra table storage backend',
-                stack: e.stack
+                stack: e.stack,
+                err: e,
+                req: req
             }
         };
     });
