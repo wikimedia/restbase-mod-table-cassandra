@@ -52,6 +52,12 @@ RBCassandra.prototype.createTable = function (rb, req) {
         };
     })
     .catch(function(e) {
+        if (e.status >= 400) {
+            return {
+                status: e.status,
+                body: e.body
+            };
+        }
         return {
             status: 500,
             body: {

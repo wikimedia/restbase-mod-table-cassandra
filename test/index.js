@@ -209,6 +209,37 @@ describe('DB backend', function() {
                 deepEqual(response.status, 201);
             });
         });
+        it('throws Error on updating above table', function() {
+            return router.request({
+                uri: '/restbase.cassandra.test.local/sys/table/simple-table',
+                method: 'put',
+                body: {
+                    // keep extra redundant info for primary bucket table reconstruction
+                    domain: 'restbase.cassandra.test.local',
+                    table: 'simple-table',
+                    options: { durability: 'low' },
+                    attributes: {
+                        key: 'string',
+                        tid: 'timeuuid',
+                        latestTid: 'timeuuid',
+                        body: 'blob',
+                            'content-type': 'string',
+                            'content-length': 'varint',
+                                'content-sha256': 'string',
+                                // redirect
+                                'content-location': 'string',
+                                    // 'deleted', 'nomove' etc?
+                    },
+                    index: [
+                        { attribute: 'key', type: 'hash' },
+                        { attribute: 'latestTid', type: 'static' },
+                        { attribute: 'tid', type: 'range', order: 'desc' }
+                    ]
+                }
+            }).then(function(response){
+                deepEqual(response.status, 400);
+            });
+        });
     });
 
     describe('put', function() {
