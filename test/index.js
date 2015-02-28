@@ -9,7 +9,6 @@ var Uuid = cass.types.Uuid;
 var TimeUuid = cass.types.TimeUuid;
 var Integer = cass.types.Integer;
 var BigDecimal = cass.types.BigDecimal;
-var RouteSwitch = require('routeswitch');
 var makeClient = require('../lib/index');
 var dbu = require('../lib/dbutils.js');
 //TODO: change this name
@@ -35,9 +34,9 @@ var DB = require('../lib/db.js');
 describe('DB backend', function() {
     before(function() {
         return makeClient({
-            log: function(level, msg) {
-                if (!/^info|verbose|debug/.test(level)) {
-                    console.log(level, msg);
+            log: function(level, info) {
+                if (!/^info|verbose|debug|trace/.test(level)) {
+                    console.log(level, info);
                 }
             },
             conf: {
