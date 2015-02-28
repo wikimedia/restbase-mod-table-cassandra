@@ -79,10 +79,7 @@ describe('DB backend', function() {
                 uri: '/restbase.cassandra.test.local/sys/table/simple-table',
                 method: 'put',
                 body: {
-                    // keep extra redundant info for primary bucket table reconstruction
-                    domain: 'restbase.cassandra.test.local',
                     table: 'simple-table',
-                    consistency: 'localQuorum',
                     options: {
                         durability: 'low',
                         compression: [
@@ -97,12 +94,12 @@ describe('DB backend', function() {
                         tid: 'timeuuid',
                         latestTid: 'timeuuid',
                         body: 'blob',
-                            'content-type': 'string',
-                            'content-length': 'varint',
-                                'content-sha256': 'string',
-                                // redirect
-                                'content-location': 'string',
-                                    // 'deleted', 'nomove' etc?
+                        'content-type': 'string',
+                        'content-length': 'varint',
+                        'content-sha256': 'string',
+                        // redirect
+                        'content-location': 'string',
+                        // 'deleted', 'nomove' etc?
                         restrictions: 'set<string>',
                     },
                     index: [
@@ -114,6 +111,45 @@ describe('DB backend', function() {
             })
             .then(function(response) {
                 deepEqual(response.status, 201);
+            });
+        });
+        it('throws error on unsupported schema update request', function() {
+            return router.request({
+                uri: '/restbase.cassandra.test.local/sys/table/simple-table',
+                method: 'put',
+                body: {
+                    table: 'simple-table',
+                    options: {
+                        durability: 'low',
+                        compression: [
+                            {
+                                algorithm: 'deflate',
+                                block_size: 256
+                            }
+                        ]
+                    },
+                    attributes: {
+                        key: 'string',
+                        tid: 'timeuuid',
+                        latestTid: 'timeuuid',
+                        body: 'blob',
+                        'content-type': 'string',
+                        'content-length': 'varint',
+                        'content-sha256': 'string',
+                        // redirect
+                        'content-location': 'string',
+                        // 'deleted', 'nomove' etc?
+                        //
+                        // NO RESTRICTIONS HERE
+                    },
+                    index: [
+                        { attribute: 'key', type: 'hash' },
+                        { attribute: 'latestTid', type: 'static' },
+                        { attribute: 'tid', type: 'range', order: 'desc' }
+                    ]
+                }
+            }).then(function(response){
+                deepEqual(response.status, 400);
             });
         });
         it('table with more than one range keys', function() {
@@ -150,7 +186,6 @@ describe('DB backend', function() {
                 uri: '/restbase.cassandra.test.local/sys/table/simpleSecondaryIndexTable',
                 method: 'put',
                 body: {
-                    domain: 'restbase.cassandra.test.local',
                     table: 'simpleSecondaryIndexTable',
                     options: { durability: 'low' },
                     attributes: {
@@ -183,7 +218,6 @@ describe('DB backend', function() {
                 uri: '/restbase.cassandra.test.local/sys/table/unversionedSecondaryIndexTable',
                 method: 'put',
                 body: {
-                    domain: 'restbase.cassandra.test.local',
                     table: 'unversionedSecondaryIndexTable',
                     options: { durability: 'low' },
                     attributes: {
@@ -210,37 +244,6 @@ describe('DB backend', function() {
             })
             .then(function(response) {
                 deepEqual(response.status, 201);
-            });
-        });
-        it('throws Error on updating above table', function() {
-            return router.request({
-                uri: '/restbase.cassandra.test.local/sys/table/simple-table',
-                method: 'put',
-                body: {
-                    // keep extra redundant info for primary bucket table reconstruction
-                    domain: 'restbase.cassandra.test.local',
-                    table: 'simple-table',
-                    options: { durability: 'low' },
-                    attributes: {
-                        key: 'string',
-                        tid: 'timeuuid',
-                        latestTid: 'timeuuid',
-                        body: 'blob',
-                            'content-type': 'string',
-                            'content-length': 'varint',
-                                'content-sha256': 'string',
-                                // redirect
-                                'content-location': 'string',
-                                    // 'deleted', 'nomove' etc?
-                    },
-                    index: [
-                        { attribute: 'key', type: 'hash' },
-                        { attribute: 'latestTid', type: 'static' },
-                        { attribute: 'tid', type: 'range', order: 'desc' }
-                    ]
-                }
-            }).then(function(response){
-                deepEqual(response.status, 400);
             });
         });
     });
@@ -606,7 +609,7 @@ describe('DB backend', function() {
             }).then(function(response) {
                 response= response.body;
                 deepEqual(response.items, [{ key: 'testing',
-                    tid: TimeUuid.fromString('28730300-0095-11e3-9234-0123456789ab'),
+                    tid: '28730300-0095-11e3-9234-0123456789ab',
                     latestTid: null,
                     _del: null,
                     body: null,
@@ -633,7 +636,7 @@ describe('DB backend', function() {
             .then(function(response) {
                 deepEqual(response.body.items.length, 1);
                 deepEqual(response.body.items, [ { key: 'testing',
-                    tid: TimeUuid.fromString('28730300-0095-11e3-9234-0123456789ab'),
+                    tid: '28730300-0095-11e3-9234-0123456789ab',
                     latestTid: null,
                     _del: null,
                     body: null,
@@ -674,7 +677,7 @@ describe('DB backend', function() {
             })
             .then(function(response) {
                 deepEqual(response.body.items[0], { key: 'testing',
-                    tid: TimeUuid.fromString('28730300-0095-11e3-9234-0123456789ab'),
+                    tid: '28730300-0095-11e3-9234-0123456789ab',
                     latestTid: null,
                     _del: null,
                     body: null,
@@ -986,13 +989,13 @@ describe('DB backend', function() {
                     blob: new Buffer('blob'),
                     set: ['bar','baz','foo'],
                     'int': 1,
-                    varint: Integer.ONE,
-                    decimal: BigDecimal.fromNumber(1.4),
+                    varint: 1,
+                    decimal: '1.4',
                     'float': -3.43,
                     'double': 1.2,
                     'boolean': true,
-                    timeuuid: TimeUuid.fromString('c931ec94-6c31-11e4-b6d0-0f67e29867e0'),
-                    uuid: Uuid.fromString('d6938370-c996-4def-96fb-6af7ba9b6f72'),
+                    timeuuid: 'c931ec94-6c31-11e4-b6d0-0f67e29867e0',
+                    uuid: 'd6938370-c996-4def-96fb-6af7ba9b6f72',
                     timestamp: '2014-11-14T19:10:40.912Z',
                     json: {
                         foo: 'bar'
@@ -1002,13 +1005,13 @@ describe('DB backend', function() {
                     blob: new Buffer('blob'),
                     set: ['bar','baz','foo'],
                     'int': -1,
-                    varint: Integer.fromNumber(-4503599627370496),
-                    decimal: BigDecimal.fromNumber(1.2),
+                    varint: -4503599627370496,
+                    decimal: '1.2',
                     'float': -1.1,
                     'double': 1.2,
                     'boolean': true,
-                    timeuuid: TimeUuid.fromString('c931ec94-6c31-11e4-b6d0-0f67e29867e0'),
-                    uuid: Uuid.fromString('d6938370-c996-4def-96fb-6af7ba9b6f72'),
+                    timeuuid: 'c931ec94-6c31-11e4-b6d0-0f67e29867e0',
+                    uuid: 'd6938370-c996-4def-96fb-6af7ba9b6f72',
                     timestamp: '2014-11-14T19:10:40.912Z',
                     json: {
                         foo: 'bar'
@@ -1053,17 +1056,17 @@ describe('DB backend', function() {
                     set: ['bar','baz','foo'],
                     'int': [2567, 123456, 598765],
                     varint: [
-                        Integer.fromNumber(-4503599627370496),
-                        Integer.fromNumber(12233232)
+                        -4503599627370496,
+                        12233232
                     ],
                     decimal: [
-                        BigDecimal.fromNumber(1.2),
-                        BigDecimal.fromNumber(1.6)
+                        '1.2',
+                        '1.6'
                     ],
                     'double': [1.2, 1.567],
                     'boolean': [false, true],
-                    timeuuid: [TimeUuid.fromString('c931ec94-6c31-11e4-b6d0-0f67e29867e0')],
-                    uuid: [Uuid.fromString('d6938370-c996-4def-96fb-6af7ba9b6f72')],
+                    timeuuid: ['c931ec94-6c31-11e4-b6d0-0f67e29867e0'],
+                    uuid: ['d6938370-c996-4def-96fb-6af7ba9b6f72'],
                     'float': [1.1, 1.3],
                     timestamp: ['2014-11-14T19:10:40.912Z', '2014-12-14T19:10:40.912Z'],
                     json: [
