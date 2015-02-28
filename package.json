@@ -5,10 +5,9 @@
   "dependencies": {
     "async": "0.x.x",
     "bluebird": "~2.3.10",
-    "cassandra-codec": "~0.0.3",
-    "cassandra-driver": "~1.0.3",
-    "js-yaml": "^3.2.5",
-    "node-uuid": "git+https://github.com/gwicke/node-uuid.git#master"
+    "cassandra-driver": "~2.0.0",
+    "extend": "^2.0.0",
+    "js-yaml": "^3.2.5"
   },
   "repository": {
     "type": "git",
@@ -22,7 +21,6 @@
   "devDependencies": {
     "coveralls": "2.11.2",
     "routeswitch": "~0.6.3",
-    "extend": "~2.0.0",
     "istanbul": "0.3.5",
     "mocha-lcov-reporter": "0.0.1",
     "mocha": "x.x.x",
