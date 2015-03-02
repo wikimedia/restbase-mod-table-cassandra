@@ -610,7 +610,6 @@ describe('DB backend', function() {
                 deepEqual(response.items, [{ key: 'testing',
                     tid: '28730300-0095-11e3-9234-0123456789ab',
                     latestTid: null,
-                    _del: null,
                     body: null,
                     'content-length': null,
                     'content-location': null,
@@ -637,7 +636,6 @@ describe('DB backend', function() {
                 deepEqual(response.body.items, [ { key: 'testing',
                     tid: '28730300-0095-11e3-9234-0123456789ab',
                     latestTid: null,
-                    _del: null,
                     body: null,
                     'content-length': null,
                     'content-location': null,
@@ -647,47 +645,46 @@ describe('DB backend', function() {
                 } ]);
             });
         });
-        it('simple get with paging', function() {
-            return router.request({
-                uri:'/restbase.cassandra.test.local/sys/table/simple-table/',
-                method: 'get',
-                body: {
-                    table: "simple-table",
-                    pageSize: 1,
-                    attributes: {
-                        key: 'testing',
-                    }
-                }
-            })
-            .then(function(response) {
-                deepEqual(response.body.items.length, 1);
-                return router.request({
-                    uri:'/restbase.cassandra.test.local/sys/table/simple-table/',
-                    method: 'get',
-                    body: {
-                        table: "simple-table",
-                        pageSize: 1,
-                        next: response.body.next,
-                        attributes: {
-                            key: 'testing',
-                        }
-                    }
-                });
-            })
-            .then(function(response) {
-                deepEqual(response.body.items[0], { key: 'testing',
-                    tid: '28730300-0095-11e3-9234-0123456789ab',
-                    latestTid: null,
-                    _del: null,
-                    body: null,
-                    'content-length': null,
-                    'content-location': null,
-                    'content-sha256': null,
-                    'content-type': null,
-                    restrictions: null
-                });
-            });
-        });
+        //it('simple get with paging', function() {
+        //    return router.request({
+        //        uri:'/restbase.cassandra.test.local/sys/table/simple-table/',
+        //        method: 'get',
+        //        body: {
+        //            table: "simple-table",
+        //            pageSize: 1,
+        //            attributes: {
+        //                key: 'testing',
+        //            }
+        //        }
+        //    })
+        //    .then(function(response) {
+        //        deepEqual(response.body.items.length, 1);
+        //        return router.request({
+        //            uri:'/restbase.cassandra.test.local/sys/table/simple-table/',
+        //            method: 'get',
+        //            body: {
+        //                table: "simple-table",
+        //                pageSize: 1,
+        //                next: response.body.next,
+        //                attributes: {
+        //                    key: 'testing',
+        //                }
+        //            }
+        //        });
+        //    })
+        //    .then(function(response) {
+        //        deepEqual(response.body.items[0], { key: 'testing',
+        //            tid: '28730300-0095-11e3-9234-0123456789ab',
+        //            latestTid: null,
+        //            body: null,
+        //            'content-length': null,
+        //            'content-location': null,
+        //            'content-sha256': null,
+        //            'content-type': null,
+        //            restrictions: null
+        //        });
+        //    });
+        //});
         it("index query for values that doesn't match any more", function() {
             return router.request({
                 uri: "/restbase.cassandra.test.local/sys/table/simpleSecondaryIndexTable/",
@@ -764,7 +761,7 @@ describe('DB backend', function() {
     //TODO: implement this using http handler when alternate rest-url for delete item are supported
     describe('delete', function() {
         it('simple delete query', function() {
-            return DB.delete('local.test.cassandra.restbase', {
+            return DB.delete('restbase.cassandra.test.local', {
                 table: "simple-table",
                 attributes: {
                     tid: dbu.testTidFromDate(new Date('2013-08-09 18:43:58-0700')),
@@ -975,6 +972,9 @@ describe('DB backend', function() {
                 method: 'get',
                 body: {
                     table: "typeTable",
+                    attributes: {
+                        string: 'string'
+                    },
                     proj: ['string','blob','set','int','varint', 'decimal',
                             'float', 'double','boolean','timeuuid','uuid',
                             'timestamp','json']
@@ -1024,13 +1024,16 @@ describe('DB backend', function() {
                 method: 'get',
                 body: {
                     table: "typeTable",
+                    attributes: {
+                        int: '1'
+                    },
                     index: 'test',
-                    proj: ['int']
+                    proj: ['int', 'boolean']
                 }
             })
             .then(function(response){
                 response.body.items[0].int = 1;
-                response.body.items[1].int = -1;
+                response.body.items[0].boolean = true;
             });
         });
         it("get sets", function() {
@@ -1039,6 +1042,9 @@ describe('DB backend', function() {
                 method: 'get',
                 body: {
                     table: "typeSetsTable",
+                    attributes: {
+                        string: 'string'
+                    },
                     proj: ['string','blob','set','int','varint', 'decimal',
                             'double','boolean','timeuuid','uuid', 'float',
                             'timestamp','json']

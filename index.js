@@ -11,10 +11,6 @@ var util = require('util');
 // TODO: move to separate package!
 var spec = yaml.safeLoad(fs.readFileSync(__dirname + '/table.yaml'));
 
-function reverseDomain (domain) {
-    return domain.toLowerCase().split('.').reverse().join('.');
-}
-
 function RBCassandra (options) {
     this.options = options;
     this.conf = options.conf;
@@ -36,7 +32,7 @@ RBCassandra.prototype.createTable = function (rb, req) {
     var store = this.store;
     // XXX: decide on the interface
     req.body.table = req.params.table;
-    var domain = reverseDomain(req.params.domain);
+    var domain = req.params.domain;
 
     // check if the domains table exists
     return store.createTable(domain, req.body)
@@ -82,7 +78,7 @@ RBCassandra.prototype.get = function (rb, req) {
             limit: 10
         };
     }
-    var domain = reverseDomain(req.params.domain);
+    var domain = req.params.domain;
     return this.store.get(domain, req.body)
     .then(function(res) {
         return {
@@ -106,7 +102,7 @@ RBCassandra.prototype.get = function (rb, req) {
 
 // Update a table
 RBCassandra.prototype.put = function (rb, req) {
-    var domain = reverseDomain(req.params.domain);
+    var domain = req.params.domain;
     // XXX: Use the path to determine the primary key?
     return this.store.put(domain, req.body)
     .then(function(res) {
@@ -129,7 +125,7 @@ RBCassandra.prototype.put = function (rb, req) {
 };
 
 RBCassandra.prototype.dropTable = function (rb, req) {
-    var domain = reverseDomain(req.params.domain);
+    var domain = req.params.domain;
     return this.store.dropTable(domain, req.params.table)
     .then(function(res) {
         return {
