@@ -1,0 +1,16 @@
+type: restbase-cassandra
+hosts:
+  - localhost
+keyspace: system
+username: cassandra
+password: cassandra
+defaultConsistency: one
+salt_key: secret
+maxLimit: 250
+storage_groups:
+  - name: test.domains
+    domains:
+      - "/test\\..*\\.org/"
+      - "/test\\.local$/"
+  - name: default.group
+    domains: /./

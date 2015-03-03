@@ -3,33 +3,15 @@
 /*
 *  test router to exercise all tests uning the restbase-cassandra handler
 */
+var fs = require('fs');
+var yaml = require('js-yaml');
 
 var RouteSwitch = require('routeswitch');
 
 function setupConfigDefaults(conf) {
-    if (!conf) { conf = {
-            // module name
-            type: "restbase-cassandra",
-            hosts: ["localhost"],
-            keyspace: "system",
-            username: "cassandra",
-            password: "cassandra",
-            defaultConsistency: 'one',
-            salt_key: "secret",
-            maxLimit: 250,
-            storage_groups: [
-                {
-                    name: 'test.domains',
-                    domains: [
-                        '/test\\..*\\.org/',
-                        '/test\\.local$/'
-                    ]
-                }, {
-                    name: 'default.group',
-                    domains: '/./'
-                }
-            ]
-        };
+    if (!conf) {
+        conf = yaml.safeLoad(
+                fs.readFileSync(__dirname + '/test_router.conf.yaml')) ;
     }
     return conf;
 }

@@ -13,6 +13,8 @@ var makeClient = require('../lib/index');
 var dbu = require('../lib/dbutils.js');
 //TODO: change this name
 var router = require('../test/test_router.js');
+var fs = require('fs');
+var yaml = require('js-yaml');
 
 
 function deepEqual (result, expected) {
@@ -29,9 +31,8 @@ function roundDecimal(item) {
     return Math.round( item * 100) / 100;
 }
 
-var DB = require('../lib/db.js');
-
 describe('DB backend', function() {
+    var db;
     before(function() {
         return makeClient({
             log: function(level, info) {
@@ -39,12 +40,10 @@ describe('DB backend', function() {
                     console.log(level, info);
                 }
             },
-            conf: {
-                hosts: ['localhost']
-            }
+            conf: yaml.safeLoad(fs.readFileSync(__dirname + '/test_router.conf.yaml'))
         })
-        .then(function(db) {
-            DB = db;
+        .then(function(newDb) {
+            db = newDb;
             return router.makeRouter();
         });
     });
@@ -761,7 +760,7 @@ describe('DB backend', function() {
     //TODO: implement this using http handler when alternate rest-url for delete item are supported
     describe('delete', function() {
         it('simple delete query', function() {
-            return DB.delete('restbase.cassandra.test.local', {
+            return db.delete('restbase.cassandra.test.local', {
                 table: "simple-table",
                 attributes: {
                     tid: dbu.testTidFromDate(new Date('2013-08-09 18:43:58-0700')),
