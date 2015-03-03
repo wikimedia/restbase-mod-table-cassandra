@@ -16,7 +16,19 @@ function setupConfigDefaults(conf) {
             password: "cassandra",
             defaultConsistency: 'one',
             salt_key: "secret",
-            maxLimit: 250
+            maxLimit: 250,
+            storage_groups: [
+                {
+                    name: 'test.domains',
+                    domains: [
+                        '/test\\..*\\.org/',
+                        '/test\\.local$/'
+                    ]
+                }, {
+                    name: 'default.group',
+                    domains: '/./'
+                }
+            ]
         };
     }
     return conf;
