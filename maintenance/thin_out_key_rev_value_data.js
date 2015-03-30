@@ -52,23 +52,17 @@ function makeClient() {
 var client = makeClient();
 
 var lastKey;
-var lastKeyCount = 0;
 function processRow (row) {
     // We include the revision in the key, so that we keep one render per
     // revision.
     var key = JSON.stringify([row._domain, row.key, row.rev]);
     if (key !== lastKey) {
-        //if (lastKeyCount > 10) {
-        //    console.log(lastKeyCount + ':' + lastKey);
-        //}
         lastKey = key;
-        lastKeyCount = 1;
         //console.log(row);
         // Don't delete the most recent render for this revision
         return P.resolve();
     } else {
         console.log(key, row.tid);
-        lastKeyCount++;
         var delQuery = 'delete from data where "_domain" = :domain and key = :key and rev = :rev and tid = :tid';
         row.domain = row._domain;
         return client.executeAsync(delQuery, row, { prepare: true });
