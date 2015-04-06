@@ -462,7 +462,8 @@ describe('DB backend', function() {
                     table: "unversionedSecondaryIndexTable",
                     attributes: {
                         key: "another test",
-                        uri: "a uri"
+                        uri: "a uri",
+                        body: "a body"
                     },
                 }
             })
