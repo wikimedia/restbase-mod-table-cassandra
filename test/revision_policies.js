@@ -11,6 +11,36 @@ var makeClient = require('../lib/index');
 var TimeUuid = cass.types.TimeUuid;
 var yaml = require('js-yaml');
 
+var testSchema = {
+    table: 'revPolicyLatestTest',
+    options: { durability: 'low' },
+    attributes: {
+        title: 'string',
+        rev: 'int',
+        tid: 'timeuuid',
+        comment: 'string',
+        author: 'string'
+    },
+    index: [
+        { attribute: 'title', type: 'hash' },
+        { attribute: 'rev', type: 'range', order: 'desc' },
+        { attribute: 'tid', type: 'range', order: 'desc' }
+    ],
+    secondaryIndexes: {
+        by_rev : [
+            { attribute: 'rev', type: 'hash' },
+            { attribute: 'tid', type: 'range', order: 'desc' },
+            { attribute: 'title', type: 'range', order: 'asc' },
+            { attribute: 'comment', type: 'proj' }
+        ]
+    },
+    revisionRetentionPolicy: {
+        type: 'latest',
+        count: 2,
+        grace_ttl: 10
+    }
+};
+
 describe('MVCC revision policies', function() {
     var db;
     before(function() {
@@ -26,35 +56,7 @@ describe('MVCC revision policies', function() {
             db = newDb;
         })
         .then(function() {
-            return db.createTable("domains_test", {
-                table: 'revPolicyLatestTest',
-                options: { durability: 'low' },
-                attributes: {
-                    title: 'string',
-                    rev: 'int',
-                    tid: 'timeuuid',
-                    comment: 'string',
-                    author: 'string'
-                },
-                index: [
-                    { attribute: 'title', type: 'hash' },
-                    { attribute: 'rev', type: 'range', order: 'desc' },
-                    { attribute: 'tid', type: 'range', order: 'desc' }
-                ],
-                secondaryIndexes: {
-                    by_rev : [
-                        { attribute: 'rev', type: 'hash' },
-                        { attribute: 'tid', type: 'range', order: 'desc' },
-                        { attribute: 'title', type: 'range', order: 'asc' },
-                        { attribute: 'comment', type: 'proj' }
-                    ]
-                },
-                revisionRetentionPolicy: {
-                    type: 'latest',
-                    count: 2,
-                    grace_ttl: 10
-                }
-            })
+            return db.createTable("domains_test", testSchema)
             .then(function(response) {
                 assert.deepEqual(response.status, 201);
             });
@@ -96,7 +98,7 @@ describe('MVCC revision policies', function() {
         })
         .then(function(response) {
             assert.deepEqual(response, {status:201});
-            
+
             return db.put('domains_test', {
                 table: 'revPolicyLatestTest',
                 consistency: 'localQuorum',
@@ -114,7 +116,7 @@ describe('MVCC revision policies', function() {
         .delay(11000)
         .then(function(response) {
             assert.deepEqual(response, {status: 201});
-            
+
             return db.get('domains_test', {
                 table: 'revPolicyLatestTest',
                 attributes: {
@@ -158,7 +160,16 @@ describe('MVCC revision policies', function() {
     });
 
     it('defaults to retention \'all\'', function() {
-        assert.deepEqual('all', dbu.validateAndNormalizeRevPolicy({}).type);
+        var schemaInfo = dbu.makeSchemaInfo(
+                dbu.validateAndNormalizeSchema({
+                        attributes: {
+                            foo: 'int'
+                        },
+                        index: [
+                            { attribute: 'foo', type: 'hash' }
+                        ]
+                    }));
+        assert.deepEqual('all', schemaInfo.revisionRetentionPolicy.type);
     });
 });
 
