@@ -488,6 +488,54 @@ describe('DB backend', function() {
                 deepEqual(response, {status:201});
             });
         });
+        it('fill static columns', function() {
+            return router.request({
+                uri: '/restbase.cassandra.test.local/sys/table/simple-table/',
+                method: 'put',
+                body: {
+                    table: 'simple-table',
+                    attributes: {
+                        key: 'test',
+                        tid: dbu.testTidFromDate(new Date('2013-08-09 18:43:58-0700')),
+                        latestTid: dbu.testTidFromDate(new Date('2014-01-01 00:00:00')),
+                    }
+                }
+            })
+            .then(function(response) {
+                deepEqual(response, {status:201});
+                return router.request({
+                    uri: '/restbase.cassandra.test.local/sys/table/simple-table/',
+                    method: 'put',
+                    body: {
+                        table: 'simple-table',
+                        attributes: {
+                            key: 'test2',
+                            tid: dbu.testTidFromDate(new Date('2013-08-08 18:43:58-0700')),
+                            body: new Buffer("<p>test<p>"),
+                            latestTid: dbu.testTidFromDate(new Date('2014-01-01 00:00:00')),
+                        }
+                    }
+                });
+            })
+            .then(function(response) {
+                deepEqual(response, {status:201});
+                return router.request({
+                    uri: '/restbase.cassandra.test.local/sys/table/simple-table/',
+                    method: 'put',
+                    body: {
+                        table: 'simple-table',
+                        attributes: {
+                            key: 'test',
+                            tid: dbu.testTidFromDate(new Date('2013-08-08 18:43:58-0700')),
+                            latestTid: dbu.testTidFromDate(new Date('2014-01-02 00:00:00'))
+                        }
+                    }
+                });
+            })
+            .then(function(response){
+                deepEqual(response, {status:201});
+            });
+        });
         it('try a put on a non existing table', function() {
             return router.request({
                 uri: '/restbase.cassandra.test.local/sys/table/unknownTable/',
@@ -738,6 +786,86 @@ describe('DB backend', function() {
                     key: "test",
                     uri: "uri3",
                     body: new Buffer("body3")
+                }]);
+            });
+        });
+        it('get static columns', function() {
+            return router.request({
+                uri:'/restbase.cassandra.test.local/sys/table/simple-table/',
+                method: 'get',
+                body: {
+                    table: "simple-table",
+                    proj: ["key", "tid", "latestTid", "body"],
+                    attributes: {
+                        key: 'test2',
+                        tid: dbu.testTidFromDate(new Date('2013-08-08 18:43:58-0700'))
+                    }
+                }
+            })
+            .then(function(response) {
+                deepEqual(response.body.items.length, 1);
+                deepEqual(response.body.items[0].key, 'test2');
+                deepEqual(response.body.items[0].body, new Buffer("<p>test<p>"));
+                deepEqual(TimeUuid.fromString(response.body.items[0].latestTid), 
+                          dbu.testTidFromDate(new Date('2014-01-01 00:00:00')));
+                return router.request({
+                    uri:'/restbase.cassandra.test.local/sys/table/simple-table/',
+                    method: 'get',
+                    body: {
+                        table: "simple-table",
+                        attributes: {
+                            key: 'test',
+                            tid: dbu.testTidFromDate(new Date('2013-08-08 18:43:58-0700'))
+                        }
+                    }
+                })
+            })
+            .then(function(response) {
+                deepEqual(response.body.items.length, 1);
+                deepEqual(response.body.items[0].key, 'test');
+                deepEqual(response.body.items[0].tid, '28730300-0095-11e3-9234-0123456789ab');
+                deepEqual(TimeUuid.fromString(response.body.items[0].latestTid),
+                          dbu.testTidFromDate(new Date('2014-01-01 00:00:00')));
+            });
+        });
+        it('simple get with order by', function() {
+            return router.request({
+                uri:'/restbase.cassandra.test.local/sys/table/simple-table/',
+                method: 'get',
+                body: {
+                    table: "simple-table",
+                    order: {tid: "desc"},
+                    attributes: {
+                        key: "test"
+                    }
+                }
+            })
+            .then(function(response) {
+                deepEqual(response.body.items.length, 2);
+                deepEqual(TimeUuid.fromString(response.body.items[0].latestTid),
+                          dbu.testTidFromDate(new Date('2014-01-01 00:00:00')));
+                deepEqual(TimeUuid.fromString(response.body.items[1].latestTid),
+                          dbu.testTidFromDate(new Date('2014-01-01 00:00:00')));
+                delete response.body.items[0].latestTid;
+                delete response.body.items[1].latestTid;
+                deepEqual(response.body.items, [{
+                    "key": "test",
+                    "tid": "52dcc300-015e-11e3-9234-0123456789ab",
+                    "body": null,
+                    "content-type": null,
+                    "content-length": null,
+                    "content-sha256": null,
+                    "content-location": null,
+                    "restrictions": null
+                },{
+                    key: 'test',
+                    tid: '28730300-0095-11e3-9234-0123456789ab',
+                    body: null,
+                    'content-type': null,
+                    'content-length': null,
+                    'content-sha256': null,
+                    'content-location': null,
+                    restrictions: null,
                 }]);
             });
         });
