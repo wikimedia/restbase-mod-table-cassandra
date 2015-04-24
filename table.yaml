@@ -15,7 +15,7 @@ paths:
     delete:
       operationId: dropTable
     get:
-      operationId: getTable
+      operationId: getTableSchema
 
   /{table}/{+rest}:
     get: *get

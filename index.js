@@ -22,7 +22,7 @@ function RBCassandra (options) {
         operations: {
             createTable: this.createTable.bind(this),
             dropTable: this.dropTable.bind(this),
-            getTable: this.getTable.bind(this),
+            getTableSchema: this.getTableSchema.bind(this),
             get: this.get.bind(this),
             put: this.put.bind(this)
         }
@@ -147,9 +147,9 @@ RBCassandra.prototype.dropTable = function (rb, req) {
     });
 };
 
-RBCassandra.prototype.getTable = function (rb, req) {
+RBCassandra.prototype.getTableSchema = function (rb, req) {
     var domain = req.params.domain;
-    return this.store.getTable(domain, req.params.table)
+    return this.store.getTableSchema(domain, req.params.table)
     .then(function(res) {
         return {
             status: 200,
