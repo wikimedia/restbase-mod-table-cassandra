@@ -113,4 +113,74 @@ describe('Schema migration', function() {
                 'error message looks wrong');
         });
     });
+
+    it('handles column additions', function() {
+        var newSchema = clone(testTable0);
+        newSchema.version = 3;
+        newSchema.attributes.email = 'string';
+
+        return router.request({
+            uri: '/restbase.cassandra.test.local/sys/table/testTable0',
+            method: 'PUT',
+            body: newSchema
+        })
+        .then(function(response) {
+            assert.ok(response);
+            assert.deepEqual(response.status, 201);
+
+            return router.request({
+                uri: '/restbase.cassandra.test.local/sys/table/testTable0',
+                method: 'GET',
+            });
+        })
+        .then(function(response) {
+            assert.ok(response, 'undefined response');
+            assert.deepEqual(response.status, 200);
+            assert.deepEqual(hash(response.body), hash(newSchema));
+        });
+    });
+
+    it('handles column removals', function() {
+        var newSchema = clone(testTable0);
+        newSchema.version = 4;
+        delete newSchema.attributes.author;
+
+        return router.request({
+            uri: '/restbase.cassandra.test.local/sys/table/testTable0',
+            method: 'PUT',
+            body: newSchema
+        })
+        .then(function(response) {
+            assert.ok(response);
+            assert.deepEqual(response.status, 201);
+
+            return router.request({
+                uri: '/restbase.cassandra.test.local/sys/table/testTable0',
+                method: 'GET',
+            });
+        })
+        .then(function(response) {
+            assert.ok(response, 'undefined response');
+            assert.deepEqual(response.status, 200);
+            assert.deepEqual(hash(response.body), hash(newSchema));
+        });
+    });
+
+    it('refuses to remove indexed columns', function() {
+        var newSchema = clone(testTable0);
+        newSchema.version = 5;
+        delete newSchema.attributes.title;
+
+        return router.request({
+            uri: '/restbase.cassandra.test.local/sys/table/testTable0',
+            method: 'PUT',
+            body: newSchema
+        })
+        .then(function(response) {
+            assert.deepEqual(response.status, 500);
+            assert.ok(
+                    /is not in attributes/.test(response.body.stack),
+                    'error message looks wrong');
+        });
+    });
 });

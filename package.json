@@ -5,6 +5,7 @@
   "dependencies": {
     "async": "0.x.x",
     "bluebird": "~2.3.10",
+    "core-js": "^0.5.4",
     "cassandra-driver": "~2.0.0",
     "extend": "^2.0.0",
     "json-stable-stringify": "git+https://github.com/wikimedia/json-stable-stringify#master",
