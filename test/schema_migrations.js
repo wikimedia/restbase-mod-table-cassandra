@@ -4,15 +4,17 @@
 /* global describe, it, before, beforeEach, after, afterEach */
 
 var assert = require('assert');
+var dbu = require('../lib/dbutils');
+var extend = require('extend');
 var fs = require('fs');
 var makeClient = require('../lib/index');
 var router = require('./test_router.js');
 var yaml = require('js-yaml');
 
-var hash = JSON.stringify;
+var hash = dbu.makeSchemaHash;
 
 function clone(obj) {
-    return JSON.parse(JSON.stringify(obj));
+    return extend(true, {}, obj);
 }
 
 var testTable0 = {
@@ -43,7 +45,17 @@ var testTable0 = {
 
 describe('Schema migration', function() {
     before(function() {
-        return router.makeRouter();
+        return router.request({
+            uri: '/restbase.cassandra.test.local/sys/table/testTable0',
+            method: 'PUT',
+            body: testTable0
+        })
+        .then(function(response) {
+            assert.ok(response, 'undefined response');
+            assert.deepEqual(response.status, 201);
+
+            router.makeRouter();
+        });
     });
     after(function() {
         return router.request({
@@ -65,17 +77,7 @@ describe('Schema migration', function() {
         return router.request({
             uri: '/restbase.cassandra.test.local/sys/table/testTable0',
             method: 'PUT',
-            body: testTable0
-        })
-        .then(function(response) {
-            assert.ok(response, 'undefined response');
-            assert.deepEqual(response.status, 201);
-
-            return router.request({
-                uri: '/restbase.cassandra.test.local/sys/table/testTable0',
-                method: 'PUT',
-                body: newSchema
-            });
+            body: newSchema
         })
         .then(function(response) {
             assert.ok(response);

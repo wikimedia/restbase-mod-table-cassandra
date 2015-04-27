@@ -161,8 +161,8 @@ RBCassandra.prototype.getTableSchema = function (rb, req) {
         return {
             status: 500,
             body: {
-                type: 'table_query_error',
-                title: 'Internal error in Cassandra table storage backend',
+                type: 'schema_query_error',
+                title: 'Internal error querying table schema in Cassandra storage backend',
                 stack: e.stack,
                 err: e,
                 req: req
