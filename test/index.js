@@ -645,46 +645,54 @@ describe('DB backend', function() {
                 } ]);
             });
         });
-        //it('simple get with paging', function() {
-        //    return router.request({
-        //        uri:'/restbase.cassandra.test.local/sys/table/simple-table/',
-        //        method: 'get',
-        //        body: {
-        //            table: "simple-table",
-        //            pageSize: 1,
-        //            attributes: {
-        //                key: 'testing',
-        //            }
-        //        }
-        //    })
-        //    .then(function(response) {
-        //        deepEqual(response.body.items.length, 1);
-        //        return router.request({
-        //            uri:'/restbase.cassandra.test.local/sys/table/simple-table/',
-        //            method: 'get',
-        //            body: {
-        //                table: "simple-table",
-        //                pageSize: 1,
-        //                next: response.body.next,
-        //                attributes: {
-        //                    key: 'testing',
-        //                }
-        //            }
-        //        });
-        //    })
-        //    .then(function(response) {
-        //        deepEqual(response.body.items[0], { key: 'testing',
-        //            tid: '28730300-0095-11e3-9234-0123456789ab',
-        //            latestTid: null,
-        //            body: null,
-        //            'content-length': null,
-        //            'content-location': null,
-        //            'content-sha256': null,
-        //            'content-type': null,
-        //            restrictions: null
-        //        });
-        //    });
-        //});
+        it('simple get with paging', function() {
+            return router.request({
+                uri:'/restbase.cassandra.test.local/sys/table/simple-table/',
+                method: 'get',
+                body: {
+                    table: "simpleSecondaryIndexTable",
+                    limit: 1,
+                    attributes: {
+                        key: 'test2',
+                    }
+                }
+            })
+            .then(function(response) {
+                deepEqual(response.body.items.length, 1);
+                var next = response.body.next;
+                return router.request({
+                    uri:'/restbase.cassandra.test.local/sys/table/simple-table/',
+                    method: 'get',
+                    body: {
+                        table: "simpleSecondaryIndexTable",
+                        limit: 1,
+                        next: next,
+                        attributes: {
+                            key: 'test2',
+                        }
+                    }
+                });
+            })
+            .then(function(response) {
+                deepEqual(response.body.items.length, 1);
+                var next = response.body.next
+                return router.request({
+                    uri:'/restbase.cassandra.test.local/sys/table/simple-table/',
+                    method: 'get',
+                    body: {
+                        table: "simpleSecondaryIndexTable",
+                        limit: 1,
+                        next: next,
+                        attributes: {
+                            key: 'test2',
+                        }
+                    }
+                })
+            })
+            .then(function(response) {
+                deepEqual(response.body.items.length, 1);
+            });
+        });
         it("index query for values that doesn't match any more", function() {
             return router.request({
                 uri: "/restbase.cassandra.test.local/sys/table/simpleSecondaryIndexTable/",
