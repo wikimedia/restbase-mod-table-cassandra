@@ -48,14 +48,14 @@ var testTable0b = {
         by_rev : [
             { attribute: 'rev', type: 'hash' },
             { attribute: 'tid', type: 'range', order: 'desc' },
-            { attribute: 'comment', type: 'proj' },
             { attribute: 'title', type: 'range', order: 'asc' },
+            { attribute: 'comment', type: 'proj' }
         ]
     },
     index: [
-        { attribute: 'rev', type: 'range', order: 'desc' },
-        { attribute: 'tid', type: 'range', order: 'desc' },
         { attribute: 'title', type: 'hash' },
+        { attribute: 'rev', type: 'range', order: 'desc' },
+        { attribute: 'tid', type: 'range', order: 'desc' }
     ]
 };
 

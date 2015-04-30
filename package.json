@@ -7,6 +7,7 @@
     "bluebird": "~2.3.10",
     "cassandra-driver": "~2.0.0",
     "extend": "^2.0.0",
+    "json-stable-stringify": "git+https://github.com/wikimedia/json-stable-stringify#master",
     "js-yaml": "^3.2.5"
   },
   "repository": {
