@@ -22,6 +22,7 @@ function RBCassandra (options) {
         operations: {
             createTable: this.createTable.bind(this),
             dropTable: this.dropTable.bind(this),
+            getTableSchema: this.getTableSchema.bind(this),
             get: this.get.bind(this),
             put: this.put.bind(this)
         }
@@ -138,6 +139,30 @@ RBCassandra.prototype.dropTable = function (rb, req) {
             body: {
                 type: 'delete_error',
                 title: 'Internal error in Cassandra table storage backend',
+                stack: e.stack,
+                err: e,
+                req: req
+            }
+        };
+    });
+};
+
+RBCassandra.prototype.getTableSchema = function (rb, req) {
+    var domain = req.params.domain;
+    return this.store.getTableSchema(domain, req.params.table)
+    .then(function(res) {
+        return {
+            status: 200,
+            headers: { etag: res.tid.toString() },
+            body: res.schema
+        };
+    })
+    .catch(function(e) {
+        return {
+            status: 500,
+            body: {
+                type: 'schema_query_error',
+                title: 'Internal error querying table schema in Cassandra storage backend',
                 stack: e.stack,
                 err: e,
                 req: req
