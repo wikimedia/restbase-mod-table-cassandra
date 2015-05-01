@@ -67,7 +67,7 @@ describe('Schema migration', function() {
 
     it('migrates revision retention policies', function() {
         var newSchema = clone(testTable0);
-        newSchema.version = 1;
+        newSchema.version = 2;
         newSchema.revisionRetentionPolicy = {
             type: 'latest',
             count: 5,
