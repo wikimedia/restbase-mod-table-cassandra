@@ -651,21 +651,21 @@ describe('DB backend', function() {
                 method: 'get',
                 body: {
                     table: "simpleSecondaryIndexTable",
-                    limit: 1,
+                    limit: 2,
                     attributes: {
                         key: 'test2',
                     }
                 }
             })
             .then(function(response) {
-                deepEqual(response.body.items.length, 1);
+                deepEqual(response.body.items.length, 2);
                 var next = response.body.next;
                 return router.request({
                     uri:'/restbase.cassandra.test.local/sys/table/simple-table/',
                     method: 'get',
                     body: {
                         table: "simpleSecondaryIndexTable",
-                        limit: 1,
+                        limit: 2,
                         next: next,
                         attributes: {
                             key: 'test2',
@@ -674,7 +674,7 @@ describe('DB backend', function() {
                 });
             })
             .then(function(response) {
-                deepEqual(response.body.items.length, 1);
+                deepEqual(response.body.items.length, 2);
                 var next = response.body.next
                 return router.request({
                     uri:'/restbase.cassandra.test.local/sys/table/simple-table/',
@@ -690,7 +690,7 @@ describe('DB backend', function() {
                 })
             })
             .then(function(response) {
-                deepEqual(response.body.items.length, 1);
+                deepEqual(response.body.items.length, 0);
             });
         });
         it("index query for values that doesn't match any more", function() {
