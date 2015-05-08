@@ -115,7 +115,9 @@ function processRow (row) {
         // Don't delete the most recent render for this revision
         return P.resolve();
     } else if ((counts.rev > 0 && counts.render > 0)
-        || (counts.rev === 0 && counts.render > 10)) {
+        || (counts.rev === 0 && counts.render > 0
+            // Enforce a grace_ttl of 86400
+            && (Date.now() - row.tid.getDate()) > 86400)) {
         console.log(keys.rev, row.tid);
         var delQuery = 'delete from data where "_domain" = :domain and key = :key and rev = :rev and tid = :tid';
         row.domain = row._domain;
