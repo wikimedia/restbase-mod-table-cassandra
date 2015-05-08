@@ -101,16 +101,17 @@ function processRow (row) {
     keys = newKeys;
 
     // Now figure out what to do with this row
-    if (false && counts.title === 0 && counts.rev === 0 && counts.render === 0) {
-    var rowDate = row.tid.getDate();
-    if (false && /parsoid_html$/.test(process.argv[3])
-        && rowDate > new Date('2015-04-23T23:30-0700')
-        && rowDate < new Date('2015-04-24T13:00-0700')) {
-        return reRender(row);
-    } else {
-        return P.resolve();
-    }
-    console.log(row.tid.getDate());
+    if (false && counts.title === 0 && counts.rev === 0
+            && counts.render === 0) {
+        var rowDate = row.tid.getDate();
+        if (false && /parsoid_html$/.test(process.argv[3])
+            && rowDate > new Date('2015-04-23T23:30-0700')
+            && rowDate < new Date('2015-04-24T13:00-0700')) {
+            return reRender(row);
+        } else {
+            return P.resolve();
+        }
+        console.log(row.tid.getDate());
         //console.log(row);
         // Don't delete the most recent render for this revision
         return P.resolve();
@@ -140,11 +141,11 @@ function nextPage(pageState, retries) {
     })
     .catch(function(err) {
         console.log(retries, err);
-    console.log(pageState);
-    if (retries > 10) {
-        process.exit(1);
-    }
-    return nextPage(pageState, (retries || 0) + 1);
+        console.log(pageState);
+        if (retries > 10) {
+            process.exit(1);
+        }
+        return nextPage(pageState, (retries || 0) + 1);
     });
 }
 
