@@ -4,7 +4,7 @@
 /* global describe, it, before, beforeEach, after, afterEach */
 
 var assert = require('assert');
-var dbu = require('../lib/dbutils');
+var dbu = require('../../lib/dbutils');
 
 var testTable0a = {
     domain: 'restbase.cassandra.test.local',
