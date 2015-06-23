@@ -131,45 +131,5 @@ describe('MVCC revision policies', function() {
             assert.deepEqual(response.items.length, 2);
         });
     });
-
-    // XXX: Consider moving to a file of dbutils unit tests?
-    it('rejects invalid revision retention policy schema', function() {
-        var policies = [
-            {
-                type: 'bogus'    // Invalid
-            },
-            {
-                type: 'latest',
-                count: 1,
-                grace_ttl: 5     // Invalid
-            },
-            {
-                type: 'latest',
-                count: 0,        // Invalid
-                grace_ttl: 86400
-            }
-        ];
-
-        policies.forEach(function(policy) {
-            var schema = { revisionRetentionPolicy: policy };
-            assert.throws(
-                dbu.validateAndNormalizeRevPolicy.bind(null, schema),
-                Error,
-                'Validated an invalid schema');
-        });
-    });
-
-    it('defaults to retention \'all\'', function() {
-        var schemaInfo = dbu.makeSchemaInfo(
-                dbu.validateAndNormalizeSchema({
-                        attributes: {
-                            foo: 'int'
-                        },
-                        index: [
-                            { attribute: 'foo', type: 'hash' }
-                        ]
-                    }));
-        assert.deepEqual('all', schemaInfo.revisionRetentionPolicy.type);
-    });
 });
 
