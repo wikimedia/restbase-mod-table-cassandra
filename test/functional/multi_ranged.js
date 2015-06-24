@@ -1,14 +1,19 @@
+"use strict";
+
+// mocha defines to avoid JSHint breakage
+/* global describe, context, it, before, beforeEach, after, afterEach */
+
 var deepEqual = require('../utils/test_utils.js').deepEqual;
 var dbu = require('../../lib/dbutils.js');
 var router = require('../utils/test_router.js');
 
-describe("Db operation on a multiranged table", function() {
+describe("Table operation on Multiranged table", function() {
 
     before(function () { return router.setup(); });
 
-    describe('Create table', function() {
+    context('Create', function() {
         this.timeout(15000);
-        it('table with more than one range keys', function() {
+        it('successfully create table with more than one range keys', function() {
             return router.request({
                 uri: '/restbase.cassandra.test.local/sys/table/multiRangeTable',
                 method: 'put',
@@ -39,8 +44,8 @@ describe("Db operation on a multiranged table", function() {
         });
     });
 
-    describe('Put', function() {
-        it('simple put insert query on table with more than one range keys', function() {
+    context('Put', function() {
+        it('successfully insert a row with more than one range keys', function() {
             return router.request({
                 uri: '/restbase.cassandra.test.local/sys/table/multiRangeTable/',
                 method: 'put',
@@ -59,9 +64,9 @@ describe("Db operation on a multiranged table", function() {
         });
     });
 
-    describe('drop table', function() {
+    context('Drop', function() {
         this.timeout(15000);
-        it('drop table', function() {
+        it('successfully drop table', function() {
             return router.request({
                 uri: "/restbase.cassandra.test.local/sys/table/multiRangeTable",
                 method: "delete",

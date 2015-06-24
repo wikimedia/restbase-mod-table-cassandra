@@ -1,3 +1,8 @@
+"use strict";
+
+// mocha defines to avoid JSHint breakage
+/* global describe, context, it, before, beforeEach, after, afterEach */
+
 var deepEqual = require('../utils/test_utils.js').deepEqual;
 var dbu = require('../../lib/dbutils.js');
 var router = require('../utils/test_router.js');

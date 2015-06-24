@@ -1,3 +1,8 @@
+"use strict";
+
+// mocha defines to avoid JSHint breakage
+/* global describe, context, it, before, beforeEach, after, afterEach */
+
 var cass = require('cassandra-driver');
 var deepEqual = require('../utils/test_utils.js').deepEqual;
 var dbu = require('../../lib/dbutils.js');
@@ -6,17 +11,17 @@ var router = require('../utils/test_router.js');
 var TimeUuid = cass.types.TimeUuid;
 var db;
 
-describe('Db operations on a simple table', function() {
+describe('Table operations on a simple table', function() {
 
     before(function () { 
         return router.setup()
         .then(function(newdb) {
             db = newdb;
-        }) 
+        });
     });
 
-    describe('Create table', function() {
-        it('simple test table', function() {
+    context('Create', function() {
+        it('successfully create simple test table', function() {
             this.timeout(15000);
             return router.request({
                 uri: '/restbase.cassandra.test.local/sys/table/simple-table',
@@ -97,8 +102,8 @@ describe('Db operations on a simple table', function() {
         });
     });
 
-    describe('Put', function() {
-        it('simple put insert', function() {
+    context('Put', function() {
+        it('successfully insert a row', function() {
             return router.request({
                 uri: '/restbase.cassandra.test.local/sys/table/simple-table/',
                 method: 'put',
@@ -115,7 +120,7 @@ describe('Db operations on a simple table', function() {
                 deepEqual(response, {status:201});
             });
         });
-        it('simple put update', function() {
+        it('successfully update a row', function() {
             return router.request({
                 uri: '/restbase.cassandra.test.local/sys/table/simple-table/',
                 method: 'put',
@@ -132,17 +137,17 @@ describe('Db operations on a simple table', function() {
                 deepEqual(response, {status:201});
             });
         });
-        it('put with if not exists and non index attributes', function() {
+        it('successfully insert if not exists with non index attributes', function() {
             return router.request({
-                    uri: '/restbase.cassandra.test.local/sys/table/simple-table/',
-                    method: 'put',
-                    body: {
-                        table: "simple-table",
-                        if : "not exists",
-                        attributes: {
-                            key: "testing if not exists",
-                            tid: dbu.testTidFromDate(new Date('2013-08-10 18:43:58-0700')),
-                            body: new Buffer("<p>if not exists with non key attr</p>")
+                uri: '/restbase.cassandra.test.local/sys/table/simple-table/',
+                method: 'put',
+                body: {
+                    table: "simple-table",
+                    if : "not exists",
+                    attributes: {
+                        key: "testing if not exists",
+                        tid: dbu.testTidFromDate(new Date('2013-08-10 18:43:58-0700')),
+                        body: new Buffer("<p>if not exists with non key attr</p>")
                     }
                 }
             })
@@ -150,7 +155,7 @@ describe('Db operations on a simple table', function() {
                 deepEqual(response, {status:201});
             });
         });
-        it('put with if and non index attributes', function() {
+        it('successfully insert with if condition and non index attributes', function() {
             return router.request({
                 uri: '/restbase.cassandra.test.local/sys/table/simple-table/',
                 method: 'put',
@@ -168,7 +173,7 @@ describe('Db operations on a simple table', function() {
                 deepEqual(response, {status:201});
             });
         });
-        it('fill static columns', function() {
+        it('successfully insert static columns', function() {
             return router.request({
                 uri: '/restbase.cassandra.test.local/sys/table/simple-table/',
                 method: 'put',
@@ -218,8 +223,8 @@ describe('Db operations on a simple table', function() {
         });
     });
 
-    describe('Get', function() {
-        it('simple get', function() {
+    context('Get', function() {
+        it('successfully retrieve a row', function() {
             return router.request({
                 uri:'/restbase.cassandra.test.local/sys/table/simple-table/',
                 method: 'get',
@@ -245,7 +250,7 @@ describe('Db operations on a simple table', function() {
                 } ]);
             });
         });
-        it('simple between', function() {
+        it('successfully retrieve using between condition', function() {
             return router.request({
                 uri: '/restbase.cassandra.test.local/sys/table/simple-table/',
                 method: 'get',
@@ -273,7 +278,7 @@ describe('Db operations on a simple table', function() {
                 }]);
             });
         });
-        it('get static columns', function() {
+        it('successfully retrieve a static columns', function() {
             return router.request({
                 uri:'/restbase.cassandra.test.local/sys/table/simple-table/',
                 method: 'get',
@@ -302,7 +307,7 @@ describe('Db operations on a simple table', function() {
                             tid: dbu.testTidFromDate(new Date('2013-08-08 18:43:58-0700'))
                         }
                     }
-                })
+                });
             })
             .then(function(response) {
                 deepEqual(response.body.items.length, 1);
@@ -312,7 +317,7 @@ describe('Db operations on a simple table', function() {
                           dbu.testTidFromDate(new Date('2014-01-01 00:00:00')));
             });
         });
-        it('simple get with order by', function() {
+        it('successfully retrieve with order by', function() {
             return router.request({
                 uri:'/restbase.cassandra.test.local/sys/table/simple-table/',
                 method: 'get',
@@ -355,7 +360,7 @@ describe('Db operations on a simple table', function() {
         });
     });
 
-    describe('delete', function() {
+    context('delete', function() {
         it('simple delete query', function() {
             return db.delete('restbase.cassandra.test.local', {
                 table: "simple-table",
@@ -367,9 +372,9 @@ describe('Db operations on a simple table', function() {
         });
     });
 
-    describe('dropTable', function() {
+    context('Drop', function() {
         this.timeout(15000);
-        it('drop some simple table', function() {
+        it('successfully drop  table', function() {
             return router.request({
                 uri: "/restbase.cassandra.test.local/sys/table/simple-table",
                 method: "delete",
