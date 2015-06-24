@@ -1,3 +1,7 @@
+"use strict";
+
+// mocha defines to avoid JSHint breakage
+/* global describe, context, it, before, beforeEach, after, afterEach */
 
 var router = require('../utils/test_router.js');
 var testU = require('../utils/test_utils.js');
@@ -5,7 +9,7 @@ var deepEqual = require('../utils/test_utils.js').deepEqual;
 
 describe('Varint', function() {
     before(function () { return router.setup(); });
-    it('Create varint table', function() {
+    it('successfully create varint table', function() {
         this.timeout(10000);
         return router.request({
             uri: '/restbase.cassandra.test.local/sys/table/varintTable',
@@ -29,7 +33,7 @@ describe('Varint', function() {
             deepEqual(response.status, 201);
         });
     });
-    it('Get varint predicates', function() {
+    it('successfully retrieve varint predicates', function() {
         return router.request({
             uri: '/restbase.cassandra.test.local/sys/table/varintTable/',
             method: 'put',
@@ -113,7 +117,7 @@ describe('Varint', function() {
             deepEqual(result.body.items.length, 2);
         });
     });
-    it('drop some simple table', function() {
+    it('successfully drop table', function() {
         this.timeout(15000);
         return router.request({
             uri: "/restbase.cassandra.test.local/sys/table/varintTable",

@@ -1,3 +1,8 @@
+"use strict";
+
+// mocha defines to avoid JSHint breakage
+/* global describe, context, it, before, beforeEach, after, afterEach */
+
 var router = require('../utils/test_router.js');
 var testU = require('../utils/test_utils.js');
 
@@ -8,9 +13,9 @@ describe('Types and Sets', function() {
 
     before(function () { return router.setup(); });
 
-    describe('Types', function() {
+    context('Types', function() {
         this.timeout(5000);
-        it('create table', function() {
+        it('sucessfully create table with different types', function() {
             return router.request({
                 uri: '/restbase.cassandra.test.local/sys/table/typeTable',
                 method: 'put',
@@ -48,7 +53,7 @@ describe('Types and Sets', function() {
                 deepEqual(response.status, 201);
             });
         });
-        it('put', function() {
+        it('sucessfully insert rows with different types', function() {
             return router.request({
                 uri: '/restbase.cassandra.test.local/sys/table/typeTable/',
                 method: 'put',
@@ -77,7 +82,7 @@ describe('Types and Sets', function() {
                 deepEqual(response, {status:201});
             });
         });
-        it('put 2', function() {
+        it('sucessfully insert more rows with different types', function() {
             return router.request({
                 uri: '/restbase.cassandra.test.local/sys/table/typeTable/',
                 method: 'put',
@@ -106,7 +111,7 @@ describe('Types and Sets', function() {
                 deepEqual(response, {status:201});
             });
         });
-        it("get typeTable", function() {
+        it("sucessfully retrieve correct types we just intserted", function() {
             return router.request({
                 uri: '/restbase.cassandra.test.local/sys/table/typeTable/',
                 method: 'get',
@@ -158,7 +163,7 @@ describe('Types and Sets', function() {
                 }]);
             });
         });
-        it("get typeTable index", function() {
+        it("sucessfully retrievet index from typeTable", function() {
             return router.request({
                 uri: '/restbase.cassandra.test.local/sys/table/typeTable/',
                 method: 'get',
@@ -176,19 +181,19 @@ describe('Types and Sets', function() {
                 response.body.items[0].boolean = true;
             });
         });
-        it('drop table', function() {
+        it('sucessfully drop table', function() {
             this.timeout(15000);
             return router.request({
                 uri: "/restbase.cassandra.test.local/sys/table/typeTable",
                 method: "delete",
                 body: {}
-            })
+            });
         });
     });
 
-    describe('Sets', function() {
+    context('Sets', function() {
         this.timeout(5000);
-        it('create table', function() {
+        it('sucessfully create table with different sets types', function() {
             return router.request({
                 uri: '/restbase.cassandra.test.local/sys/table/typeSetsTable',
                 method: 'put',
@@ -219,7 +224,7 @@ describe('Types and Sets', function() {
                 deepEqual(response.status, 201);
             });
         });
-        it('put typeSetsTable, nulls and equivalents', function() {
+        it('sucessfully insert nulls and equivalents', function() {
             return router.request({
                 uri: '/restbase.cassandra.test.local/sys/table/typeSetsTable/',
                 method: 'put',
@@ -238,7 +243,7 @@ describe('Types and Sets', function() {
                 deepEqual(response, {status:201});
             });
         });
-        it('put sets', function() {
+        it('sucessfully insert sets', function() {
             return router.request({
                 uri: '/restbase.cassandra.test.local/sys/table/typeSetsTable/',
                 method: 'put',
@@ -269,7 +274,7 @@ describe('Types and Sets', function() {
                 deepEqual(response, {status:201});
             });
         });
-        it('get typeSetsTable, nulls and equivalents', function() {
+        it('sucessfully retrieve nulls and equivalents', function() {
             return router.request({
                 uri: '/restbase.cassandra.test.local/sys/table/typeSetsTable/',
                 method: 'get',
@@ -285,7 +290,7 @@ describe('Types and Sets', function() {
                 deepEqual(res.body.items[0].blob, null);
             });
         });
-        it("get sets", function() {
+        it("sucessfully retrieve sets", function() {
             return router.request({
                 uri: '/restbase.cassandra.test.local/sys/table/typeSetsTable/',
                 method: 'get',
@@ -331,7 +336,7 @@ describe('Types and Sets', function() {
                 });
             });
         });
-        it('drop table', function() {
+        it('sucessfully drop table', function() {
             this.timeout(15000);
             return router.request({
                 uri: "/restbase.cassandra.test.local/sys/table/typeSetsTable",
