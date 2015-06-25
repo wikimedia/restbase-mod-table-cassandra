@@ -7,13 +7,13 @@ var deepEqual = require('../utils/test_utils.js').deepEqual;
 var dbu = require('../../lib/dbutils.js');
 var router = require('../utils/test_router.js');
 
-describe("Table operation on Multiranged table", function() {
+describe("Multiranged tables", function() {
 
     before(function () { return router.setup(); });
 
     context('Create', function() {
         this.timeout(15000);
-        it('successfully create table with more than one range keys', function() {
+        it('creates table with more than one range key', function() {
             return router.request({
                 uri: '/restbase.cassandra.test.local/sys/table/multiRangeTable',
                 method: 'put',
@@ -45,7 +45,7 @@ describe("Table operation on Multiranged table", function() {
     });
 
     context('Put', function() {
-        it('successfully insert a row with more than one range keys', function() {
+        it('inserts a row with more than one range key', function() {
             return router.request({
                 uri: '/restbase.cassandra.test.local/sys/table/multiRangeTable/',
                 method: 'put',
@@ -66,7 +66,7 @@ describe("Table operation on Multiranged table", function() {
 
     context('Drop', function() {
         this.timeout(15000);
-        it('successfully drop table', function() {
+        it('drops table', function() {
             return router.request({
                 uri: "/restbase.cassandra.test.local/sys/table/multiRangeTable",
                 method: "delete",
