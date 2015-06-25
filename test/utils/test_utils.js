@@ -1,3 +1,5 @@
+"use strict";
+
 var assert = require('assert');
 var testUtils = {};
 
@@ -9,10 +11,10 @@ testUtils.deepEqual = function (result, expected) {
         console.log('Result:\n' + JSON.stringify(result, null, 2));
         throw e;
     }
-}
+};
 
 testUtils.roundDecimal = function (item) {
     return Math.round( item * 100) / 100;
-}
+};
 
 module.exports = testUtils;
