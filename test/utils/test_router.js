@@ -75,7 +75,7 @@ router.makeRouter = function(req) {
 
 var defautOpts = {
     log: function(level, info) {
-        if (!/^info|verbose|debug|trace/.test(level)) {
+        if (!/^info|verbose|debug|trace|warn/.test(level)) {
             console.log(level, info);
         }
     },
