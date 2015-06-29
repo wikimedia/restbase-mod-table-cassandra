@@ -7,11 +7,11 @@ var deepEqual = require('../utils/test_utils.js').deepEqual;
 var dbu = require('../../lib/dbutils.js');
 var router = require('../utils/test_router.js');
 
-describe('Handle invalid requests', function() {
+describe('Invalid request handling', function() {
 
     before(function () { return router.setup(); });
 
-    it('try a put on a non existing table', function() {
+    it('fails when writing to non-existent table', function() {
         return router.request({
             uri: '/restbase.cassandra.test.local/sys/table/unknownTable/',
             method: 'put',
@@ -28,7 +28,7 @@ describe('Handle invalid requests', function() {
         });
     });
 
-    it('try a get on a non existing table', function() {
+    it('fails when reading from non-existent table', function() {
         return router.request({
             uri: '/restbase.cassandra.test.local/sys/table/unknownTable/',
             method: 'get',

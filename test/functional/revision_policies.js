@@ -38,7 +38,7 @@ var testSchema = {
     }
 };
 
-describe('MVCC revision policies', function() {
+describe('MVCC revision policy', function() {
     var db;
     before(function() {
         return router.setup()

@@ -7,9 +7,9 @@ var router = require('../utils/test_router.js');
 var testU = require('../utils/test_utils.js');
 var deepEqual = require('../utils/test_utils.js').deepEqual;
 
-describe('Varint', function() {
+describe('Varint tables', function() {
     before(function () { return router.setup(); });
-    it('successfully create varint table', function() {
+    it('creates varint table', function() {
         this.timeout(10000);
         return router.request({
             uri: '/restbase.cassandra.test.local/sys/table/varintTable',
@@ -33,7 +33,7 @@ describe('Varint', function() {
             deepEqual(response.status, 201);
         });
     });
-    it('successfully retrieve varint predicates', function() {
+    it('retrieves using varint predicates', function() {
         return router.request({
             uri: '/restbase.cassandra.test.local/sys/table/varintTable/',
             method: 'put',
@@ -117,7 +117,7 @@ describe('Varint', function() {
             deepEqual(result.body.items.length, 2);
         });
     });
-    it('successfully drop table', function() {
+    it('drops table', function() {
         this.timeout(15000);
         return router.request({
             uri: "/restbase.cassandra.test.local/sys/table/varintTable",

@@ -10,12 +10,12 @@ var deepEqual = require('../utils/test_utils.js').deepEqual;
 
 var TimeUuid = cass.types.TimeUuid;
 
-describe('Secondary Indexes', function() {
+describe('Indices', function() {
 
     before(function () { return router.setup(); });
 
-    context('Table operations on Secondary Indexes', function() {
-        it('successfully create a secondary index table', function() {
+    context('Secondary indices', function() {
+        it('creates a secondary index table', function() {
             this.timeout(15000);
             return router.request({
                 uri: '/restbase.cassandra.test.local/sys/table/simpleSecondaryIndexTable',
@@ -48,7 +48,7 @@ describe('Secondary Indexes', function() {
                 deepEqual(response.status, 201);
             });
         });
-        it('successfully update indexes', function() {
+        it('successfully updates index', function() {
             return router.request({
                 uri: '/restbase.cassandra.test.local/sys/table/simpleSecondaryIndexTable/',
                 method: 'put',
@@ -168,7 +168,7 @@ describe('Secondary Indexes', function() {
                 deepEqual(response, {status:201});
             });
         });
-        it('successfully retrieve rows with paging enabled', function() {
+        it('retrieves rows with paging enabled', function() {
             return router.request({
                 uri:'/restbase.cassandra.test.local/sys/table/simpleSecondaryIndexTable/',
                 method: 'get',
@@ -216,7 +216,7 @@ describe('Secondary Indexes', function() {
                 deepEqual(response.body.items.length, 0);
             });
         });
-        it("throw 404 for values that doesn't match any more", function() {
+        it("throws 404 for values that no longer match", function() {
             return router.request({
                 uri: "/restbase.cassandra.test.local/sys/table/simpleSecondaryIndexTable/",
                 method: "get",
@@ -247,7 +247,7 @@ describe('Secondary Indexes', function() {
                 deepEqual(response.body.items.length, 0);
             });
         });
-        it("successfully retrieve current value", function() {
+        it("retrieves the current value", function() {
             return router.request({
                 uri: "/restbase.cassandra.test.local/sys/table/simpleSecondaryIndexTable/",
                 method: "get",
@@ -273,7 +273,7 @@ describe('Secondary Indexes', function() {
             });
         });
         this.timeout(15000);
-        it('successfully drop tables', function() {
+        it('successfully drop secondary index tables', function() {
             return router.request({
                     uri: "/restbase.cassandra.test.local/sys/table/simpleSecondaryIndexTable",
                     method: "delete",
@@ -282,8 +282,8 @@ describe('Secondary Indexes', function() {
         });
     });
 
-    context('Table operations on unversioned secondary Indexes', function() {
-        it('successfully create a secondary index table with no tid in range', function() {
+    context('Unversioned secondary indices', function() {
+        it('creates a secondary index table with no tid in range', function() {
             this.timeout(8000);
             return router.request({
                 uri: '/restbase.cassandra.test.local/sys/table/unversionedSecondaryIndexTable',
@@ -317,7 +317,7 @@ describe('Secondary Indexes', function() {
                 deepEqual(response.status, 201);
             });
         });
-        it('successfully insert a unversioned index', function() {
+        it('inserts into an unversioned index', function() {
             return router.request({
                 uri: '/restbase.cassandra.test.local/sys/table/unversionedSecondaryIndexTable/',
                 method: 'put',
@@ -334,7 +334,7 @@ describe('Secondary Indexes', function() {
                 deepEqual(response, {status:201});
             });
         });
-        it('successfully update a unversioned index', function() {
+        it('updates an unversioned index', function() {
             return router.request({
                 uri: '/restbase.cassandra.test.local/sys/table/unversionedSecondaryIndexTable/',
                 method: 'put',
@@ -352,7 +352,7 @@ describe('Secondary Indexes', function() {
             });
         });
         this.timeout(15000);
-        it('successfully drop tables', function() {
+        it('successfully drop unversioned secondary index tables', function() {
             return router.request({
                 uri: "/restbase.cassandra.test.local/sys/table/unversionedSecondaryIndexTable",
                 method: "delete",

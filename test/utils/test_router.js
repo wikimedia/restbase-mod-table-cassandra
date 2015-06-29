@@ -75,7 +75,7 @@ router.makeRouter = function(req) {
 
 var defautOpts = {
     log: function(level, info) {
-        if (!/^info|verbose|debug|trace/.test(level)) {
+        if (!/^info|verbose|debug|trace|warn/.test(level)) {
             console.log(level, info);
         }
     },
@@ -83,9 +83,8 @@ var defautOpts = {
 };
 var isUp = false;
 
-
 router.setup = function(_options) {
-    var self = this
+    var self = this;
     _options = _options || defautOpts;
     return makeClient(_options)
     .then(function(newDb) {
@@ -95,7 +94,7 @@ router.setup = function(_options) {
         });
     })
     .catch(function(e){console.log(e);});
-}
+};
 
 
 module.exports = router;
