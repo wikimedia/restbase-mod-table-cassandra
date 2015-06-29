@@ -316,6 +316,42 @@ describe('DB backend', function() {
                 deepEqual(response, {status:201});
             });
         });
+        it('put with an erroneous conditional if', function() {
+            return router.request({
+                    uri: '/restbase.cassandra.test.local/sys/table/simple-table/',
+                    method: 'put',
+                    body: {
+                        table: "simple-table",
+                        if: "bla = blah",
+                        attributes: {
+                            key: "testing erroneous conditional",
+                            tid: dbu.testTidFromDate(new Date('2013-08-10 18:43:58-0700')),
+                            body: new Buffer("<p>if not exists with non key attr</p>")
+                    }
+                }
+            })
+            .then(function(response) {
+                deepEqual(response.status, 500);
+            });
+        });
+        it('put with a conditional if not an object', function() {
+            return router.request({
+                    uri: '/restbase.cassandra.test.local/sys/table/simple-table/',
+                    method: 'put',
+                    body: {
+                        table: "simple-table",
+                        if: [1, 2, 3],
+                        attributes: {
+                            key: "testing erroneous conditional",
+                            tid: dbu.testTidFromDate(new Date('2013-08-10 18:43:58-0700')),
+                            body: new Buffer("<p>if not exists with non key attr</p>")
+                    }
+                }
+            })
+            .then(function(response) {
+                deepEqual(response.status, 500);
+            });
+        });
         it('put with if and non index attributes', function() {
             return router.request({
                 uri: '/restbase.cassandra.test.local/sys/table/simple-table/',
