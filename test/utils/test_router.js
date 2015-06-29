@@ -9,6 +9,7 @@ var fs = require('fs');
 var yaml = require('js-yaml');
 
 var RouteSwitch = require('routeswitch');
+var makeClient = require('../../lib/index.js');
 
 function setupConfigDefaults(conf) {
     if (!conf) {
@@ -61,7 +62,7 @@ router.makeRouter = function(req) {
         conf: conf
     };
 
-    return require('../index.js')(opt)
+    return require('../../index.js')(opt)
     .then(function(modDef) {
         self.newRouter = new RouteSwitch.fromHandlers([flatHandlerFromModDef(modDef, '/{domain}/sys/table')]);
         return self;
@@ -70,5 +71,30 @@ router.makeRouter = function(req) {
         console.log('Error during RESTBase startup: ', e);
     });
 };
+
+
+var defautOpts = {
+    log: function(level, info) {
+        if (!/^info|verbose|debug|trace|warn/.test(level)) {
+            console.log(level, info);
+        }
+    },
+    conf: yaml.safeLoad(fs.readFileSync( __dirname + '/../utils/test_router.conf.yaml'))
+};
+var isUp = false;
+
+router.setup = function(_options) {
+    var self = this;
+    _options = _options || defautOpts;
+    return makeClient(_options)
+    .then(function(newDb) {
+        return self.makeRouter()
+        .then(function(){
+            return newDb;
+        });
+    })
+    .catch(function(e){console.log(e);});
+};
+
 
 module.exports = router;

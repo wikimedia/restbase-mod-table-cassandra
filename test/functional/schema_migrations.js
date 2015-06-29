@@ -1,14 +1,13 @@
 "use strict";
 
 // mocha defines to avoid JSHint breakage
-/* global describe, it, before, beforeEach, after, afterEach */
+/* global describe, context, it, before, beforeEach, after, afterEach */
 
 var assert = require('assert');
-var dbu = require('../lib/dbutils');
+var dbu = require('../../lib/dbutils');
 var extend = require('extend');
 var fs = require('fs');
-var makeClient = require('../lib/index');
-var router = require('./test_router.js');
+var router = require('../utils/test_router.js');
 var yaml = require('js-yaml');
 
 var hash = dbu.makeSchemaHash;
@@ -53,8 +52,7 @@ describe('Schema migration', function() {
         .then(function(response) {
             assert.ok(response, 'undefined response');
             assert.deepEqual(response.status, 201);
-
-            router.makeRouter();
+            return router.setup();
         });
     });
     after(function() {
