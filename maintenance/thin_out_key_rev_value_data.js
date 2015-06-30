@@ -100,6 +100,8 @@ function processRow (row) {
     }
     keys = newKeys;
 
+    console.log('processing: ', keys.rev, new Date(row.tid.getDate()));
+
     // Now figure out what to do with this row
     if (false && counts.title === 0 && counts.rev === 0
             && counts.render === 0) {
@@ -118,8 +120,9 @@ function processRow (row) {
     } else if ((counts.rev > 0 && counts.render > 0)
         || (counts.rev === 0 && counts.render > 0
             // Enforce a grace_ttl of 86400
-            && (Date.now() - row.tid.getDate()) > 86400)) {
-        console.log(keys.rev, row.tid);
+            && (Date.now() - row.tid.getDate()) > 86400000)
+        || (counts.rev > 0 && (Date.now() - row.tid.getDate()) > (86400000 * 60))) {
+        console.log('-- deleting: ', keys.rev, new Date(row.tid.getDate()));
         var delQuery = 'delete from data where "_domain" = :domain and key = :key and rev = :rev and tid = :tid';
         row.domain = row._domain;
         return client.executeAsync(delQuery, row, { prepare: true });
