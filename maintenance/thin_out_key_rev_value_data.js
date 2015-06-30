@@ -121,7 +121,7 @@ function processRow (row) {
         || (counts.rev === 0 && counts.render > 0
             // Enforce a grace_ttl of 86400
             && (Date.now() - row.tid.getDate()) > 86400000)
-        || (counts.rev > 0 && (Date.now() - row.tid.getDate()) > (86400000 * 30))) {
+        || (counts.rev > 0 && (Date.now() - row.tid.getDate()) > (86400000 * 60))) {
         console.log('-- deleting: ', keys.rev, new Date(row.tid.getDate()));
         var delQuery = 'delete from data where "_domain" = :domain and key = :key and rev = :rev and tid = :tid';
         row.domain = row._domain;
