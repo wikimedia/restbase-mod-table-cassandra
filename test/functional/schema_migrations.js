@@ -44,15 +44,17 @@ var testTable0 = {
 
 describe('Schema migration', function() {
     before(function() {
-        return router.request({
-            uri: '/restbase.cassandra.test.local/sys/table/testTable0',
-            method: 'PUT',
-            body: testTable0
-        })
-        .then(function(response) {
-            assert.ok(response, 'undefined response');
-            assert.deepEqual(response.status, 201);
-            return router.setup();
+        router.setup()
+        .then(function() {
+            return router.request({
+                uri: '/restbase.cassandra.test.local/sys/table/testTable0',
+                method: 'PUT',
+                body: testTable0
+            })
+            .then(function(response) {
+                assert.ok(response, 'undefined response');
+                assert.deepEqual(response.status, 201);
+            });
         });
     });
     after(function() {
