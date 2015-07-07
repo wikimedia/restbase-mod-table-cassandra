@@ -1,14 +1,13 @@
 "use strict";
 
 // mocha defines to avoid JSHint breakage
-/* global describe, it, before, beforeEach, after, afterEach */
+/* global describe, context, it, before, beforeEach, after, afterEach */
 
 var assert = require('assert');
-var dbu = require('../lib/dbutils');
+var dbu = require('../../lib/dbutils');
 var extend = require('extend');
 var fs = require('fs');
-var makeClient = require('../lib/index');
-var router = require('./test_router.js');
+var router = require('../utils/test_router.js');
 var yaml = require('js-yaml');
 
 var hash = dbu.makeSchemaHash;
@@ -45,16 +44,17 @@ var testTable0 = {
 
 describe('Schema migration', function() {
     before(function() {
-        return router.request({
-            uri: '/restbase.cassandra.test.local/sys/table/testTable0',
-            method: 'PUT',
-            body: testTable0
-        })
-        .then(function(response) {
-            assert.ok(response, 'undefined response');
-            assert.deepEqual(response.status, 201);
-
-            router.makeRouter();
+        router.setup()
+        .then(function() {
+            return router.request({
+                uri: '/restbase.cassandra.test.local/sys/table/testTable0',
+                method: 'PUT',
+                body: testTable0
+            })
+            .then(function(response) {
+                assert.ok(response, 'undefined response');
+                assert.deepEqual(response.status, 201);
+            });
         });
     });
     after(function() {

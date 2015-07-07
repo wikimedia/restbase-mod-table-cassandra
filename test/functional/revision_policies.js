@@ -1,15 +1,12 @@
 "use strict";
 
 // mocha defines to avoid JSHint breakage
-/* global describe, it, before, beforeEach, after, afterEach */
+/* global describe, context, it, before, beforeEach, after, afterEach */
 
 var assert = require('assert');
-var cass = require('cassandra-driver');
-var dbu = require('../lib/dbutils.js');
+var dbu = require('../../lib/dbutils.js');
 var fs = require('fs');
-var makeClient = require('../lib/index');
-var TimeUuid = cass.types.TimeUuid;
-var yaml = require('js-yaml');
+var router = require('../utils/test_router.js');
 
 var testSchema = {
     table: 'revPolicyLatestTest',
@@ -41,17 +38,10 @@ var testSchema = {
     }
 };
 
-describe('MVCC revision policies', function() {
+describe('MVCC revision policy', function() {
     var db;
     before(function() {
-        return makeClient({
-            log: function(level, info) {
-                if (/^error|fatal/.test(level)) {
-                    console.log(level, info);
-                }
-            },
-            conf: yaml.safeLoad(fs.readFileSync(__dirname + '/test_router.conf.yaml'))
-        })
+        return router.setup()
         .then(function(newDb) {
             db = newDb;
         })
