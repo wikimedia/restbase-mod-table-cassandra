@@ -9,7 +9,6 @@ var fs = require('fs');
 var yaml = require('js-yaml');
 
 var RouteSwitch = require('routeswitch');
-var makeClient = require('../../lib/index.js');
 
 function setupConfigDefaults(conf) {
     if (!conf) {
@@ -54,7 +53,7 @@ function flatHandlerFromModDef (modDef, prefix) {
     return handler;
 }
 
-router.makeRouter = function(req) {
+router.makeRouter = function() {
     var self = this;
     var conf = setupConfigDefaults();
     var opt = {
@@ -72,27 +71,8 @@ router.makeRouter = function(req) {
     });
 };
 
-
-var defautOpts = {
-    log: function(level, info) {
-        if (!/^info|verbose|debug|trace|warn/.test(level)) {
-            console.log(level, info);
-        }
-    },
-    conf: yaml.safeLoad(fs.readFileSync( __dirname + '/../utils/test_router.conf.yaml'))
-};
-var isUp = false;
-
-router.setup = function(_options) {
-    var self = this;
-    _options = _options || defautOpts;
-    return makeClient(_options)
-    .then(function(newDb) {
-        return self.makeRouter()
-        .then(function(){
-            return newDb;
-        });
-    })
+router.setup = function() {
+    return this.makeRouter()
     .catch(function(e){console.log(e);});
 };
 

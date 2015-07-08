@@ -25,6 +25,7 @@
     "istanbul": "0.3.5",
     "mocha-lcov-reporter": "0.0.1",
     "mocha": "x.x.x",
-    "mocha-jshint": "0.0.9"
+    "mocha-jshint": "0.0.9",
+    "cassandra-uuid":"^0.0.2"
   }
 }

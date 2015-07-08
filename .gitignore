@@ -5,3 +5,4 @@ npm-debug.log
 .tern-project
 .tern-port
 *~
+.idea/*

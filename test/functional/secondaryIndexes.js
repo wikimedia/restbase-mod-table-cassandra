@@ -3,12 +3,9 @@
 // mocha defines to avoid JSHint breakage
 /* global describe, context, it, before, beforeEach, after, afterEach */
 
-var assert = require('assert');
-var cass = require('cassandra-driver');
 var router = require('../utils/test_router.js');
 var deepEqual = require('../utils/test_utils.js').deepEqual;
-
-var TimeUuid = cass.types.TimeUuid;
+var TimeUuid = require('cassandra-uuid').TimeUuid;
 
 describe('Indices', function() {
 
@@ -56,7 +53,7 @@ describe('Indices', function() {
                     table: "simpleSecondaryIndexTable",
                     attributes: {
                         key: "test",
-                        tid: TimeUuid.now(),
+                        tid: TimeUuid.now().toString(),
                         uri: "uri1",
                         body: 'body1'
                     },
@@ -72,7 +69,7 @@ describe('Indices', function() {
                         table: "simpleSecondaryIndexTable",
                         attributes: {
                             key: "test",
-                            tid: TimeUuid.now(),
+                            tid: TimeUuid.now().toString(),
                             uri: "uri2",
                             body: 'body2'
                         }
@@ -89,7 +86,7 @@ describe('Indices', function() {
                         table: "simpleSecondaryIndexTable",
                         attributes: {
                             key: "test",
-                            tid: TimeUuid.now(),
+                            tid: TimeUuid.now().toString(),
                             uri: "uri3",
                             body: 'body3'
                         },
@@ -106,7 +103,7 @@ describe('Indices', function() {
                         table: "simpleSecondaryIndexTable",
                         attributes: {
                             key: "test2",
-                            tid: TimeUuid.now(),
+                            tid: TimeUuid.now().toString(),
                             uri: "uri1",
                             body: 'test_body1'
                         }
@@ -123,7 +120,7 @@ describe('Indices', function() {
                         table: "simpleSecondaryIndexTable",
                         attributes: {
                             key: "test2",
-                            tid: TimeUuid.now(),
+                            tid: TimeUuid.now().toString(),
                             uri: "uri2",
                             body: 'test_body2'
                         },
@@ -139,7 +136,7 @@ describe('Indices', function() {
                         table: "simpleSecondaryIndexTable",
                         attributes: {
                             key: "test2",
-                            tid: TimeUuid.now(),
+                            tid: TimeUuid.now().toString(),
                             uri: "uri3",
                             body: 'test_body3'
                         }
@@ -156,7 +153,7 @@ describe('Indices', function() {
                         table: "simpleSecondaryIndexTable",
                         attributes: {
                             key: "test2",
-                            tid: TimeUuid.now(),
+                            tid: TimeUuid.now().toString(),
                             uri: "uri3",
                             // Also test projection updates
                             body: 'test_body3_modified'

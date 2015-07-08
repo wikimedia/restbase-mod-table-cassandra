@@ -3,22 +3,13 @@
 // mocha defines to avoid JSHint breakage
 /* global describe, context, it, before, beforeEach, after, afterEach */
 
-var cass = require('cassandra-driver');
-var deepEqual = require('../utils/test_utils.js').deepEqual;
-var dbu = require('../../lib/dbutils.js');
 var router = require('../utils/test_router.js');
-
-var TimeUuid = cass.types.TimeUuid;
-var db;
+var deepEqual = require('../utils/test_utils.js').deepEqual;
+var utils = require('../utils/test_utils.js');
 
 describe('Simple tables', function() {
 
-    before(function () { 
-        return router.setup()
-        .then(function(newdb) {
-            db = newdb;
-        });
-    });
+    before(function () { return router.setup(); });
 
     context('Create', function() {
         it('creates a simple test table', function() {
@@ -112,7 +103,7 @@ describe('Simple tables', function() {
                     consistency: 'localQuorum',
                     attributes: {
                         key: 'testing',
-                        tid: dbu.testTidFromDate(new Date('2013-08-08 18:43:58-0700')),
+                        tid: utils.testTidFromDate(new Date('2013-08-08 18:43:58-0700')),
                     }
                 }
             })
@@ -128,7 +119,7 @@ describe('Simple tables', function() {
                     table: 'simple-table',
                     attributes: {
                         key: "testing",
-                        tid: dbu.testTidFromDate(new Date('2013-08-09 18:43:58-0700')),
+                        tid: utils.testTidFromDate(new Date('2013-08-09 18:43:58-0700')),
                         body: new Buffer("<p>Service Oriented Architecture</p>")
                     }
                 }
@@ -146,7 +137,7 @@ describe('Simple tables', function() {
                     if : "not exists",
                     attributes: {
                         key: "testing if not exists",
-                        tid: dbu.testTidFromDate(new Date('2013-08-10 18:43:58-0700')),
+                        tid: utils.testTidFromDate(new Date('2013-08-10 18:43:58-0700')),
                         body: new Buffer("<p>if not exists with non key attr</p>")
                     }
                 }
@@ -163,7 +154,7 @@ describe('Simple tables', function() {
                     table: "simple-table",
                     attributes: {
                         key: "another test",
-                        tid: dbu.testTidFromDate(new Date('2013-08-11 18:43:58-0700')),
+                        tid: utils.testTidFromDate(new Date('2013-08-11 18:43:58-0700')),
                         body: new Buffer("<p>test<p>")
                     },
                     if: { body: { "eq": new Buffer("<p>Service Oriented Architecture</p>") } }
@@ -181,8 +172,8 @@ describe('Simple tables', function() {
                     table: 'simple-table',
                     attributes: {
                         key: 'test',
-                        tid: dbu.testTidFromDate(new Date('2013-08-09 18:43:58-0700')),
-                        latestTid: dbu.testTidFromDate(new Date('2014-01-01 00:00:00')),
+                        tid: utils.testTidFromDate(new Date('2013-08-09 18:43:58-0700')),
+                        latestTid: utils.testTidFromDate(new Date('2014-01-01 00:00:00')),
                     }
                 }
             })
@@ -195,9 +186,9 @@ describe('Simple tables', function() {
                         table: 'simple-table',
                         attributes: {
                             key: 'test2',
-                            tid: dbu.testTidFromDate(new Date('2013-08-08 18:43:58-0700')),
+                            tid: utils.testTidFromDate(new Date('2013-08-08 18:43:58-0700')),
                             body: new Buffer("<p>test<p>"),
-                            latestTid: dbu.testTidFromDate(new Date('2014-01-01 00:00:00')),
+                            latestTid: utils.testTidFromDate(new Date('2014-01-01 00:00:00')),
                         }
                     }
                 });
@@ -211,8 +202,8 @@ describe('Simple tables', function() {
                         table: 'simple-table',
                         attributes: {
                             key: 'test',
-                            tid: dbu.testTidFromDate(new Date('2013-08-08 18:43:58-0700')),
-                            latestTid: dbu.testTidFromDate(new Date('2014-01-02 00:00:00'))
+                            tid: utils.testTidFromDate(new Date('2013-08-08 18:43:58-0700')),
+                            latestTid: utils.testTidFromDate(new Date('2014-01-02 00:00:00'))
                         }
                     }
                 });
@@ -232,7 +223,7 @@ describe('Simple tables', function() {
                     table: "simple-table",
                     attributes: {
                         key: 'testing',
-                        tid: dbu.testTidFromDate(new Date('2013-08-08 18:43:58-0700'))
+                        tid: utils.testTidFromDate(new Date('2013-08-08 18:43:58-0700'))
                     }
                 }
             })
@@ -259,8 +250,8 @@ describe('Simple tables', function() {
                     //from: 'foo', // key to start the query from (paging)
                     limit: 3,
                     attributes: {
-                        tid: { "BETWEEN": [ dbu.testTidFromDate(new Date('2013-07-08 18:43:58-0700')),
-                        dbu.testTidFromDate(new Date('2013-08-08 18:45:58-0700'))] },
+                        tid: { "BETWEEN": [ utils.testTidFromDate(new Date('2013-07-08 18:43:58-0700')),
+                            utils.testTidFromDate(new Date('2013-08-08 18:45:58-0700'))] },
                         key: "testing"
                     }
                 }
@@ -287,7 +278,7 @@ describe('Simple tables', function() {
                     proj: ["key", "tid", "latestTid", "body"],
                     attributes: {
                         key: 'test2',
-                        tid: dbu.testTidFromDate(new Date('2013-08-08 18:43:58-0700'))
+                        tid: utils.testTidFromDate(new Date('2013-08-08 18:43:58-0700'))
                     }
                 }
             })
@@ -295,8 +286,8 @@ describe('Simple tables', function() {
                 deepEqual(response.body.items.length, 1);
                 deepEqual(response.body.items[0].key, 'test2');
                 deepEqual(response.body.items[0].body, new Buffer("<p>test<p>"));
-                deepEqual(TimeUuid.fromString(response.body.items[0].latestTid), 
-                          dbu.testTidFromDate(new Date('2014-01-01 00:00:00')));
+                deepEqual(response.body.items[0].latestTid,
+                    utils.testTidFromDate(new Date('2014-01-01 00:00:00')));
                 return router.request({
                     uri:'/restbase.cassandra.test.local/sys/table/simple-table/',
                     method: 'get',
@@ -304,7 +295,7 @@ describe('Simple tables', function() {
                         table: "simple-table",
                         attributes: {
                             key: 'test',
-                            tid: dbu.testTidFromDate(new Date('2013-08-08 18:43:58-0700'))
+                            tid: utils.testTidFromDate(new Date('2013-08-08 18:43:58-0700'))
                         }
                     }
                 });
@@ -313,8 +304,8 @@ describe('Simple tables', function() {
                 deepEqual(response.body.items.length, 1);
                 deepEqual(response.body.items[0].key, 'test');
                 deepEqual(response.body.items[0].tid, '28730300-0095-11e3-9234-0123456789ab');
-                deepEqual(TimeUuid.fromString(response.body.items[0].latestTid),
-                          dbu.testTidFromDate(new Date('2014-01-01 00:00:00')));
+                deepEqual(response.body.items[0].latestTid,
+                    utils.testTidFromDate(new Date('2014-01-01 00:00:00')));
             });
         });
         it('retrieves using order by', function() {
@@ -331,10 +322,10 @@ describe('Simple tables', function() {
             })
             .then(function(response) {
                 deepEqual(response.body.items.length, 2);
-                deepEqual(TimeUuid.fromString(response.body.items[0].latestTid),
-                          dbu.testTidFromDate(new Date('2014-01-01 00:00:00')));
-                deepEqual(TimeUuid.fromString(response.body.items[1].latestTid),
-                          dbu.testTidFromDate(new Date('2014-01-01 00:00:00')));
+                deepEqual(response.body.items[0].latestTid,
+                    utils.testTidFromDate(new Date('2014-01-01 00:00:00')));
+                deepEqual(response.body.items[1].latestTid,
+                    utils.testTidFromDate(new Date('2014-01-01 00:00:00')));
                 delete response.body.items[0].latestTid;
                 delete response.body.items[1].latestTid;
                 deepEqual(response.body.items, [{
@@ -356,18 +347,6 @@ describe('Simple tables', function() {
                     'content-location': null,
                     restrictions: null,
                 }]);
-            });
-        });
-    });
-
-    context('Delete', function() {
-        it('deletes row', function() {
-            return db.delete('restbase.cassandra.test.local', {
-                table: "simple-table",
-                attributes: {
-                    tid: dbu.testTidFromDate(new Date('2013-08-09 18:43:58-0700')),
-                    key: "testing"
-                }
             });
         });
     });

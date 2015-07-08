@@ -4,7 +4,6 @@
 /* global describe, context, it, before, beforeEach, after, afterEach */
 
 var router = require('../utils/test_router.js');
-var testU = require('../utils/test_utils.js');
 var deepEqual = require('../utils/test_utils.js').deepEqual;
 
 describe('Varint tables', function() {

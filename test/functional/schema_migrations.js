@@ -3,14 +3,9 @@
 // mocha defines to avoid JSHint breakage
 /* global describe, context, it, before, beforeEach, after, afterEach */
 
-var assert = require('assert');
-var dbu = require('../../lib/dbutils');
-var extend = require('extend');
-var fs = require('fs');
 var router = require('../utils/test_router.js');
-var yaml = require('js-yaml');
-
-var hash = dbu.makeSchemaHash;
+var assert = require('assert');
+var extend = require('extend');
 
 function clone(obj) {
     return extend(true, {}, obj);
@@ -44,7 +39,7 @@ var testTable0 = {
 
 describe('Schema migration', function() {
     before(function() {
-        router.setup()
+        return router.setup()
         .then(function() {
             return router.request({
                 uri: '/restbase.cassandra.test.local/sys/table/testTable0',
@@ -57,6 +52,7 @@ describe('Schema migration', function() {
             });
         });
     });
+
     after(function() {
         return router.request({
             uri: '/restbase.cassandra.test.local/sys/table/testTable0',
@@ -91,7 +87,7 @@ describe('Schema migration', function() {
         .then(function(response) {
             assert.ok(response, 'undefined response');
             assert.deepEqual(response.status, 200);
-            assert.deepEqual(hash(response.body), hash(newSchema));
+            assert.deepEqual(response.body, newSchema);
         });
     });
 
@@ -127,7 +123,6 @@ describe('Schema migration', function() {
         .then(function(response) {
             assert.ok(response);
             assert.deepEqual(response.status, 201);
-
             return router.request({
                 uri: '/restbase.cassandra.test.local/sys/table/testTable0',
                 method: 'GET',
@@ -136,7 +131,7 @@ describe('Schema migration', function() {
         .then(function(response) {
             assert.ok(response, 'undefined response');
             assert.deepEqual(response.status, 200);
-            assert.deepEqual(hash(response.body), hash(newSchema));
+            assert.deepEqual(response.body, newSchema);
         });
     });
 
@@ -162,7 +157,7 @@ describe('Schema migration', function() {
         .then(function(response) {
             assert.ok(response, 'undefined response');
             assert.deepEqual(response.status, 200);
-            assert.deepEqual(hash(response.body), hash(newSchema));
+            assert.deepEqual(response.body, newSchema);
         });
     });
 
