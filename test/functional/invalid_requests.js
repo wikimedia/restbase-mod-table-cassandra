@@ -3,12 +3,11 @@
 // mocha defines to avoid JSHint breakage
 /* global describe, context, it, before, beforeEach, after, afterEach */
 
-var deepEqual = require('../utils/test_utils.js').deepEqual;
-var dbu = require('../../lib/dbutils.js');
 var router = require('../utils/test_router.js');
+var utils = require('../utils/test_utils.js');
+var deepEqual = utils.deepEqual;
 
 describe('Invalid request handling', function() {
-
     before(function () { return router.setup(); });
 
     it('fails when writing to non-existent table', function() {
@@ -19,7 +18,7 @@ describe('Invalid request handling', function() {
                 table: 'unknownTable',
                 attributes: {
                     key: 'testing',
-                    tid: dbu.testTidFromDate(new Date('2013-08-08 18:43:58-0700')),
+                    tid: utils.testTidFromDate(new Date('2013-08-08 18:43:58-0700')),
                 }
             }
         })
@@ -36,7 +35,7 @@ describe('Invalid request handling', function() {
                 table: 'unknownTable',
                 attributes: {
                     key: 'testing',
-                    tid: dbu.testTidFromDate(new Date('2013-08-08 18:43:58-0700')),
+                    tid: utils.testTidFromDate(new Date('2013-08-08 18:43:58-0700')),
                 }
             }
         })

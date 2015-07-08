@@ -3,10 +3,9 @@
 // mocha defines to avoid JSHint breakage
 /* global describe, context, it, before, beforeEach, after, afterEach */
 
-var assert = require('assert');
-var dbu = require('../../lib/dbutils.js');
-var fs = require('fs');
 var router = require('../utils/test_router.js');
+var assert = require('assert');
+var utils = require('../utils/test_utils.js');
 
 var testSchema = {
     table: 'revPolicyLatestTest',
@@ -65,7 +64,7 @@ describe('MVCC revision policy', function() {
             attributes: {
                 title: 'Revisioned',
                 rev: 1000,
-                tid: dbu.testTidFromDate(new Date("2015-04-01 12:00:00-0500")),
+                tid: utils.testTidFromDate(new Date("2015-04-01 12:00:00-0500")),
                 comment: 'once',
                 author: 'jsmith'
             }
@@ -80,7 +79,7 @@ describe('MVCC revision policy', function() {
                 attributes: {
                     title: 'Revisioned',
                     rev: 1000,
-                    tid: dbu.testTidFromDate(new Date("2015-04-01 12:00:01-0500")),
+                    tid: utils.testTidFromDate(new Date("2015-04-01 12:00:01-0500")),
                     comment: 'twice',
                     author: 'jsmith'
                 }
@@ -95,7 +94,7 @@ describe('MVCC revision policy', function() {
                 attributes: {
                     title: 'Revisioned',
                     rev: 1000,
-                    tid: dbu.testTidFromDate(new Date("2015-04-01 12:00:02-0500")),
+                    tid: utils.testTidFromDate(new Date("2015-04-01 12:00:02-0500")),
                     comment: 'thrice',
                     author: 'jsmith'
                 }

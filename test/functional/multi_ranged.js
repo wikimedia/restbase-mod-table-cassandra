@@ -3,9 +3,9 @@
 // mocha defines to avoid JSHint breakage
 /* global describe, context, it, before, beforeEach, after, afterEach */
 
-var deepEqual = require('../utils/test_utils.js').deepEqual;
-var dbu = require('../../lib/dbutils.js');
 var router = require('../utils/test_router.js');
+var utils = require('../utils/test_utils.js');
+var deepEqual = utils.deepEqual;
 
 describe("Multiranged tables", function() {
     this.timeout(15000);
@@ -50,7 +50,7 @@ describe("Multiranged tables", function() {
                 table: "multiRangeTable",
                 attributes: {
                     key: 'testing',
-                    tid: dbu.testTidFromDate(new Date('2013-08-08 18:43:58-0700')),
+                    tid: utils.testTidFromDate(new Date('2013-08-08 18:43:58-0700')),
                     uri: "test"
                 },
             }
