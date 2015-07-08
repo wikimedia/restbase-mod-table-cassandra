@@ -38,14 +38,14 @@ var testSchema = {
 };
 
 describe('MVCC revision policy', function() {
-    var db;
     before(function() {
         return router.setup()
-        .then(function(newDb) {
-            db = newDb;
-        })
         .then(function() {
-            return db.createTable("domains_test", testSchema)
+            return router.request({
+                uri: '/domains_test/sys/table/' + testSchema.table,
+                method: 'put',
+                body: testSchema
+            })
             .then(function(response) {
                 assert.deepEqual(response.status, 201);
             });
@@ -53,50 +53,66 @@ describe('MVCC revision policy', function() {
     });
 
     after(function() {
-        return db.dropTable("domains_test", 'revPolicyLatestTest');
+        return router.request({
+            uri: '/domains_test/sys/table/revPolicyLatestTest',
+            method: 'delete',
+            body: {}
+        });
     });
 
     it('sets a TTL on all but the latest N entries', function() {
         this.timeout(12000);
-        return db.put('domains_test', {
-            table: 'revPolicyLatestTest',
-            consistency: 'localQuorum',
-            attributes: {
-                title: 'Revisioned',
-                rev: 1000,
-                tid: utils.testTidFromDate(new Date("2015-04-01 12:00:00-0500")),
-                comment: 'once',
-                author: 'jsmith'
+        return router.request({
+            uri: '/domains_test/sys/table/revPolicyLatestTest/',
+            method: 'put',
+            body: {
+                table: 'revPolicyLatestTest',
+                consistency: 'localQuorum',
+                attributes: {
+                    title: 'Revisioned',
+                    rev: 1000,
+                    tid: utils.testTidFromDate(new Date("2015-04-01 12:00:00-0500")),
+                    comment: 'once',
+                    author: 'jsmith'
+                }
             }
         })
         .then(function(response) {
             assert.deepEqual(response.status, 201);
         })
         .then(function() {
-            return db.put('domains_test', {
-                table: 'revPolicyLatestTest',
-                consistency: 'localQuorum',
-                attributes: {
-                    title: 'Revisioned',
-                    rev: 1000,
-                    tid: utils.testTidFromDate(new Date("2015-04-01 12:00:01-0500")),
-                    comment: 'twice',
-                    author: 'jsmith'
+            return router.request({
+                uri: '/domains_test/sys/table/revPolicyLatestTest/',
+                method: 'put',
+                body: {
+                    table: 'revPolicyLatestTest',
+                    consistency: 'localQuorum',
+                    attributes: {
+                        title: 'Revisioned',
+                        rev: 1000,
+                        tid: utils.testTidFromDate(new Date("2015-04-01 12:00:01-0500")),
+                        comment: 'twice',
+                        author: 'jsmith'
+                    }
                 }
             });
         })
         .then(function(response) {
             assert.deepEqual(response, {status:201});
 
-            return db.put('domains_test', {
-                table: 'revPolicyLatestTest',
-                consistency: 'localQuorum',
-                attributes: {
-                    title: 'Revisioned',
-                    rev: 1000,
-                    tid: utils.testTidFromDate(new Date("2015-04-01 12:00:02-0500")),
-                    comment: 'thrice',
-                    author: 'jsmith'
+            return router.request({
+                uri: '/domains_test/sys/table/revPolicyLatestTest/',
+                method: 'put',
+                body: {
+                    table: 'revPolicyLatestTest',
+                    consistency: 'localQuorum',
+                    attributes: {
+                        title: 'Revisioned',
+                        rev: 1000,
+                        tid: utils.testTidFromDate(new Date("2015-04-01 12:00:02-0500")),
+                        comment: 'thrice',
+                        author: 'jsmith'
+                    }
                 }
             });
         })
@@ -106,18 +122,22 @@ describe('MVCC revision policy', function() {
         .then(function(response) {
             assert.deepEqual(response, {status: 201});
 
-            return db.get('domains_test', {
-                table: 'revPolicyLatestTest',
-                attributes: {
-                    title: 'Revisioned',
-                    rev: 1000,
-                },
+            return router.request({
+                uri: '/domains_test/sys/table/revPolicyLatestTest/',
+                method: 'get',
+                body: {
+                    table: 'revPolicyLatestTest',
+                    attributes: {
+                        title: 'Revisioned',
+                        rev: 1000
+                    }
+                }
             });
         })
         .then(function(response) {
-            assert.ok(response);
-            assert.ok(response.items);
-            assert.deepEqual(response.items.length, 2);
+            assert.ok(response.body);
+            assert.ok(response.body.items);
+            assert.deepEqual(response.body.items.length, 2);
         });
     });
 });

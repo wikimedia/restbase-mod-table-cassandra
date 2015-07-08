@@ -6,16 +6,10 @@
 var router = require('../utils/test_router.js');
 var deepEqual = require('../utils/test_utils.js').deepEqual;
 var utils = require('../utils/test_utils.js');
-var db;
 
 describe('Simple tables', function() {
 
-    before(function () { 
-        return router.setup()
-        .then(function(newdb) {
-            db = newdb;
-        });
-    });
+    before(function () { return router.setup(); });
 
     context('Create', function() {
         it('creates a simple test table', function() {
@@ -353,18 +347,6 @@ describe('Simple tables', function() {
                     'content-location': null,
                     restrictions: null,
                 }]);
-            });
-        });
-    });
-
-    context('Delete', function() {
-        it('deletes row', function() {
-            return db.delete('restbase.cassandra.test.local', {
-                table: "simple-table",
-                attributes: {
-                    tid: utils.testTidFromDate(new Date('2013-08-09 18:43:58-0700')),
-                    key: "testing"
-                }
             });
         });
     });
