@@ -18,14 +18,12 @@
     "coverage": "istanbul cover _mocha -- -R spec",
     "coveralls": "cat ./coverage/lcov.info | coveralls"
   },
-    "devDependencies": {
-    "core-js": "^0.5.4",
+  "devDependencies": {
     "coveralls": "2.11.2",
-    "routeswitch": "~0.6.3",
     "istanbul": "0.3.5",
     "mocha-lcov-reporter": "0.0.1",
     "mocha": "x.x.x",
     "mocha-jshint": "0.0.9",
-    "cassandra-uuid":"^0.0.2"
+    "cassandra-mod-table-spec": "git+https://github.com/wikimedia/restbase-mod-table-spec#master"
   }
 }
