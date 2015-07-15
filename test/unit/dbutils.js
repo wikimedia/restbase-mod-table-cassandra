@@ -103,6 +103,18 @@ describe('DB utilities', function() {
         assert(matching.length === 3, 'incorrect number of TTL\'d attributes');
         assert.deepEqual(matching.sort(), ["_del", "author", "comment"]);
     });
+
+    it('builds SELECTS with an included LIMIT', function() {
+        var req = {
+            keyspace: 'keyspace',
+            columnfamily: 'columnfamily',
+            domain: 'en.wikipedia.org',
+            schema: dbu.makeSchemaInfo(dbu.validateAndNormalizeSchema(testTable0a)),
+            query: {},
+        };
+        var cql = dbu.buildGetQuery(req, { limit: 42 }).cql;
+        assert(cql.toLowerCase().includes('limit 42'), 'missing limit clause');
+    });
 });
 
 describe('Schema validation', function() {
