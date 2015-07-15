@@ -15,7 +15,8 @@ var testTable0a = {
         rev: 'int',
         tid: 'timeuuid',
         comment: 'string',
-        author: 'string'
+        author: 'string',
+        tags: 'set<string>'
     },
     index: [
         { attribute: 'title', type: 'hash' },
@@ -41,7 +42,8 @@ var testTable0b = {
         rev: 'int',
         tid: 'timeuuid',
         author: 'string',
-        comment: 'string'
+        comment: 'string',
+        tags: 'set<string>'
     },
     domain: 'restbase.cassandra.test.local',
     secondaryIndexes: {
@@ -59,12 +61,59 @@ var testTable0b = {
     ]
 };
 
-
 describe('DB utilities', function() {
     it('generates deterministic hash', function() {
         assert.deepEqual(
             dbu.makeSchemaHash(testTable0a),
             dbu.makeSchemaHash(testTable0b));
+    });
+
+    it('builds SELECTs with included TTLs', function() {
+        var req = {
+            keyspace: 'keyspace',
+            columnfamily: 'columnfamily',
+            domain: 'en.wikipedia.org',
+            schema: dbu.makeSchemaInfo(dbu.validateAndNormalizeSchema(testTable0a)),
+            query: {},
+        };
+        var statement = dbu.buildGetQuery(req, { withTTLs: true });
+        var match = statement.cql.match(/select (.+) from .+$/i);
+
+        assert(match.length === 2, 'result has no matching projection');
+
+        var projs = match[1].split(',').map(function(i) { return i.trim(); });
+
+        var exp = /TTL\((.+)\) as "_ttl_(.+)"/;
+
+        // There should be 8 non-ttl attributes total.
+        assert(projs.filter(function(v) { return !exp.test(v); }).length === 8);
+
+        var matching = [];
+        projs.filter(function(v) { return exp.test(v); }).forEach(
+            function(v) {
+                var v1 = v.match(exp)[1];
+                var v2 = v.match(exp)[2];
+                assert.deepEqual(v1, dbu.cassID(v2));
+                matching.push(v2);
+            }
+        );
+
+        // matching should include _del, author, and comment only; should only
+        // include non-index, and non-collection attributes.
+        assert(matching.length === 3, 'incorrect number of TTL\'d attributes');
+        assert.deepEqual(matching.sort(), ["_del", "author", "comment"]);
+    });
+
+    it('builds SELECTS with an included LIMIT', function() {
+        var req = {
+            keyspace: 'keyspace',
+            columnfamily: 'columnfamily',
+            domain: 'en.wikipedia.org',
+            schema: dbu.makeSchemaInfo(dbu.validateAndNormalizeSchema(testTable0a)),
+            query: {},
+        };
+        var cql = dbu.buildGetQuery(req, { limit: 42 }).cql;
+        assert(cql.toLowerCase().includes('limit 42'), 'missing limit clause');
     });
 });
 
