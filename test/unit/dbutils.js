@@ -76,7 +76,7 @@ describe('DB utilities', function() {
             schema: dbu.makeSchemaInfo(dbu.validateAndNormalizeSchema(testTable0a)),
             query: {},
         };
-        var statement = dbu.buildGetQuery(req, true);
+        var statement = dbu.buildGetQuery(req, { withTTLs: true });
         var match = statement.cql.match(/select (.+) from .+$/i);
 
         assert(match.length === 2, 'result has no matching projection');
