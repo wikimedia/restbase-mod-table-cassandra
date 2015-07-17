@@ -80,6 +80,8 @@ var keys = {
     rev: null,
 };
 
+
+
 function processRow (row) {
     // Create a new set of keys
     var newKeys = {
@@ -132,12 +134,37 @@ function processRow (row) {
     return P.resolve();
 }
 
-//var query = 'select "_domain", key, rev, tid from data where token("_domain",key) > -6004964422032836805';
+// Parse optional start offsets
+var startOffset = {
+    token: null,
+    domain: null,
+    key: null,
+    pageState: null,
+};
+
+if (parseInt(process.argv[4]) && !process.argv[5]) {
+    startOffset.token = parseInt(process.argv[4]);
+} else if (process.argv[4] && process.argv[5]) {
+    startOffset.domain = process.argv[4];
+    startOffset.key = process.argv[5];
+} else if (process.argv[4]) {
+    startOffset.pageState = process.argv[4];
+}
+
+
 var query = 'select "_domain", key, rev, tid from data';
+var params = [];
+if (startOffset.token) {
+    query += ' where token("_domain",key) > ' + startOffset.token;
+} else if (startOffset.domain) {
+    query += ' where token("_domain",key) > token(?, ?)';
+    params.push(startOffset.domain);
+    params.push(startOffset.key);
+}
 
 function nextPage(pageState, retries) {
     //console.log(pageState);
-    return client.executeAsync(query, [], {
+    return client.executeAsync(query, params, {
         prepare: true,
         fetchSize: retries ? 1 : 50,
         pageState: pageState,
@@ -167,8 +194,4 @@ function processRows(pageState) {
     });
 }
 
-var pageState;
-if (process.argv[4]) {
-    var pageState = process.argv[4];
-}
-return processRows(pageState);
+return processRows(startOffset.pageState);
