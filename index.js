@@ -4,12 +4,7 @@
  */
 
 // global includes
-var fs = require('fs');
-var yaml = require('js-yaml');
-var util = require('util');
-
-// TODO: move to separate package!
-var spec = yaml.safeLoad(fs.readFileSync(__dirname + '/table.yaml'));
+var spec = require('restbase-mod-table-spec').spec;
 
 function RBCassandra (options) {
     this.options = options;

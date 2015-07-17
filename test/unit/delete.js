@@ -3,8 +3,7 @@
 // mocha defines to avoid JSHint breakage
 /* global describe, it, before, beforeEach, after, afterEach */
 
-var deepEqual = require('../utils/test_utils.js').deepEqual;
-var utils = require('../utils/test_utils.js');
+var utils = require('restbase-mod-table-spec').testUtils;
 var fs = require('fs');
 var yaml = require('js-yaml');
 var makeDB = require('../../lib/index.js');
@@ -18,7 +17,7 @@ describe('Delete', function() {
                     console.log(level, info);
                 }
             },
-            conf: yaml.safeLoad(fs.readFileSync(__dirname + '/../utils/test_router.conf.yaml'))
+            conf: yaml.safeLoad(fs.readFileSync(__dirname + '/../utils/test_client.conf.yaml'))
         };
         return makeDB(defautOpts)
         .then(function(newdb) {
