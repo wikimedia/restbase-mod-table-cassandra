@@ -7,6 +7,7 @@
 
 var P = require('bluebird');
 var cassandra = P.promisifyAll(require('cassandra-driver'));
+var consistencies = cassandra.types.consistencies;
 var util = require('util');
 var preq = require('preq');
 
@@ -80,7 +81,7 @@ var keys = {
     rev: null,
 };
 
-
+var total = 0;
 
 function processRow (row) {
     // Create a new set of keys
@@ -102,7 +103,10 @@ function processRow (row) {
     }
     keys = newKeys;
 
-    console.log('processing: ', keys.rev, new Date(row.tid.getDate()));
+    total++;
+    if ((total % 500000) === 0) {
+        console.log(new Date() + ': processed ' + total + ' total entries');
+    }
 
     // Now figure out what to do with this row
     if (false && counts.title === 0 && counts.rev === 0
@@ -123,11 +127,14 @@ function processRow (row) {
         || (counts.rev === 0 && counts.render > 0
             // Enforce a grace_ttl of 86400
             && (Date.now() - row.tid.getDate()) > 86400000)
-        || (counts.rev > 0 && row.tid.getDate() < Date.parse('2015-07-10T13:00-0700'))) {
-        console.log('-- deleting: ', keys.rev, new Date(row.tid.getDate()));
+        || (counts.rev > 0 && row.tid.getDate() <  Date.parse('2015-07-10T13:00-0700'))) {
+        console.log('-- deleting:', row._token.toString(), row.tid.getDate().toISOString(), keys.rev);
         var delQuery = 'delete from data where "_domain" = :domain and key = :key and rev = :rev and tid = :tid';
         row.domain = row._domain;
-        return client.executeAsync(delQuery, row, { prepare: true });
+        return client.executeAsync(delQuery, row, {
+            prepare: true,
+            consistency: cassandra.types.consistencies.quorum
+        });
     }
 
     // Else: nothing to do
@@ -142,7 +149,9 @@ var startOffset = {
     pageState: null,
 };
 
-if (parseInt(process.argv[4]) && !process.argv[5]) {
+if (/^-?[0-9]{1,30}$/.test(process.argv[4])
+        && parseInt(process.argv[4])
+        && !process.argv[5]) {
     startOffset.token = parseInt(process.argv[4]);
 } else if (process.argv[4] && process.argv[5]) {
     startOffset.domain = process.argv[4];
@@ -152,15 +161,17 @@ if (parseInt(process.argv[4]) && !process.argv[5]) {
 }
 
 
-var query = 'select "_domain", key, rev, tid from data';
+var query = 'select "_domain", key, rev, tid, token("_domain",key) as "_token" from data';
 var params = [];
 if (startOffset.token) {
-    query += ' where token("_domain",key) >= ' + startOffset.token;
+    query += ' where token("_domain",key) >= ?';
+    params.push(startOffset.token);
 } else if (startOffset.domain) {
     query += ' where token("_domain",key) >= token(?, ?)';
     params.push(startOffset.domain);
     params.push(startOffset.key);
 }
+
 
 function nextPage(pageState, retryDelay) {
     //console.log(pageState);
@@ -168,16 +179,17 @@ function nextPage(pageState, retryDelay) {
         prepare: true,
         fetchSize: retryDelay ? 1 : 50,
         pageState: pageState,
-        consistency: cassandra.types.consistencies.quorum,
+        consistency: retryDelay ? consistencies.one : consistencies.quorum,
     })
     .catch(function(err) {
-        console.log(retryDelay, err);
-        console.log(pageState);
-        if (retryDelay > 5000000) {
-            process.exit(1);
-        }
         retryDelay = retryDelay || 1; // ms
-        retryDelay *= 2 + Math.random();
+        // Retry at least roughly once per 30 minutes
+        if (retryDelay < 900 * 1000) {
+            retryDelay *= 2 + Math.random();
+        }
+        console.log('Error:', err);
+        console.log('PageState:', pageState);
+        console.log('Retrying after', retryDelay / 1000, 'seconds...');
         return new P(function(resolve, reject) {
             setTimeout(function() {
                 nextPage(pageState, retryDelay)
@@ -194,10 +206,13 @@ function processRows(pageState) {
         return P.resolve(res.rows)
         .each(processRow)
         .then(function() {
-            process.nextTick(function() { processRows(res.pageState); });
+            process.nextTick(function() {
+                processRows(res.pageState);
+            });
         })
         .catch(function(e) {
             console.log(res.pageState);
+            console.log(e);
             throw e;
         });
     });
