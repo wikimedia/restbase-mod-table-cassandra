@@ -155,27 +155,36 @@ if (parseInt(process.argv[4]) && !process.argv[5]) {
 var query = 'select "_domain", key, rev, tid from data';
 var params = [];
 if (startOffset.token) {
-    query += ' where token("_domain",key) > ' + startOffset.token;
+    query += ' where token("_domain",key) >= ' + startOffset.token;
 } else if (startOffset.domain) {
-    query += ' where token("_domain",key) > token(?, ?)';
+    query += ' where token("_domain",key) >= token(?, ?)';
     params.push(startOffset.domain);
     params.push(startOffset.key);
 }
 
-function nextPage(pageState, retries) {
+function nextPage(pageState, retryDelay) {
     //console.log(pageState);
     return client.executeAsync(query, params, {
         prepare: true,
-        fetchSize: retries ? 1 : 50,
+        fetchSize: retryDelay ? 1 : 50,
         pageState: pageState,
+        consistency: cassandra.types.consistencies.quorum,
     })
     .catch(function(err) {
-        console.log(retries, err);
+        console.log(retryDelay, err);
         console.log(pageState);
-        if (retries > 10) {
+        if (retryDelay > 5000000) {
             process.exit(1);
         }
-        return nextPage(pageState, (retries || 0) + 1);
+        retryDelay = retryDelay || 1; // ms
+        retryDelay *= 2 + Math.random();
+        return new P(function(resolve, reject) {
+            setTimeout(function() {
+                nextPage(pageState, retryDelay)
+                    .then(resolve)
+                    .catch(reject);
+            }, retryDelay);
+        });
     });
 }
 
