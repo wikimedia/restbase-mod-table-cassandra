@@ -4,7 +4,7 @@
   "version": "0.7.5",
   "dependencies": {
     "bluebird": "~2.8.2",
-    "cassandra-driver": "~2.0.0",
+    "cassandra-driver": "~2.1.2",
     "extend": "^2.0.0",
     "json-stable-stringify": "git+https://github.com/wikimedia/json-stable-stringify#master",
     "js-yaml": "^3.2.5",
