@@ -84,6 +84,26 @@ var keys = {
 
 var total = 0;
 
+// Parse optional start offsets
+var startOffset = {
+    token: null,
+    domain: null,
+    key: null,
+    pageState: null,
+};
+
+if (/^-?[0-9]{1,30}$/.test(process.argv[4])
+        && parseInt(process.argv[4])
+        && !process.argv[5]) {
+    startOffset.token = ctypes.Long.fromString(process.argv[4]);
+} else if (process.argv[4] && process.argv[5]) {
+    startOffset.domain = process.argv[4];
+    startOffset.key = process.argv[5];
+} else if (process.argv[4]) {
+    startOffset.pageState = process.argv[4];
+}
+
+
 function processRow (row) {
     // Create a new set of keys
     var newKeys = {
@@ -143,25 +163,6 @@ function processRow (row) {
 
     // Else: nothing to do
     return P.resolve();
-}
-
-// Parse optional start offsets
-var startOffset = {
-    token: null,
-    domain: null,
-    key: null,
-    pageState: null,
-};
-
-if (/^-?[0-9]{1,30}$/.test(process.argv[4])
-        && parseInt(process.argv[4])
-        && !process.argv[5]) {
-    startOffset.token = ctypes.Long.fromString(process.argv[4]);
-} else if (process.argv[4] && process.argv[5]) {
-    startOffset.domain = process.argv[4];
-    startOffset.key = process.argv[5];
-} else if (process.argv[4]) {
-    startOffset.pageState = process.argv[4];
 }
 
 
