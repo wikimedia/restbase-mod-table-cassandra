@@ -8,6 +8,7 @@
 var P = require('bluebird');
 var cassandra = P.promisifyAll(require('cassandra-driver'));
 var consistencies = cassandra.types.consistencies;
+var ctypes = cassandra.types;
 var util = require('util');
 var preq = require('preq');
 
@@ -83,12 +84,35 @@ var keys = {
 
 var total = 0;
 
+// Parse optional start offsets
+var startOffset = {
+    token: null,
+    domain: null,
+    key: null,
+    pageState: null,
+};
+
+if (/^-?[0-9]{1,30}$/.test(process.argv[4])
+        && parseInt(process.argv[4])
+        && !process.argv[5]) {
+    startOffset.token = ctypes.Long.fromString(process.argv[4]);
+} else if (process.argv[4] && process.argv[5]) {
+    startOffset.domain = process.argv[4];
+    startOffset.key = process.argv[5];
+} else if (process.argv[4]) {
+    startOffset.pageState = process.argv[4];
+}
+
+
 function processRow (row) {
     // Create a new set of keys
     var newKeys = {
         title: JSON.stringify([row._domain, row.key]),
         rev: JSON.stringify([row._domain, row.key, row.rev])
     };
+
+    // Keep track of our latest token
+    startOffset.token = row._token;
 
     // Diff the keys and update counters
     if (newKeys.title !== keys.title) {
@@ -141,41 +165,29 @@ function processRow (row) {
     return P.resolve();
 }
 
-// Parse optional start offsets
-var startOffset = {
-    token: null,
-    domain: null,
-    key: null,
-    pageState: null,
-};
 
-if (/^-?[0-9]{1,30}$/.test(process.argv[4])
-        && parseInt(process.argv[4])
-        && !process.argv[5]) {
-    startOffset.token = parseInt(process.argv[4]);
-} else if (process.argv[4] && process.argv[5]) {
-    startOffset.domain = process.argv[4];
-    startOffset.key = process.argv[5];
-} else if (process.argv[4]) {
-    startOffset.pageState = process.argv[4];
-}
-
-
-var query = 'select "_domain", key, rev, tid, token("_domain",key) as "_token" from data';
-var params = [];
-if (startOffset.token) {
-    query += ' where token("_domain",key) >= ?';
-    params.push(startOffset.token);
-} else if (startOffset.domain) {
-    query += ' where token("_domain",key) >= token(?, ?)';
-    params.push(startOffset.domain);
-    params.push(startOffset.key);
+function getQuery () {
+    var cql = 'select "_domain", key, rev, tid, token("_domain",key) as "_token" from data';
+    var params = [];
+    if (startOffset.token) {
+        cql += ' where token("_domain",key) >= ?';
+        params.push(startOffset.token);
+    } else if (startOffset.domain) {
+        cql += ' where token("_domain",key) >= token(?, ?)';
+        params.push(startOffset.domain);
+        params.push(startOffset.key);
+    }
+    return {
+        cql: cql,
+        params: params,
+    };
 }
 
 
 function nextPage(pageState, retryDelay) {
     //console.log(pageState);
-    return client.executeAsync(query, params, {
+    var query = getQuery();
+    return client.executeAsync(query.cql, query.params, {
         prepare: true,
         fetchSize: retryDelay ? 1 : 50,
         pageState: pageState,
@@ -183,12 +195,21 @@ function nextPage(pageState, retryDelay) {
     })
     .catch(function(err) {
         retryDelay = retryDelay || 1; // ms
-        // Retry at least roughly once per 30 minutes
-        if (retryDelay < 900 * 1000) {
+        if (retryDelay < 20 * 1000) {
             retryDelay *= 2 + Math.random();
+        } else if (startOffset.token) {
+            // page over the problematic spot
+            console.log('Skipping over problematic token:',
+                startOffset.token.toString());
+            startOffset.token = startOffset.token.add(500000000);
+            console.log('Retrying with new token:',
+                startOffset.token.toString());
+            return nextPage(null, retryDelay);
         }
+
         console.log('Error:', err);
         console.log('PageState:', pageState);
+        console.log('Last token:', startOffset.token.toString());
         console.log('Retrying in', Math.round(retryDelay) / 1000, 'seconds...');
         return new P(function(resolve, reject) {
             setTimeout(function() {
