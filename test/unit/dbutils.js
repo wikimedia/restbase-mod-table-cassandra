@@ -5,6 +5,7 @@
 
 var assert = require('assert');
 var dbu = require('../../lib/dbutils');
+var validator = require('restbase-mod-table-spec').validator;
 
 var testTable0a = {
     domain: 'restbase.cassandra.test.local',
@@ -73,7 +74,7 @@ describe('DB utilities', function() {
             keyspace: 'keyspace',
             columnfamily: 'columnfamily',
             domain: 'en.wikipedia.org',
-            schema: dbu.makeSchemaInfo(dbu.validateAndNormalizeSchema(testTable0a)),
+            schema: dbu.makeSchemaInfo(validator.validateAndNormalizeSchema(testTable0a)),
             query: {},
         };
         var statement = dbu.buildGetQuery(req, { withTTLs: true });
@@ -109,7 +110,7 @@ describe('DB utilities', function() {
             keyspace: 'keyspace',
             columnfamily: 'columnfamily',
             domain: 'en.wikipedia.org',
-            schema: dbu.makeSchemaInfo(dbu.validateAndNormalizeSchema(testTable0a)),
+            schema: dbu.makeSchemaInfo(validator.validateAndNormalizeSchema(testTable0a)),
             query: {},
         };
         var cql = dbu.buildGetQuery(req, { limit: 42 }).cql;
@@ -138,7 +139,7 @@ describe('Schema validation', function() {
         policies.forEach(function(policy) {
             var schema = { revisionRetentionPolicy: policy };
             assert.throws(
-                dbu.validateAndNormalizeRevPolicy.bind(null, schema),
+                validator.validateAndNormalizeSchema.bind(null, schema),
                 Error,
                 'Validated an invalid schema');
         });
@@ -146,7 +147,7 @@ describe('Schema validation', function() {
 
     it('defaults revision retention policy to \'all\'', function() {
         var schemaInfo = dbu.makeSchemaInfo(
-                dbu.validateAndNormalizeSchema({
+                validator.validateAndNormalizeSchema({
                         attributes: {
                             foo: 'int'
                         },

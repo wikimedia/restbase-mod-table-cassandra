@@ -8,7 +8,7 @@
     "extend": "^2.0.0",
     "json-stable-stringify": "git+https://github.com/wikimedia/json-stable-stringify#master",
     "js-yaml": "^3.2.5",
-    "cassandra-mod-table-spec": "git+https://github.com/wikimedia/restbase-mod-table-spec#master"
+    "cassandra-mod-table-spec": "^0.0.2"
   },
   "repository": {
     "type": "git",
