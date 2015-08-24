@@ -144,6 +144,7 @@ General idea: `bucket//indexName/key1/..`
 - http://www.datastax.com/dev/blog/advanced-time-series-with-cassandra
 - [CASSANDRA-2897: Secondary indexes without read-before-write](https://issues.apache.org/jira/browse/CASSANDRA-2897)
 - http://jyates.github.io/2012/07/09/consistent-enough-secondary-indexes.html
+- [Scalable Atomic Visibility with RAMP Transactions - Bailis et al. 2014](https://amplab.cs.berkeley.edu/wp-content/uploads/2014/04/ramp-sigmod2014.pdf)
 
 Still somewhat related:
 
