@@ -30,7 +30,7 @@ describe('Table creation', function() {
     before(function() {
         return makeClient({
             log: function(level, info) {
-                if (!/^info|warn|verbose|debug|trace/.test(level)) {
+                if (/^error|fatal/.test(level)) {
                     console.log(level, info);
                 }
             },
@@ -38,8 +38,6 @@ describe('Table creation', function() {
         })
         .then(function(newDb) {
             db = newDb;
-        })
-        .then(function() {
             return db.createTable('restbase.cassandra.test.local', testTable0);
         })
         .then(function(response) {
