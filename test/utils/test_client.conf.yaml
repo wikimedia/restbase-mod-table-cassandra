@@ -5,6 +5,9 @@ keyspace: system
 username: cassandra
 password: cassandra
 defaultConsistency: one
+localDc: datacenter1
+datacenters:
+ - datacenter1
 salt_key: secret
 maxLimit: 250
 storage_groups:

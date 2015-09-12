@@ -1,0 +1,72 @@
+"use strict";
+
+// mocha defines to avoid JSHint breakage
+/* global describe, it, before, beforeEach, after, afterEach */
+
+var assert = require('assert');
+var dbu = require('../../lib/dbutils');
+var fs = require('fs');
+var makeClient = require('../../lib/index');
+var yaml = require('js-yaml');
+
+var testTable0 = {
+    table: 'replicationTest',
+    attributes: {
+        title: 'string',
+        rev: 'int',
+        tid: 'timeuuid',
+        comment: 'string',
+        author: 'string'
+    },
+    index: [
+        { attribute: 'title', type: 'hash' },
+        { attribute: 'rev', type: 'range', order: 'desc' },
+        { attribute: 'tid', type: 'range', order: 'desc' }
+    ],
+};
+
+describe('Table creation', function() {
+    var db;
+    before(function() {
+        return makeClient({
+            log: function(level, info) {
+                if (/^error|fatal/.test(level)) {
+                    console.log(level, info);
+                }
+            },
+            conf: yaml.safeLoad(fs.readFileSync(__dirname + '/../utils/test_client.conf.yaml'))
+        })
+        .then(function(newDb) {
+            db = newDb;
+            return db.createTable('restbase.cassandra.test.local', testTable0);
+        })
+        .then(function(response) {
+            assert.ok(response, 'undefined response');
+            assert.deepEqual(response.status, 201);
+        });
+    });
+    after(function() {
+        db.dropTable('restbase.cassandra.test.local', testTable0.table);
+    });
+
+    it('updates Cassandra replication', function() {
+        return db._getReplication('restbase.cassandra.test.local', testTable0.table)
+        .then(function(response) {
+            assert.ok(response, 'undefined response');
+            assert.strictEqual(Object.keys(response).length, 1, 'incorrect number of results');
+
+            // Add one datacenter, and update.
+            db.conf.datacenters.push('new_dc');
+            return db._updateReplicationIfNecessary('restbase.cassandra.test.local', testTable0.table);
+        })
+        .then(function() {
+            return db._getReplication('restbase.cassandra.test.local', testTable0.table);
+        })
+        .then(function(response) {
+            assert.ok(response, 'undefined response');
+            assert.strictEqual(Object.keys(response).length, 2, 'incorrect number of results');
+            assert.ok(response.new_dc, 'additional datacenter not present');
+            assert.strictEqual(response.new_dc, 3, 'incorrect replica count');
+        });
+    });
+});
