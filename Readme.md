@@ -24,7 +24,7 @@ In production since March 2015.
 [![Build Status](https://travis-ci.org/wikimedia/restbase-mod-table-cassandra.svg?branch=master)](https://travis-ci.org/wikimedia/restbase-mod-table-cassandra)
 [![coverage status](https://coveralls.io/repos/wikimedia/restbase-mod-table-cassandra/badge.svg)](https://coveralls.io/r/wikimedia/restbase-mod-table-cassandra)
 
-Features:
+### Features
 - basic table storage service with REST interface, backed by Cassandra,
     implementing [the RESTBase table storage interface][spec]
 - multi-tenant design: domain creation, prepared for per-domain ACLs
