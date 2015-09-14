@@ -140,16 +140,21 @@ General idea: `bucket//indexName/key1/..`
 ```
 
 ## Related
+- http://jyates.github.io/2012/07/09/consistent-enough-secondary-indexes.html
+- [SLIK: Scalable Low-Latency Indexes for a Key-Value Store - Kejrival et al. 2015](https://ramcloud.atlassian.net/wiki/download/attachments/6848671/slik.pdf) -- very similar approach
+- [Materialized views in Cassandra
+    3](https://phabricator.wikimedia.org/T111746)
 - https://github.com/Netflix/s3mper
 - http://www.datastax.com/dev/blog/advanced-time-series-with-cassandra
 - [CASSANDRA-2897: Secondary indexes without read-before-write](https://issues.apache.org/jira/browse/CASSANDRA-2897)
-- http://jyates.github.io/2012/07/09/consistent-enough-secondary-indexes.html
+
+
+Somewhat related:
+
 - [Scalable Atomic Visibility with RAMP Transactions - Bailis et al. 2014](https://amplab.cs.berkeley.edu/wp-content/uploads/2014/04/ramp-sigmod2014.pdf)
-
-Still somewhat related:
-
 - [Article about built-in secondary indexes](http://www.wentnet.com/blog/?p=77)
     - only support equality, and are only efficient if # of expected results
       is roughly equal to the number of nodes; each query goes to all nodes
 - [Old presentation on indexing in Cassandra; slides 35 to 46 are
   interesting](http://www.slideshare.net/edanuff/indexing-in-cassandra)
+
