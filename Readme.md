@@ -54,3 +54,111 @@ In production since March 2015.
 - [Leverage Cassandra 3 materialized
     views](https://phabricator.wikimedia.org/T111746) where it makes sense,
     once those have stabilized.
+
+## Configuration
+Configuration of this module takes place from within an `x-modules` stanza in the YAML-formatted
+[RESTBase configuration file](https://github.com/wikimedia/restbase/blob/master/config.example.wikimedia.yaml).
+While complete configuration of RESTBase is beyond the scope of this document, (see the
+[RESTBase docs](https://github.com/wikimedia/restbase) for that), this section covers the
+[restbase-mod-table-cassandra](https://github.com/wikimedia/restbase-mod-table-cassandra) specifics.
+
+```yaml
+    - name: restbase-mod-table-cassandra
+      version: 1.0.0
+      type: npm
+      options: # Passed to the module constructor
+        conf:
+          hosts: [localhost]
+          username: cassandra
+          password: cassandra
+          defaultConsistency: localOne
+          localDc: datacenter1
+          datacenters:
+            - datacenter1
+          storage_groups:
+            - name: default.group.local
+              domains: /./
+```
+
+### Hosts
+A list of Cassandra nodes to use as contact points.
+
+```yaml
+    hosts:
+      - cassandra-01.sample.org
+      - cassandra-02.sample.org
+      - cassandra-03.sample.org
+```
+
+### Credentials
+Password credentials to use in authenticating with Cassandra.
+
+*Note: Optional; Leave unconfigured if Cassandra authentication is not enabled.*
+
+```yaml
+    username: someuser
+    password: somepass
+```
+
+### Default Consistency
+The Cassandra consistency level to use when not otherwise specified.  Valid
+values are those from the [nodejs driver for Cassandra](http://docs.datastax.com/en/drivers/nodejs/2.0/module-types.html#~consistencies).
+Defaults to `localOne`.
+
+```yaml
+    defaultConsistency: localOne
+```
+
+### TLS
+Key and certificate information for use in TLS-encrypted environments.  See the
+[nodejs documentation on `tls.connect`](https://nodejs.org/api/tls.html#tls_tls_connect_port_host_options_callback)
+for the meaning of these directives.
+
+*Note: Optional; Leave unconfigured if Cassandra client encryption is not enabled.*
+
+```yaml
+    tls:
+      cert: /etc/restbase/tls/cert.pem
+      key: /etc/restbase/tls/key.pem
+      ca:
+        - /etc/restbase/tls/root.pem
+```
+
+### Local Datacenter
+[restbase-mod-table-cassandra](https://github.com/wikimedia/restbase-mod-table-cassandra)
+uses a datacenter-aware connection pool.  The `localDc` directive instructs the module
+which datacenter to treat as 'local' to this instance.  Cassandra nodes in the local
+datacenter will be used for queries, and any others serve as a fallback.  Defaults to
+`datacenter1` (the Cassandra default).
+
+*Note: the `localDc` must be in the list of configured datacenters (see below).*
+
+```yaml
+    localDc: datacenter1
+```
+
+### Datacenters
+The list of datacenters this Cassandra cluster belongs to.  Data will be replicated
+across these datacenters accordingly.  Defaults to `[ datacenter1 ]`.
+
+*Note: Changing this list alters the underlying Cassandra keyspaces in order to add
+or remove datacenter replicas accordingly, but replication is NOT made retroactive.
+You MUST perform a
+[Cassandra repair](http://wiki.apache.org/cassandra/Operations?#Repairing_missing_or_inconsistent_data)
+after adding a new datacenter to realize the
+added redundancy.  Likewise, you must perform a cleanup to reclaim space if a
+datacenter is removed.*
+
+```yaml
+    datacenters:
+      - datacenter1
+```
+
+### Storage Groups
+Storage groups are used to map tables to one or more hosts/domains.
+
+```yaml
+    storage_groups:
+      - name: default.group.local
+        domains: /./
+```
