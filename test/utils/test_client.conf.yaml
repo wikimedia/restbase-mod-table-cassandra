@@ -1,4 +1,5 @@
 type: restbase-cassandra
+version: 1
 hosts:
   - localhost
 keyspace: system
