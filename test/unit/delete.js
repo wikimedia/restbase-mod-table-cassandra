@@ -55,6 +55,10 @@ describe('Delete', function() {
         });
     });
 
+    after(function() {
+        return db.dropTable('restbase.cassandra.test.local', 'simple-table');
+    });
+
     // TODO: move to functional tests when delete rest endpoint
     // is implemented and dependency from impl db can be removed
     it('deletes row', function() {
