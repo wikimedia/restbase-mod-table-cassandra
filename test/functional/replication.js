@@ -57,7 +57,7 @@ describe('Table creation', function() {
 
             // Add one datacenter, and update.
             db.conf.datacenters.push('new_dc');
-            return db._updateReplicationIfNecessary('restbase.cassandra.test.local', testTable0.table);
+            return db.updateReplicationIfNecessary('restbase.cassandra.test.local', testTable0.table);
         })
         .then(function() {
             return db._getReplication('restbase.cassandra.test.local', testTable0.table);
