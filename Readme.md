@@ -68,6 +68,7 @@ While complete configuration of RESTBase is beyond the scope of this document, (
       type: npm
       options: # Passed to the module constructor
         conf:
+          version: 1
           hosts: [localhost]
           username: cassandra
           password: cassandra
@@ -78,6 +79,16 @@ While complete configuration of RESTBase is beyond the scope of this document, (
           storage_groups:
             - name: default.group.local
               domains: /./
+```
+
+### Version
+The version of this configuration.  Each edit of the module configuration must
+correpond to a new, unique version.
+
+*Note: Versions must be monotonically increasing.*
+
+```yaml
+    version: 1
 ```
 
 ### Hosts

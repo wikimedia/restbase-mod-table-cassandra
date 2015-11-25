@@ -62,11 +62,6 @@ var testTable0b = {
 };
 
 describe('DB utilities', function() {
-    it('generates deterministic hash', function() {
-        assert.deepEqual(
-            dbu.makeSchemaHash(testTable0a),
-            dbu.makeSchemaHash(testTable0b));
-    });
 
     it('builds SELECTs with included TTLs', function() {
         var req = {
