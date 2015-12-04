@@ -8,6 +8,8 @@ var fs = require("fs");
 
 // Run jshint as part of normal testing
 require('mocha-jshint')();
+require('mocha-jscs')();
+
 
 describe('Functional', function() {
     var conf = yaml.safeLoad(fs.readFileSync(__dirname + '/utils/test_client.conf.yaml'));

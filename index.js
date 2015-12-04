@@ -6,7 +6,7 @@
 // global includes
 var spec = require('restbase-mod-table-spec').spec;
 
-function RBCassandra (options) {
+function RBCassandra(options) {
     this.options = options;
     this.conf = options.conf;
     this.log = options.log;
@@ -24,7 +24,7 @@ function RBCassandra (options) {
     };
 }
 
-RBCassandra.prototype.createTable = function (rb, req) {
+RBCassandra.prototype.createTable = function(rb, req) {
     var store = this.store;
     // XXX: decide on the interface
     req.body.table = req.params.table;
@@ -64,7 +64,7 @@ RBCassandra.prototype.createTable = function (rb, req) {
 };
 
 // Query a table
-RBCassandra.prototype.get = function (rb, req) {
+RBCassandra.prototype.get = function(rb, req) {
     var rp = req.params;
     if (!rp.rest && !req.body) {
         // Return the entire table
@@ -97,7 +97,7 @@ RBCassandra.prototype.get = function (rb, req) {
 };
 
 // Update a table
-RBCassandra.prototype.put = function (rb, req) {
+RBCassandra.prototype.put = function(rb, req) {
     var domain = req.params.domain;
     // XXX: Use the path to determine the primary key?
     return this.store.put(domain, req.body)
@@ -120,7 +120,7 @@ RBCassandra.prototype.put = function (rb, req) {
     });
 };
 
-RBCassandra.prototype.dropTable = function (rb, req) {
+RBCassandra.prototype.dropTable = function(rb, req) {
     var domain = req.params.domain;
     return this.store.dropTable(domain, req.params.table)
     .then(function(res) {
@@ -142,7 +142,7 @@ RBCassandra.prototype.dropTable = function (rb, req) {
     });
 };
 
-RBCassandra.prototype.getTableSchema = function (rb, req) {
+RBCassandra.prototype.getTableSchema = function(rb, req) {
     var domain = req.params.domain;
     return this.store.getTableSchema(domain, req.params.table)
     .then(function(res) {
@@ -171,7 +171,7 @@ RBCassandra.prototype.getTableSchema = function (rb, req) {
  *
  * @return {Promise<registry>}
  */
-RBCassandra.prototype.setup = function setup () {
+RBCassandra.prototype.setup = function setup() {
     var self = this;
     // Set up storage backend
     var backend = require('./lib/index');
@@ -190,7 +190,7 @@ RBCassandra.prototype.setup = function setup () {
  * @return {Promise<registration>} with registration being the registration
  * object
  */
-function makeRBCassandra (options) {
+function makeRBCassandra(options) {
     var rb = new RBCassandra(options);
     return rb.setup();
 }
