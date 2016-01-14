@@ -5,11 +5,14 @@ node_js:
     - "4.2"
 
 sudo: false
-services:
-  - cassandra
 
 notifications:
   email:
     - services@wikimedia.org
+
+before_install:
+  - wget https://archive.apache.org/dist/cassandra/2.1.12/apache-cassandra-2.1.12-bin.tar.gz -P ../
+  - tar -xzf ../apache-cassandra-2.1.12-bin.tar.gz -C ../
+  - sh ../apache-cassandra-2.1.12/bin/cassandra > /dev/null
 
 script: npm run-script coverage && (npm run-script coveralls || exit 0)
