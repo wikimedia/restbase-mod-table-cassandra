@@ -14,6 +14,9 @@ var preq = require('preq');
 
 if (!process.argv[3]) {
     console.error('Usage: node ' + process.argv[1] + ' <host> <keyspace>');
+    console.error('Usage: node ' + process.argv[1] + ' <host> <keyspace> [token]');
+    console.error('Usage: node ' + process.argv[1] + ' <host> <keyspace> [<domain> <key>]');
+    console.error('Usage: node ' + process.argv[1] + ' <host> <keyspace> [pageState]');
     process.exit(1);
 }
 
@@ -147,12 +150,13 @@ function processRow (row) {
         //console.log(row);
         // Don't delete the most recent render for this revision
         return P.resolve();
+    // Thin-out
     } else if ((counts.rev > 0 && counts.render > 0)
         || (counts.rev === 0 && counts.render > 0
             // Enforce a grace_ttl of 86400
             && (Date.now() - row.tid.getDate()) > 86400000)
-        || (counts.rev > 0 && row.tid.getDate() <  Date.parse('2015-07-10T13:00-0700'))) {
-        console.log('-- deleting:', row._token.toString(), row.tid.getDate().toISOString(), keys.rev);
+        || (counts.rev > 0 && row.tid.getDate() <  Date.parse('2015-12-31T23:59-0000'))) {
+        console.log('-- Deleting:', row._token.toString(), row.tid.getDate().toISOString(), keys.rev);
         var delQuery = 'delete from data where "_domain" = :domain and key = :key and rev = :rev and tid = :tid';
         row.domain = row._domain;
         return client.executeAsync(delQuery, row, {
