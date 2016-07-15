@@ -9,8 +9,8 @@ var P = require('bluebird');
 var cassandra = P.promisifyAll(require('cassandra-driver'));
 var consistencies = cassandra.types.consistencies;
 var ctypes = cassandra.types;
-var util = require('util');
 var preq = require('preq');
+var iterateTable = require('./lib/iterateTable');
 
 if (!process.argv[3]) {
     console.error('Usage: node ' + process.argv[1] + ' <host> <keyspace>');
@@ -19,29 +19,6 @@ if (!process.argv[3]) {
     console.error('Usage: node ' + process.argv[1] + ' <host> <keyspace> [pageState]');
     process.exit(1);
 }
-
-// A custom retry policy
-function AlwaysRetry () {}
-util.inherits(AlwaysRetry, cassandra.policies.retry.RetryPolicy);
-var ARP = AlwaysRetry.prototype;
-// Always retry.
-ARP.onUnavailable = function(requestInfo) {
-    // Reset the connection
-    requestInfo.handler.connection.close(function() {
-        requestInfo.handler.connection.open(function(){});
-    });
-    return { decision: 1 };
-};
-ARP.onWriteTimeout = function() { return { decision: 2 }; };
-ARP.onReadTimeout = function(requestInfo) {
-    // Reset the connection
-    requestInfo.handler.connection.close(function() {
-        requestInfo.handler.connection.open(function(){});
-    });
-    console.log('read retry');
-    return { decision: 1 };
-};
-
 
 function makeClient() {
     return new cassandra.Client({
@@ -55,7 +32,6 @@ function makeClient() {
     });
 }
 var client = makeClient();
-
 
 // Force a re-render of a revision by sending no-cache headers. Can be used to
 // fix up stored content after temporary snafus in Parsoid or RB.
@@ -105,7 +81,6 @@ if (/^-?[0-9]{1,30}$/.test(process.argv[4])
 } else if (process.argv[4]) {
     startOffset.pageState = process.argv[4];
 }
-
 
 function processRow (row) {
     // Create a new set of keys
@@ -169,78 +144,4 @@ function processRow (row) {
     return P.resolve();
 }
 
-
-function getQuery () {
-    var cql = 'select "_domain", key, rev, tid, token("_domain",key) as "_token" from data';
-    var params = [];
-    if (startOffset.token) {
-        cql += ' where token("_domain",key) >= ?';
-        params.push(startOffset.token);
-    } else if (startOffset.domain) {
-        cql += ' where token("_domain",key) >= token(?, ?)';
-        params.push(startOffset.domain);
-        params.push(startOffset.key);
-    }
-    return {
-        cql: cql,
-        params: params,
-    };
-}
-
-
-function nextPage(pageState, retryDelay) {
-    //console.log(pageState);
-    var query = getQuery();
-    return client.executeAsync(query.cql, query.params, {
-        prepare: true,
-        fetchSize: retryDelay ? 1 : 50,
-        pageState: pageState,
-        consistency: retryDelay ? consistencies.one : consistencies.quorum,
-    })
-    .catch(function(err) {
-        retryDelay = retryDelay || 1; // ms
-        if (retryDelay < 20 * 1000) {
-            retryDelay *= 2 + Math.random();
-        } else if (startOffset.token) {
-            // page over the problematic spot
-            console.log('Skipping over problematic token:',
-                startOffset.token.toString());
-            startOffset.token = startOffset.token.add(500000000);
-            console.log('Retrying with new token:',
-                startOffset.token.toString());
-            return nextPage(null, retryDelay);
-        }
-
-        console.log('Error:', err);
-        console.log('PageState:', pageState);
-        console.log('Last token:', startOffset.token.toString());
-        console.log('Retrying in', Math.round(retryDelay) / 1000, 'seconds...');
-        return new P(function(resolve, reject) {
-            setTimeout(function() {
-                nextPage(pageState, retryDelay)
-                    .then(resolve)
-                    .catch(reject);
-            }, retryDelay);
-        });
-    });
-}
-
-function processRows(pageState) {
-    return nextPage(pageState)
-    .then(function(res) {
-        return P.resolve(res.rows)
-        .each(processRow)
-        .then(function() {
-            process.nextTick(function() {
-                processRows(res.pageState);
-            });
-        })
-        .catch(function(e) {
-            console.log(res.pageState);
-            console.log(e);
-            throw e;
-        });
-    });
-}
-
-return processRows(startOffset.pageState);
+return iterateTable(client, startOffset, processRow);
