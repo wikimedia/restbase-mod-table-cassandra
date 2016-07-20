@@ -29,8 +29,8 @@ ARP.onReadTimeout = function(requestInfo) {
     return { decision: 1 };
 };
 
-function getQuery(offsets) {
-    var cql = 'SELECT "_domain", key, rev, tid, token("_domain",key) AS "_token" FROM data';
+function getQuery(tableName, offsets) {
+    var cql = 'SELECT "_domain", key, rev, tid, token("_domain",key) AS "_token" FROM ' + tableName;
     var params = [];
     if (offsets.token) {
         cql += ' WHERE token("_domain",key) >= ?';
@@ -46,9 +46,9 @@ function getQuery(offsets) {
     };
 }
 
-function nextPage(client, offsets, retryDelay) {
+function nextPage(client, tableName, offsets, retryDelay) {
     //console.log(offsets);
-    var query = getQuery(offsets);
+    var query = getQuery(tableName, offsets);
     return client.executeAsync(query.cql, query.params, {
         prepare: true,
         fetchSize: retryDelay ? 1 : 50,
@@ -66,7 +66,7 @@ function nextPage(client, offsets, retryDelay) {
             offsets.token = offsets.token.add(500000000);
             console.log('Retrying with new token:',
                 offsets.token.toString());
-            return nextPage(client, offsets, retryDelay);
+            return nextPage(client, tableName, offsets, retryDelay);
         }
 
         console.log('Error:', err);
@@ -75,7 +75,7 @@ function nextPage(client, offsets, retryDelay) {
         console.log('Retrying in', Math.round(retryDelay) / 1000, 'seconds...');
         return new P(function(resolve, reject) {
             setTimeout(function() {
-                nextPage(client, offsets, retryDelay)
+                nextPage(client, tableName, offsets, retryDelay)
                     .then(resolve)
                     .catch(reject);
             }, retryDelay);
@@ -87,18 +87,19 @@ function nextPage(client, offsets, retryDelay) {
  * Iterate rows in a key-rev-value table.
  *
  * @param {cassandra#Client} client - Cassandra client instance.
- * @param {Object}   offsets - Offset information (token, domain, key, and pageState).
- * @param {Function} func - Function called with result rows.
+ * @param {string}   tableName - Cassandra table name.
+ * @param {Object}   offsets   - Offset information (token, domain, key, and pageState).
+ * @param {Function} func      - Function called with result rows.
  */
-function processRows(client, offsets, func) {
-    return nextPage(client, offsets)
+function processRows(client, tableName, offsets, func) {
+    return nextPage(client, tableName, offsets)
     .then(function(res) {
         return P.resolve(res.rows)
         .each(func)
         .then(function() {
             process.nextTick(function() {
                 offsets.pageState = res.pageState;
-                processRows(client, offsets, func);
+                processRows(client, tableName, offsets, func);
             });
         })
         .catch(function(e) {
