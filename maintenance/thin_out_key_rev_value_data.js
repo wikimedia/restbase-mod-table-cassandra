@@ -10,7 +10,8 @@ var cassandra = P.promisifyAll(require('cassandra-driver'));
 var consistencies = cassandra.types.consistencies;
 var ctypes = cassandra.types;
 var preq = require('preq');
-var iterateTable = require('./lib/iterateTable');
+var iterateTable = require('./lib/index').iterateTable;
+var makeClient = require('./lib/index').makeClient;
 var dbu = require('../lib/dbutils');
 
 var keyspace = process.argv[3];
@@ -21,18 +22,6 @@ if (!keyspace) {
     console.error('Usage: node ' + process.argv[1] + ' <host> <keyspace> [<domain> <key>]');
     console.error('Usage: node ' + process.argv[1] + ' <host> <keyspace> [pageState]');
     process.exit(1);
-}
-
-function makeClient() {
-    return new cassandra.Client({
-        contactPoints: [process.argv[2]],
-        keyspace: keyspace,
-        authProvider: new cassandra.auth.PlainTextAuthProvider('cassandra', 'cassandra'),
-        socketOptions: { connectTimeout: 10000 },
-        //policies: {
-        //     retry: new AlwaysRetry()
-        //},
-    });
 }
 
 // Force a re-render of a revision by sending no-cache headers. Can be used to
@@ -55,7 +44,12 @@ function reRender(row) {
 var table = dbu.cassID(keyspace) + '.data';
 
 // Cassandra driver client object.
-var client = makeClient();
+var client = makeClient({
+    host: process.argv[2],
+    credentials: {
+        username: 'cassandra', password: 'cassandra'
+    }
+});
 
 // Row state, used to make row handling decisions in processRow
 var counts = {

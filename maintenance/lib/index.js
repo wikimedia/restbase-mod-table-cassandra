@@ -29,6 +29,15 @@ ARP.onReadTimeout = function(requestInfo) {
     return { decision: 1 };
 };
 
+function makeClient(options) {
+    var creds = options.credentials;
+    return new cassandra.Client({
+        contactPoints: [options.host],
+        authProvider: new cassandra.auth.PlainTextAuthProvider(creds.username, creds.password),
+        socketOptions: { connectTimeout: 10000 },
+    });
+}
+
 function getQuery(tableName, offsets) {
     var cql = 'SELECT "_domain", key, rev, tid, token("_domain",key) AS "_token" FROM ' + tableName;
     var params = [];
@@ -110,4 +119,7 @@ function processRows(client, tableName, offsets, func) {
     });
 }
 
-module.exports = processRows;
+module.exports = {
+    iterateTable: processRows,
+    makeClient: makeClient,
+};

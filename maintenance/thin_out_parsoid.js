@@ -12,7 +12,8 @@ var P = require('bluebird');
 var cassandra = P.promisifyAll(require('cassandra-driver'));
 var consistencies = cassandra.types.consistencies;
 var ctypes = cassandra.types;
-var iterateTable = require('./lib/iterateTable');
+var iterateTable = require('./lib/index').iterateTable;
+var makeClient = require('./lib/index').makeClient;
 var DB = require('../lib/db');
 var dbutil = require('../lib/dbutils');
 var yaml = require('js-yaml');
@@ -67,15 +68,12 @@ if ((argv.token && (argv.title || argv.pageState))
     process.exit(1);
 }
 
-function makeClient() {
-    return new cassandra.Client({
-        contactPoints: [argv.host],
-        authProvider: new cassandra.auth.PlainTextAuthProvider('cassandra', 'cassandra'),
-        socketOptions: { connectTimeout: 10000 },
-    });
-}
-
-var client = makeClient();
+var client = makeClient({
+    host: argv.host,
+    credentials: {
+        username: 'cassandra', password: 'cassandra'
+    }
+});
 var config = process.env.CONFIG || '/etc/restbase/config.yaml';
 var confObj = yaml.safeLoad(fs.readFileSync(config));
 confObj = confObj.default_project['x-modules'][0].options.table;
