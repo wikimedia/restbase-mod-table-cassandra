@@ -11,8 +11,11 @@ var consistencies = cassandra.types.consistencies;
 var ctypes = cassandra.types;
 var preq = require('preq');
 var iterateTable = require('./lib/iterateTable');
+var dbu = require('../lib/dbutils');
 
-if (!process.argv[3]) {
+var keyspace = process.argv[3];
+
+if (!keyspace) {
     console.error('Usage: node ' + process.argv[1] + ' <host> <keyspace>');
     console.error('Usage: node ' + process.argv[1] + ' <host> <keyspace> [token]');
     console.error('Usage: node ' + process.argv[1] + ' <host> <keyspace> [<domain> <key>]');
@@ -23,7 +26,7 @@ if (!process.argv[3]) {
 function makeClient() {
     return new cassandra.Client({
         contactPoints: [process.argv[2]],
-        keyspace: process.argv[3],
+        keyspace: keyspace,
         authProvider: new cassandra.auth.PlainTextAuthProvider('cassandra', 'cassandra'),
         socketOptions: { connectTimeout: 10000 },
         //policies: {
@@ -31,7 +34,6 @@ function makeClient() {
         //},
     });
 }
-var client = makeClient();
 
 // Force a re-render of a revision by sending no-cache headers. Can be used to
 // fix up stored content after temporary snafus in Parsoid or RB.
@@ -48,6 +50,12 @@ function reRender(row) {
     })
     .catch(console.log);
 }
+
+// Fully qualified table name.
+var table = dbu.cassID(keyspace) + '.data';
+
+// Cassandra driver client object.
+var client = makeClient();
 
 // Row state, used to make row handling decisions in processRow
 var counts = {
@@ -114,7 +122,7 @@ function processRow (row) {
     if (false && counts.title === 0 && counts.rev === 0
             && counts.render === 0) {
         var rowDate = row.tid.getDate();
-        if (false && /parsoid_html$/.test(process.argv[3])
+        if (false && /parsoid_html$/.test(keyspace)
             && rowDate > new Date('2015-04-23T23:30-0700')
             && rowDate < new Date('2015-04-24T13:00-0700')) {
             return reRender(row);
@@ -132,7 +140,7 @@ function processRow (row) {
             && (Date.now() - row.tid.getDate()) > 86400000)
         || (counts.rev > 0 && row.tid.getDate() <  Date.parse('2015-12-31T23:59-0000'))) {
         console.log('-- Deleting:', row._token.toString(), row.tid.getDate().toISOString(), keys.rev);
-        var delQuery = 'delete from data where "_domain" = :domain and key = :key and rev = :rev and tid = :tid';
+        var delQuery = 'delete from ' + table + 'where "_domain" = :domain and key = :key and rev = :rev and tid = :tid';
         row.domain = row._domain;
         return client.executeAsync(delQuery, row, {
             prepare: true,
@@ -144,4 +152,4 @@ function processRow (row) {
     return P.resolve();
 }
 
-return iterateTable(client, startOffset, processRow);
+return iterateTable(client, table, startOffset, processRow);
