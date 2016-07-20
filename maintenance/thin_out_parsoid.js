@@ -51,6 +51,12 @@ var yargs = require('yargs')
         alias: 'pageState',
         describe: 'Driver page state to start from',
         type: 'string',
+    })
+    .options('U', {
+        alias: 'upperBound',
+        describe: 'Upper bound timestamp; Only one render of a single revision will be kept for entries older than this value.',
+        type: 'string',
+        default: '2015-12-31T23:59-0000',
     });
 
 var argv = yargs.argv;
@@ -65,6 +71,14 @@ if ((argv.token && (argv.title || argv.pageState))
     || (argv.pageState && (argv.token || argv.title))) {
     yargs.showHelp();
     console.error('Error: You can only set one of --token, --title, or --pageState');
+    process.exit(1);
+}
+
+var upperBound = Date.parse(argv.upperBound);
+
+if (!upperBound) {
+    yargs.showHelp();
+    console.error('Error: Invalid timestamp for argument -U/--upperBound', argv.upperBound);
     process.exit(1);
 }
 
@@ -150,7 +164,7 @@ function processRow (row) {
         || (counts.rev === 0 && counts.render > 0
             // Enforce a grace_ttl of 86400
             && (Date.now() - row.tid.getDate()) > 86400000)
-        || (counts.rev > 0 && row.tid.getDate() <  Date.parse('2015-12-31T23:59-0000'))) {
+        || (counts.rev > 0 && row.tid.getDate() <  upperBound)) {
         console.log('-- Deleting:', row._token.toString(), row.tid.getDate().toISOString(), keys.rev);
 
         var delQuery1 = 'DELETE FROM ' + htmlTable + ' WHERE "_domain" = ? AND key = ? AND rev = ? AND tid = ?';
