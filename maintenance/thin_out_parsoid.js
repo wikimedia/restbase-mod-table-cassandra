@@ -18,6 +18,7 @@ var DB = require('../lib/db');
 var dbutil = require('../lib/dbutils');
 var yaml = require('js-yaml');
 var fs = require('fs');
+var path = require('path');
 
 
 var yargs = require('yargs')
@@ -82,23 +83,41 @@ if (!upperBound) {
     process.exit(1);
 }
 
+function log() {
+    var varArgs = arguments;
+    var logArgs = [];
+    logArgs.push('[' + new Date().toISOString() + ']');
+    logArgs.push(path.basename(__filename) + '[' + process.pid + ']:');
+    Object.keys(varArgs).map(function(v) {
+        logArgs.push(varArgs[v]);
+    });
+    console.log.apply(null, logArgs);
+}
+
+function getConfig() {
+    // Read the restbase configuration from the usual place, or the CONFIG env var if supplied.
+    var config = process.env.CONFIG || '/etc/restbase/config.yaml';
+    var confObj = yaml.safeLoad(fs.readFileSync(config));
+    return confObj.default_project['x-modules'][0].options.table;
+}
+
+var conf = getConfig();
+
 var client = makeClient({
     host: argv.host,
     credentials: {
-        username: 'cassandra', password: 'cassandra'
+        username: conf.username, password: conf.password,
     }
 });
 
-var config = process.env.CONFIG || '/etc/restbase/config.yaml';
-var confObj = yaml.safeLoad(fs.readFileSync(config));
-confObj = confObj.default_project['x-modules'][0].options.table;
-var db = new DB(client, {conf: confObj, log: console.log});
+var db = new DB(client, {conf: conf, log: console.log});
 var htmlTable = dbutil.cassID(db._keyspaceName(argv.domain, 'parsoid.html')) + '.data';
 var dataTable = dbutil.cassID(db._keyspaceName(argv.domain, 'parsoid.data-parsoid')) + '.data';
 var offsetsTable = dbutil.cassID(db._keyspaceName(argv.domain, 'parsoid.section.offsets')) + '.data';
-console.log('HTML table ......:', htmlTable);
-console.log('Data table ......:', dataTable);
-console.log('Offsets table ...:', dataTable);
+
+log('HTML table', htmlTable);
+log('Data table', dataTable);
+log('Offsets table', dataTable);
 
 // Row state, used to make row handling decisions in processRow
 var counts = {
@@ -159,7 +178,7 @@ function processRow (row) {
 
     total++;
     if ((total % 500000) === 0) {
-        console.log(new Date() + ': processed ' + total + ' total entries');
+        log('Processed', total, 'total entries');
     }
 
     // Thin-out
@@ -168,7 +187,7 @@ function processRow (row) {
             // Enforce a grace_ttl of 86400
             && (Date.now() - row.tid.getDate()) > 86400000)
         || (counts.rev > 0 && row.tid.getDate() <  upperBound)) {
-        console.log('-- Deleting:', row._token.toString(), row.tid.getDate().toISOString(), keys.rev);
+        log('Deleting:', row._token.toString(), row.tid.getDate().toISOString(), keys.rev);
 
         var delHtml = 'DELETE FROM ' + htmlTable + ' WHERE "_domain" = ? AND key = ? AND rev = ? AND tid = ?';
         var delData = 'DELETE FROM ' + dataTable + ' WHERE "_domain" = ? AND key = ? AND rev = ? AND tid = ?';
