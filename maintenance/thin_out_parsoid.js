@@ -88,14 +88,17 @@ var client = makeClient({
         username: 'cassandra', password: 'cassandra'
     }
 });
+
 var config = process.env.CONFIG || '/etc/restbase/config.yaml';
 var confObj = yaml.safeLoad(fs.readFileSync(config));
 confObj = confObj.default_project['x-modules'][0].options.table;
 var db = new DB(client, {conf: confObj, log: console.log});
 var htmlTable = dbutil.cassID(db._keyspaceName(argv.domain, 'parsoid.html')) + '.data';
 var dataTable = dbutil.cassID(db._keyspaceName(argv.domain, 'parsoid.data-parsoid')) + '.data';
-console.log('html:', htmlTable);
-console.log('data:', dataTable);
+var offsetsTable = dbutil.cassID(db._keyspaceName(argv.domain, 'parsoid.section.offsets')) + '.data';
+console.log('HTML table ......:', htmlTable);
+console.log('Data table ......:', dataTable);
+console.log('Offsets table ...:', dataTable);
 
 // Row state, used to make row handling decisions in processRow
 var counts = {
@@ -167,12 +170,14 @@ function processRow (row) {
         || (counts.rev > 0 && row.tid.getDate() <  upperBound)) {
         console.log('-- Deleting:', row._token.toString(), row.tid.getDate().toISOString(), keys.rev);
 
-        var delQuery1 = 'DELETE FROM ' + htmlTable + ' WHERE "_domain" = ? AND key = ? AND rev = ? AND tid = ?';
-        var delQuery2 = 'DELETE FROM ' + dataTable + ' WHERE "_domain" = ? AND key = ? AND rev = ? AND tid = ?';
+        var delHtml = 'DELETE FROM ' + htmlTable + ' WHERE "_domain" = ? AND key = ? AND rev = ? AND tid = ?';
+        var delData = 'DELETE FROM ' + dataTable + ' WHERE "_domain" = ? AND key = ? AND rev = ? AND tid = ?';
+        var delOffsets = 'DELETE FROM ' + offsetsTable + ' WHERE "_domain" = ? AND key = ? AND rev = ? AND tid = ?';
         var params = [row._domain, row.key, row.rev, row.tid];
         var delQueries = [
-            { query: delQuery1, params: params },
-            { query: delQuery2, params: params }
+            { query: delHtml, params: params },
+            { query: delData, params: params },
+            { query: delOffsets, params: params },
         ];
 
         return client.batchAsync(delQueries, {
