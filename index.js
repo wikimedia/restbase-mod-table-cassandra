@@ -90,7 +90,11 @@ RBCassandra.prototype.get = function(rb, req) {
                 title: 'Error in Cassandra table storage backend',
                 stack: e.stack,
                 err: e,
-                req: req
+                req: {
+                    uri: req.uri,
+                    headers: req.headers,
+                    body: req.body && JSON.stringify(req.body).slice(0,200)
+                }
             }
         };
     });
@@ -114,7 +118,11 @@ RBCassandra.prototype.put = function(rb, req) {
                 title: 'Internal error in Cassandra table storage backend',
                 stack: e.stack,
                 err: e,
-                req: req
+                req: {
+                    uri: req.uri,
+                    headers: req.headers,
+                    body: req.body && JSON.stringify(req.body).slice(0,200)
+                }
             }
         };
     });
@@ -136,7 +144,11 @@ RBCassandra.prototype.dropTable = function(rb, req) {
                 title: 'Internal error in Cassandra table storage backend',
                 stack: e.stack,
                 err: e,
-                req: req
+                req: {
+                    uri: req.uri,
+                    headers: req.headers,
+                    body: req.body && JSON.stringify(req.body).slice(0,200)
+                }
             }
         };
     });
@@ -160,7 +172,11 @@ RBCassandra.prototype.getTableSchema = function(rb, req) {
                 title: 'Internal error querying table schema in Cassandra storage backend',
                 stack: e.stack,
                 err: e,
-                req: req
+                req: {
+                    uri: req.uri,
+                    headers: req.headers,
+                    body: req.body && JSON.stringify(req.body).slice(0,200)
+                }
             }
         };
     });
