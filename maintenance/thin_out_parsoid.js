@@ -12,12 +12,11 @@ var P = require('bluebird');
 var cassandra = P.promisifyAll(require('cassandra-driver'));
 var consistencies = cassandra.types.consistencies;
 var ctypes = cassandra.types;
+var getConfig = require('./lib/index').getConfig;
 var iterateTable = require('./lib/index').iterateTable;
 var makeClient = require('./lib/index').makeClient;
 var DB = require('../lib/db');
 var dbutil = require('../lib/dbutils');
-var yaml = require('js-yaml');
-var fs = require('fs');
 var path = require('path');
 
 
@@ -92,13 +91,6 @@ function log() {
         logArgs.push(varArgs[v]);
     });
     console.log.apply(null, logArgs);
-}
-
-function getConfig() {
-    // Read the restbase configuration from the usual place, or the CONFIG env var if supplied.
-    var config = process.env.CONFIG || '/etc/restbase/config.yaml';
-    var confObj = yaml.safeLoad(fs.readFileSync(config));
-    return confObj.default_project['x-modules'][0].options.table;
 }
 
 var conf = getConfig();

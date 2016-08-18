@@ -1,10 +1,12 @@
 "use strict";
 
 
-var P = require('bluebird');
-var cassandra = P.promisifyAll(require('cassandra-driver'));
+var P   = require('bluebird');
+var cassandra     = P.promisifyAll(require('cassandra-driver'));
 var consistencies = cassandra.types.consistencies;
+var fs   = require('fs');
 var util = require('util');
+var yaml = require('js-yaml');
 
 
 // A custom retry policy
@@ -119,7 +121,31 @@ function processRows(client, tableName, offsets, func) {
     });
 }
 
+/**
+ * Return the table section of a RESTBase config.
+ *
+ * @param  {string}  config  - Path to a RESTBase YAML configuration file.
+ * @return {object}  table section of configuration.
+ */
+function getConfig(config) {
+    // Read a RESTBase configuration from a (optional) path argument, an (optional) CONFIG
+    // env var, or from /etc/restbase/config.yaml
+    var conf;
+
+    if (config) {
+        conf = config;
+    } else if (process.env.CONFIG) {
+        conf = process.env.CONFIG;
+    } else {
+        conf = '/etc/restbase/config.yaml';
+    }
+
+    var confObj = yaml.safeLoad(fs.readFileSync(conf));
+    return confObj.default_project['x-modules'][0].options.table;
+}
+
 module.exports = {
     iterateTable: processRows,
     makeClient: makeClient,
+    getConfig: getConfig,
 };
