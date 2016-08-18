@@ -12,12 +12,11 @@ var P = require('bluebird');
 var cassandra = P.promisifyAll(require('cassandra-driver'));
 var consistencies = cassandra.types.consistencies;
 var ctypes = cassandra.types;
+var getConfig = require('./lib/index').getConfig;
 var iterateTable = require('./lib/index').iterateTable;
 var makeClient = require('./lib/index').makeClient;
 var DB = require('../lib/db');
 var dbutil = require('../lib/dbutils');
-var yaml = require('js-yaml');
-var fs = require('fs');
 var path = require('path');
 
 
@@ -94,13 +93,6 @@ function log() {
     console.log.apply(null, logArgs);
 }
 
-function getConfig() {
-    // Read the restbase configuration from the usual place, or the CONFIG env var if supplied.
-    var config = process.env.CONFIG || '/etc/restbase/config.yaml';
-    var confObj = yaml.safeLoad(fs.readFileSync(config));
-    return confObj.default_project['x-modules'][0].options.table;
-}
-
 var conf = getConfig();
 
 var client = makeClient({
@@ -111,9 +103,9 @@ var client = makeClient({
 });
 
 var db = new DB(client, {conf: conf, log: console.log});
-var htmlTable = dbutil.cassID(db._keyspaceName(argv.domain, 'parsoid.html')) + '.data';
-var dataTable = dbutil.cassID(db._keyspaceName(argv.domain, 'parsoid.data-parsoid')) + '.data';
-var offsetsTable = dbutil.cassID(db._keyspaceName(argv.domain, 'parsoid.section.offsets')) + '.data';
+var htmlTable = dbutil.cassID(db.keyspaceName(argv.domain, 'parsoid.html')) + '.data';
+var dataTable = dbutil.cassID(db.keyspaceName(argv.domain, 'parsoid.data-parsoid')) + '.data';
+var offsetsTable = dbutil.cassID(db.keyspaceName(argv.domain, 'parsoid.section.offsets')) + '.data';
 
 log('HTML table', htmlTable);
 log('Data table', dataTable);
