@@ -1,90 +1,91 @@
 "use strict";
+
 /*
  * Cassandra-backed table storage service
  */
 
 // global includes
-var spec = require('restbase-mod-table-spec').spec;
+const spec = require('restbase-mod-table-spec').spec;
 
-function RBCassandra(options) {
-    this.options = options;
-    this.conf = options.conf;
-    this.log = options.log;
-    this.setup = this.setup.bind(this);
-    this.store = null;
-    this.handler = {
-        spec: spec,
-        operations: {
-            createTable: this.createTable.bind(this),
-            dropTable: this.dropTable.bind(this),
-            getTableSchema: this.getTableSchema.bind(this),
-            get: this.get.bind(this),
-            put: this.put.bind(this)
-        }
-    };
-}
+class RBCassandra {
+    constructor(options) {
+        this.options = options;
+        this.conf = options.conf;
+        this.log = options.log;
+        this.setup = this.setup.bind(this);
+        this.store = null;
+        this.handler = {
+            spec,
+            operations: {
+                createTable: this.createTable.bind(this),
+                dropTable: this.dropTable.bind(this),
+                getTableSchema: this.getTableSchema.bind(this),
+                get: this.get.bind(this),
+                put: this.put.bind(this)
+            }
+        };
+    }
 
-RBCassandra.prototype.createTable = function(rb, req) {
-    var store = this.store;
-    // XXX: decide on the interface
-    req.body.table = req.params.table;
-    var domain = req.params.domain;
+    createTable(rb, req) {
+        const store = this.store;
+        // XXX: decide on the interface
+        req.body.table = req.params.table;
+        const domain = req.params.domain;
 
-    // check if the domains table exists
-    return store.createTable(domain, req.body)
-    .then(function() {
-        return {
-            status: 201, // created
+        // check if the domains table exists
+        return store.createTable(domain, req.body)
+        .then(() => ({
+            // created
+            status: 201,
+
             body: {
                 type: 'table_created',
                 title: 'Table was created.',
                 domain: req.params.domain,
                 table: req.params.table
             }
-        };
-    })
-    .catch(function(e) {
-        if (e.status >= 400) {
+        }))
+        .catch((e) => {
+            if (e.status >= 400) {
+                return {
+                    status: e.status,
+                    body: e.body
+                };
+            }
             return {
-                status: e.status,
-                body: e.body
+                status: 500,
+                body: {
+                    type: 'table_creation_error',
+                    title: 'Internal error while creating a table' +
+                        ' within the cassandra storage backend',
+                    stack: e.stack,
+                    err: e,
+                    req
+                }
+            };
+        });
+    }
+
+    // Query a table
+    get(rb, req) {
+        const rp = req.params;
+        if (!rp.rest && !req.body) {
+            // Return the entire table
+            // XXX: Only list the hash keys?
+            req.body = {
+                table: rp.table,
+                limit: 10
             };
         }
-        return {
-            status: 500,
-            body: {
-                type: 'table_creation_error',
-                title: 'Internal error while creating a table within the cassandra storage backend',
-                stack: e.stack,
-                err: e,
-                req: req
-            }
-        };
-    });
-};
-
-// Query a table
-RBCassandra.prototype.get = function(rb, req) {
-    var rp = req.params;
-    if (!rp.rest && !req.body) {
-        // Return the entire table
-        // XXX: Only list the hash keys?
-        req.body = {
-            table: rp.table,
-            limit: 10
-        };
-    }
-    var domain = req.params.domain;
-    return this.store.get(domain, req.body)
-    .then(function(res) {
-        return {
+        const domain = req.params.domain;
+        return this.store.get(domain, req.body)
+        .then((res) => ({
             status: res.items.length ? 200 : 404,
             body: res
-        };
-    })
-    .catch(function(e) {
-        return {
+        }))
+        .catch((e) => ({
             status: 500,
+
             body: {
                 type: 'query_error',
                 title: 'Error in Cassandra table storage backend',
@@ -96,23 +97,21 @@ RBCassandra.prototype.get = function(rb, req) {
                     body: req.body && JSON.stringify(req.body).slice(0,200)
                 }
             }
-        };
-    });
-};
+        }));
+    }
 
-// Update a table
-RBCassandra.prototype.put = function(rb, req) {
-    var domain = req.params.domain;
-    // XXX: Use the path to determine the primary key?
-    return this.store.put(domain, req.body)
-    .then(function(res) {
-        return {
-            status: 201 // created
-        };
-    })
-    .catch(function(e) {
-        return {
+    // Update a table
+    put(rb, req) {
+        const domain = req.params.domain;
+        // XXX: Use the path to determine the primary key?
+        return this.store.put(domain, req.body)
+        .thenReturn({
+            // created
+            status: 201
+        })
+        .catch((e) => ({
             status: 500,
+
             body: {
                 type: 'update_error',
                 title: 'Internal error in Cassandra table storage backend',
@@ -124,21 +123,19 @@ RBCassandra.prototype.put = function(rb, req) {
                     body: req.body && JSON.stringify(req.body).slice(0,200)
                 }
             }
-        };
-    });
-};
+        }));
+    }
 
-RBCassandra.prototype.dropTable = function(rb, req) {
-    var domain = req.params.domain;
-    return this.store.dropTable(domain, req.params.table)
-    .then(function(res) {
-        return {
-            status: 204 // done
-        };
-    })
-    .catch(function(e) {
-        return {
+    dropTable(rb, req) {
+        const domain = req.params.domain;
+        return this.store.dropTable(domain, req.params.table)
+        .thenReturn({
+            // done
+            status: 204
+        })
+        .catch((e) => ({
             status: 500,
+
             body: {
                 type: 'delete_error',
                 title: 'Internal error in Cassandra table storage backend',
@@ -150,23 +147,20 @@ RBCassandra.prototype.dropTable = function(rb, req) {
                     body: req.body && JSON.stringify(req.body).slice(0,200)
                 }
             }
-        };
-    });
-};
+        }));
+    }
 
-RBCassandra.prototype.getTableSchema = function(rb, req) {
-    var domain = req.params.domain;
-    return this.store.getTableSchema(domain, req.params.table)
-    .then(function(res) {
-        return {
+    getTableSchema(rb, req) {
+        const domain = req.params.domain;
+        return this.store.getTableSchema(domain, req.params.table)
+        .then((res) => ({
             status: 200,
             headers: { etag: res.tid.toString() },
             body: res.schema
-        };
-    })
-    .catch(function(e) {
-        return {
+        }))
+        .catch((e) => ({
             status: 500,
+
             body: {
                 type: 'schema_query_error',
                 title: 'Internal error querying table schema in Cassandra storage backend',
@@ -178,26 +172,24 @@ RBCassandra.prototype.getTableSchema = function(rb, req) {
                     body: req.body && JSON.stringify(req.body).slice(0,200)
                 }
             }
-        };
-    });
-};
+        }));
+    }
 
-/*
- * Setup / startup
- *
- * @return {Promise<registry>}
- */
-RBCassandra.prototype.setup = function setup() {
-    var self = this;
-    // Set up storage backend
-    var backend = require('./lib/index');
-    return backend(self.options)
-    .then(function(store) {
-        self.store = store;
-        // console.log('RB setup complete', self.handler);
-        return self.handler;
-    });
-};
+    /*
+     * Setup / startup
+     *
+     * @return {Promise<registry>}
+     */
+    setup() {
+        // Set up storage backend
+        const backend = require('./lib/index');
+        return backend(this.options)
+        .then((store) => {
+            this.store = store;
+            return this.handler;
+        });
+    }
+}
 
 
 /**
@@ -207,7 +199,7 @@ RBCassandra.prototype.setup = function setup() {
  * object
  */
 function makeRBCassandra(options) {
-    var rb = new RBCassandra(options);
+    const rb = new RBCassandra(options);
     return rb.setup();
 }
 
