@@ -41,16 +41,17 @@ function makeClient(options) {
 }
 
 function getQuery(tableName, offsets) {
-    var cql = 'SELECT "_domain", key, rev, tid, token("_domain",key) AS "_token" FROM ' + tableName;
+    var cql = 'SELECT "_domain", title, rev, "_tid", "redirect", "page_deleted", "restrictions", token("_domain",title) AS "_token" FROM ' + tableName;
     var params = [];
     if (offsets.token) {
-        cql += ' WHERE token("_domain",key) >= ?';
+        cql += ' WHERE token("_domain",title) > ?';
         params.push(offsets.token);
     } else if (offsets.domain) {
-        cql += ' WHERE token("_domain",key) >= token(?, ?)';
+        cql += ' WHERE token("_domain",title) >= token(?, ?)';
         params.push(offsets.domain);
-        params.push(offsets.key);
+        params.push(offsets.title);
     }
+    //console.log(cql, params);
     return {
         cql: cql,
         params: params,
@@ -64,7 +65,7 @@ function nextPage(client, tableName, offsets, retryDelay) {
         prepare: true,
         fetchSize: retryDelay ? 1 : 50,
         pageState: offsets.pageState,
-        consistency: retryDelay ? consistencies.one : consistencies.quorum,
+        consistency: retryDelay ? consistencies.one : consistencies.one,
     })
     .catch(function(err) {
         retryDelay = retryDelay || 1; // ms
@@ -105,6 +106,10 @@ function nextPage(client, tableName, offsets, retryDelay) {
 function processRows(client, tableName, offsets, func) {
     return nextPage(client, tableName, offsets)
     .then(function(res) {
+        if (!res.rowLength) {
+            console.log('Finished!');
+            process.exit(0);
+        }
         return P.resolve(res.rows)
         .each(func)
         .then(function() {
