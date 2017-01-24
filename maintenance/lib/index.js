@@ -40,14 +40,14 @@ function makeClient(options) {
     });
 }
 
-function getQuery(tableName, offsets) {
-    var cql = 'SELECT "_domain", key, rev, tid, token("_domain",key) AS "_token" FROM ' + tableName;
+function getQuery(tableName, offsets, proj) {
+    var cql = 'SELECT ' + proj + ', token("_domain",key) AS "_token" FROM ' + tableName;
     var params = [];
     if (offsets.token) {
-        cql += ' WHERE token("_domain",key) >= ?';
+        cql += ' WHERE token("_domain",key) = ?';
         params.push(offsets.token);
     } else if (offsets.domain) {
-        cql += ' WHERE token("_domain",key) >= token(?, ?)';
+        cql += ' WHERE token("_domain",key) = token(?, ?)';
         params.push(offsets.domain);
         params.push(offsets.key);
     }
@@ -57,14 +57,14 @@ function getQuery(tableName, offsets) {
     };
 }
 
-function nextPage(client, tableName, offsets, retryDelay) {
+function nextPage(client, tableName, offsets, proj, retryDelay) {
     //console.log(offsets);
-    var query = getQuery(tableName, offsets);
+    var query = getQuery(tableName, offsets, proj);
     return client.executeAsync(query.cql, query.params, {
         prepare: true,
         fetchSize: retryDelay ? 1 : 50,
         pageState: offsets.pageState,
-        consistency: retryDelay ? consistencies.one : consistencies.quorum,
+        consistency: retryDelay ? consistencies.one : consistencies.one,
     })
     .catch(function(err) {
         retryDelay = retryDelay || 1; // ms
@@ -77,7 +77,7 @@ function nextPage(client, tableName, offsets, retryDelay) {
             offsets.token = offsets.token.add(500000000);
             console.log('Retrying with new token:',
                 offsets.token.toString());
-            return nextPage(client, tableName, offsets, retryDelay);
+            return nextPage(client, tableName, offsets, proj, retryDelay);
         }
 
         console.log('Error:', err);
@@ -86,7 +86,7 @@ function nextPage(client, tableName, offsets, retryDelay) {
         console.log('Retrying in', Math.round(retryDelay) / 1000, 'seconds...');
         return new P(function(resolve, reject) {
             setTimeout(function() {
-                nextPage(client, tableName, offsets, retryDelay)
+                nextPage(client, tableName, offsets, proj, retryDelay)
                     .then(resolve)
                     .catch(reject);
             }, retryDelay);
@@ -102,19 +102,51 @@ function nextPage(client, tableName, offsets, retryDelay) {
  * @param {Object}   offsets   - Offset information (token, domain, key, and pageState).
  * @param {Function} func      - Function called with result rows.
  */
-function processRows(client, tableName, offsets, func) {
-    return nextPage(client, tableName, offsets)
+function processRows(client, tableName, offsets, proj, func) {
+    return nextPage(client, tableName, offsets, proj)
     .then(function(res) {
         return P.resolve(res.rows)
         .each(func)
         .then(function() {
             process.nextTick(function() {
                 offsets.pageState = res.pageState;
-                processRows(client, tableName, offsets, func);
+                processRows(client, tableName, offsets, proj, func);
             });
         })
         .catch(function(e) {
             console.log(res.pageState);
+            console.log(e);
+            throw e;
+        });
+    });
+}
+
+/**
+ * Iterate rows in a key-rev-value table.
+ *
+ * @param {cassandra#Client} client - Cassandra client instance.
+ * @param {array}   tables   - Cassandra table names.
+ * @param {Object}   offset - Offset information (token, domain, key, and pageState).
+ * @param {string}  proj  - The projetion string on what to select
+ * @param {Function} func    - Function called with result rows.
+ */
+function processRowsMultipleTables(client, tables, offset, proj, func) {
+    return P.all(tables.map((tableName) => nextPage(client, tableName, offset, proj)))
+    .then(function(results) {
+        const aggregated = [];
+        for (let i = 0; i < results[0].rows.length; i++) {
+            aggregated.push([results[0].rows[i], results[1].rows[i]]);
+        }
+        return P.resolve(aggregated)
+        .each(func)
+        .then(function() {
+            process.nextTick(function() {
+                console.log(offset);
+                processRowsMultipleTables(client, tables, offset, proj, func);
+            });
+        })
+        .catch(function(e) {
+            console.log(results.map((res) => res.pageState));
             console.log(e);
             throw e;
         });
@@ -146,6 +178,7 @@ function getConfig(config) {
 
 module.exports = {
     iterateTable: processRows,
+    iterateTables: processRowsMultipleTables,
     makeClient: makeClient,
     getConfig: getConfig,
 };

@@ -13,7 +13,7 @@ var cassandra = P.promisifyAll(require('cassandra-driver'));
 var consistencies = cassandra.types.consistencies;
 var ctypes = cassandra.types;
 var getConfig = require('./lib/index').getConfig;
-var iterateTable = require('./lib/index').iterateTable;
+var iterateTables = require('./lib/index').iterateTables;
 var makeClient = require('./lib/index').makeClient;
 var DB = require('../lib/db');
 var dbutil = require('../lib/dbutils');
@@ -103,25 +103,15 @@ var client = makeClient({
 });
 
 var db = new DB(client, {conf: conf, log: console.log});
-var htmlTable = dbutil.cassID(db.keyspaceName(argv.domain, 'parsoid.html')) + '.data';
-var dataTable = dbutil.cassID(db.keyspaceName(argv.domain, 'parsoid.data-parsoid')) + '.data';
-var offsetsTable = dbutil.cassID(db.keyspaceName(argv.domain, 'parsoid.section.offsets')) + '.data';
+var oldLeadTable = dbutil.cassID(db.keyspaceName(argv.domain, 'mobileapps.lead')) + '.data';
+var newLeadTable = dbutil.cassID(db.keyspaceName(argv.domain, 'mobile-sections-lead')) + '.data';
+var oldRemainingTable = dbutil.cassID(db.keyspaceName(argv.domain, 'mobileapps.remaining')) + '.data';
+var newRemainingTable = dbutil.cassID(db.keyspaceName(argv.domain, 'mobile-sections-remaining')) + '.data';
 
-log('HTML table', htmlTable);
-log('Data table', dataTable);
-log('Offsets table', dataTable);
-
-// Row state, used to make row handling decisions in processRow
-var counts = {
-    title: 0,
-    rev: 0,
-    render: 0,
-};
-
-var keys = {
-    title: null,
-    rev: null,
-};
+log('Old lead table', oldLeadTable);
+log('Old remaining table', newLeadTable);
+log('New lead table', oldRemainingTable);
+log('New remaining table', newRemainingTable);
 
 var total = 0;
 
@@ -146,59 +136,59 @@ if (argv.token) {
 }
 
 function processRow (row) {
-    // Create a new set of keys
-    var newKeys = {
-        title: JSON.stringify([row._domain, row.key]),
-        rev: JSON.stringify([row._domain, row.key, row.rev])
-    };
+
+    if (row[0] === null && row[1] === null) {
+        console.log('Finished');
+        process.exit(0);
+    }
 
     // Keep track of our latest token
-    startOffset.token = row._token;
-
-    // Diff the keys and update counters
-    if (newKeys.title !== keys.title) {
-        counts.title = 0;
-        counts.rev = 0;
-        counts.render = 0;
-    } else if (newKeys.rev !==  keys.rev) {
-        counts.rev++;
-        counts.render = 0;
-    } else {
-        counts.render++;
-    }
-    keys = newKeys;
+    startOffset.token = row[0]._token;
 
     total++;
     if ((total % 500000) === 0) {
         log('Processed', total, 'total entries');
     }
+    console.log('Got it');
 
-    // Thin-out
-    if ((counts.rev > 0 && counts.render > 0)
-        || (counts.rev === 0 && counts.render > 0
-            // Enforce a grace_ttl of 86400
-            && (Date.now() - row.tid.getDate()) > 86400000)
-        || (counts.rev > 0 && row.tid.getDate() <  upperBound)) {
-        log('Deleting:', row._token.toString(), row.tid.getDate().toISOString(), keys.rev);
-
-        var delHtml = 'DELETE FROM ' + htmlTable + ' WHERE "_domain" = ? AND key = ? AND rev = ? AND tid = ?';
-        var delData = 'DELETE FROM ' + dataTable + ' WHERE "_domain" = ? AND key = ? AND rev = ? AND tid = ?';
-        var delOffsets = 'DELETE FROM ' + offsetsTable + ' WHERE "_domain" = ? AND key = ? AND rev = ? AND tid = ?';
-        var params = [row._domain, row.key, row.rev, row.tid];
-        var delQueries = [
-            { query: delHtml, params: params },
-            { query: delData, params: params },
-            { query: delOffsets, params: params },
-        ];
-
-        return client.batchAsync(delQueries, {
-            prepare: true,
-            consistency: cassandra.types.consistencies.localQuorum
+    function getDefinedProperties(row) {
+        return Object.keys(row).filter(function(keyName) {
+            return row[keyName] !== null && row[keyName] !== undefined;
         });
     }
 
-    // Else: nothing to do
-    return P.resolve();
+    delete row[0]._token;
+    delete row[1]._token;
+
+    const lead = getDefinedProperties(row[0]);
+    lead.push('rev');
+    const remaining = getDefinedProperties(row[1]);
+    remaining.push('rev');
+    const insertQueries = [
+        {
+            query: `INSERT INTO ${newLeadTable} ( ${lead.map((prop) => '"' + prop + '"').join(', ')} ) VALUES ( ${lead.map(() => '?').join(', ')});`,
+            params: lead.map((prop) => {
+                if (prop === 'rev') {
+                    return parseInt(JSON.parse(row[0].value).revision);
+                }
+                return row[0][prop];
+            })
+        },
+        {
+            query: `INSERT INTO ${newRemainingTable} ( ${remaining.map((prop) => '"' + prop + '"').join(', ')} ) VALUES ( ${remaining.map(() => '?').join(', ')});`,
+            params: remaining.map((prop) => {
+                if (prop === 'rev') {
+                    return parseInt(JSON.parse(row[0].value).revision);
+                }
+                return row[1][prop]
+            })
+        }
+    ];
+
+    return client.batchAsync(insertQueries, {
+        prepare: true,
+        consistency: cassandra.types.consistencies.one
+    });
 }
 
-return iterateTable(client, htmlTable, startOffset, '"_domain", key, rev, tid', processRow);
+return iterateTables(client, [ oldLeadTable, oldRemainingTable ], startOffset,  '"_domain", key, tid, "latestTid", value, "content-type", "content-sha256", "content-location", tags', processRow);
