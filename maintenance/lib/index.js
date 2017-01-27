@@ -2,7 +2,7 @@
 
 
 var P   = require('bluebird');
-var cassandra     = P.promisifyAll(require('cassandra-driver'));
+var cassandra     = require('cassandra-driver');
 var consistencies = cassandra.types.consistencies;
 var fs   = require('fs');
 var util = require('util');
@@ -37,6 +37,7 @@ function makeClient(options) {
         contactPoints: [options.host],
         authProvider: new cassandra.auth.PlainTextAuthProvider(creds.username, creds.password),
         socketOptions: { connectTimeout: 10000 },
+        promiseFactory: P.fromCallback
     });
 }
 
@@ -60,7 +61,7 @@ function getQuery(tableName, offsets) {
 function nextPage(client, tableName, offsets, retryDelay) {
     //console.log(offsets);
     var query = getQuery(tableName, offsets);
-    return client.executeAsync(query.cql, query.params, {
+    return client.execute(query.cql, query.params, {
         prepare: true,
         fetchSize: retryDelay ? 1 : 50,
         pageState: offsets.pageState,
