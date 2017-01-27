@@ -136,7 +136,7 @@ function processRow (row) {
         console.log('-- Deleting:', row._token.toString(), row.tid.getDate().toISOString(), keys.rev);
         var delQuery = 'delete from ' + table + 'where "_domain" = :domain and key = :key and rev = :rev and tid = :tid';
         row.domain = row._domain;
-        return client.executeAsync(delQuery, row, {
+        return client.execute(delQuery, row, {
             prepare: true,
             consistency: cassandra.types.consistencies.quorum
         });

@@ -191,7 +191,7 @@ function processRow (row) {
             { query: delOffsets, params: params },
         ];
 
-        return client.batchAsync(delQueries, {
+        return client.batch(delQueries, {
             prepare: true,
             consistency: cassandra.types.consistencies.localQuorum
         });
