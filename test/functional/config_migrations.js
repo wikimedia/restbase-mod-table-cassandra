@@ -23,15 +23,7 @@ var testTable0 = {
         { attribute: 'title', type: 'hash' },
         { attribute: 'rev', type: 'range', order: 'desc' },
         { attribute: 'tid', type: 'range', order: 'desc' }
-    ],
-    secondaryIndexes: {
-        by_rev : [
-            { attribute: 'rev', type: 'hash' },
-            { attribute: 'tid', type: 'range', order: 'desc' },
-            { attribute: 'title', type: 'range', order: 'asc' },
-            { attribute: 'comment', type: 'proj' }
-        ]
-    }
+    ]
 };
 
 describe('Configuration migration', function() {
