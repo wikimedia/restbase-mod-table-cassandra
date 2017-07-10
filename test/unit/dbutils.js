@@ -80,8 +80,8 @@ describe('DB utilities', function() {
 
         var exp = /TTL\((.+)\) as "_ttl_(.+)"/;
 
-        // There should be 8 non-ttl attributes total.
-        assert(projs.filter(function(v) { return !exp.test(v); }).length === 8);
+        // There should be 7 non-ttl attributes total.
+        assert(projs.filter(function(v) { return !exp.test(v); }).length === 7);
 
         var matching = [];
         projs.filter(function(v) { return exp.test(v); }).forEach(
@@ -93,10 +93,10 @@ describe('DB utilities', function() {
             }
         );
 
-        // matching should include _del, author, and comment only; should only
+        // matching should include, author, and comment only; should only
         // include non-index, and non-collection attributes.
-        assert(matching.length === 3, 'incorrect number of TTL\'d attributes');
-        assert.deepEqual(matching.sort(), ["_del", "author", "comment"]);
+        assert(matching.length === 2, 'incorrect number of TTL\'d attributes');
+        assert.deepEqual(matching.sort(), ["author", "comment"]);
     });
 
     it('builds SELECTS with an included LIMIT', function() {
