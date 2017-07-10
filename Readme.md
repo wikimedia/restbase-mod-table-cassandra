@@ -30,7 +30,6 @@ In production since March 2015.
 - multi-tenant design: domain creation, prepared for per-domain ACLs
 - table creation with declarative JSON schemas
 - limited automatic schema migrations
-- multiple retention policies for limiting the MVCC history
 - paging
 
 [spec]: https://github.com/wikimedia/restbase-mod-table-spec
