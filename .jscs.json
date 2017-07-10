@@ -28,6 +28,7 @@
     "coverage/**",
     "scripts/**",
     "maintenance/**",
-    "doc/**"
+    "doc/**",
+    ".git/**"
   ]
 }
