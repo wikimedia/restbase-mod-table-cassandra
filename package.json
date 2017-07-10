@@ -1,7 +1,7 @@
 {
-  "name": "restbase-mod-table-cassandra",
+  "name": "restbase-mod-table-cassandra-ng",
   "description": "RESTBase table storage on Cassandra",
-  "version": "0.11.2",
+  "version": "0.12.0",
   "license": "Apache-2.0",
   "dependencies": {
     "bluebird": "^3.4.6",
@@ -10,7 +10,7 @@
     "extend": "^3.0.0",
     "js-yaml": "^3.6.1",
     "json-stable-stringify": "git+https://github.com/wikimedia/json-stable-stringify#master",
-    "restbase-mod-table-spec": "^0.1.10",
+    "restbase-mod-table-spec": "git+https://github.com/wikimedia/restbase-mod-table-spec#redesign",
     "semver": "^5.3.0"
   },
   "repository": {
