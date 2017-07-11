@@ -3,7 +3,7 @@
 // mocha defines to avoid JSHint breakage
 /* global describe, it, before, beforeEach, after, afterEach */
 
-var utils = require('restbase-mod-table-spec').testUtils;
+var utils = require('restbase-mod-table-spec-ng').testUtils;
 var fs = require('fs');
 var yaml = require('js-yaml');
 var makeDB = require('../../lib/index.js');
