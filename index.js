@@ -5,7 +5,7 @@
  */
 
 // global includes
-const spec = require('restbase-mod-table-spec').spec;
+const spec = require('restbase-mod-table-spec-ng').spec;
 
 class RBCassandra {
     constructor(options) {
