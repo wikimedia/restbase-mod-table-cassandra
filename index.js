@@ -133,7 +133,7 @@ class RBCassandra {
         return this.store.delete(domain, req.body)
         .thenReturn({
             // created
-            status: 201
+            status: 204
         })
         .catch((e) => ({
             status: 500,
