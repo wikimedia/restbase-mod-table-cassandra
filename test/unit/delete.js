@@ -58,13 +58,7 @@ describe('Delete', function() {
                 return newdb.createTable('restbase.cassandra.test.local', {
                     table: 'even-simpler-table',
                     options: {
-                        durability: 'low',
-                        compression: [
-                            {
-                                algorithm: 'deflate',
-                                block_size: 256
-                            }
-                        ]
+                        durability: 'low'
                     },
                     attributes: {
                         key: 'string',
@@ -81,9 +75,9 @@ describe('Delete', function() {
     });
 
     after(function() {
-        return P.map(['simple-table', 'even-simpler-table'], (i) => {
-            db.dropTable('restbase.cassandra.test.local', i);
-        });
+        return P.map(['simple-table', 'even-simpler-table'], (i) =>
+            db.dropTable('restbase.cassandra.test.local', i)
+        );
     });
 
     // TODO: move to functional tests when delete rest endpoint
@@ -99,16 +93,16 @@ describe('Delete', function() {
     });
 
     it('puts the lotion on its skin', () => {
-        return P.map(Array.from(new Array(20), (x, i) => i), (rev) => {
-            return db.put('restbase.cassandra.test.local', {
+        return P.map(Array.from(new Array(20), (x, i) => i), (rev) =>
+            db.put('restbase.cassandra.test.local', {
                 table: 'even-simpler-table',
                 attributes: {
                     key: 'key00',
                     rev: rev,
                     value: `val${rev}`
                 }
-            });
-        })
+            })
+        )
         .then(() => {
             return db.get('restbase.cassandra.test.local', {
                 table: 'even-simpler-table',
@@ -129,7 +123,7 @@ describe('Delete', function() {
             });
         })
         .then((res) => {
-            assert.strictEqual(res.status, 201);
+            assert.strictEqual(res.status, 204);
 
             return db.get('restbase.cassandra.test.local', {
                 table: 'even-simpler-table',
