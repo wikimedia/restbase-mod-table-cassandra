@@ -21,7 +21,8 @@ class RBCassandra {
                 dropTable: this.dropTable.bind(this),
                 getTableSchema: this.getTableSchema.bind(this),
                 get: this.get.bind(this),
-                put: this.put.bind(this)
+                put: this.put.bind(this),
+                delete: this.delete.bind(this)
             }
         };
     }
@@ -114,6 +115,31 @@ class RBCassandra {
 
             body: {
                 type: 'update_error',
+                title: 'Internal error in Cassandra table storage backend',
+                stack: e.stack,
+                err: e,
+                req: {
+                    uri: req.uri,
+                    headers: req.headers,
+                    body: req.body && JSON.stringify(req.body).slice(0,200)
+                }
+            }
+        }));
+    }
+
+    delete(rb, req) {
+        const domain = req.params.domain;
+        // XXX: Use the path to determine the primary key?
+        return this.store.delete(domain, req.body)
+        .thenReturn({
+            // created
+            status: 201
+        })
+        .catch((e) => ({
+            status: 500,
+
+            body: {
+                type: 'delete_error',
                 title: 'Internal error in Cassandra table storage backend',
                 stack: e.stack,
                 err: e,
