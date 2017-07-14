@@ -132,7 +132,7 @@ class RBCassandra {
         // XXX: Use the path to determine the primary key?
         return this.store.delete(domain, req.body)
         .thenReturn({
-            // created
+            // deleted
             status: 204
         })
         .catch((e) => ({
