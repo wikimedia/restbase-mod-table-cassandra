@@ -181,12 +181,10 @@ class RBCassandra {
         return this.store.getTableSchema(domain, req.params.table)
         .then((res) => ({
             status: 200,
-            headers: { etag: res.tid.toString() },
             body: res.schema
         }))
         .catch((e) => ({
             status: 500,
-
             body: {
                 type: 'schema_query_error',
                 title: 'Internal error querying table schema in Cassandra storage backend',
