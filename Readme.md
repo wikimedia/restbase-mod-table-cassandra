@@ -29,27 +29,13 @@ In production since March 2015.
     implementing [the RESTBase table storage interface][spec]
 - multi-tenant design: domain creation, prepared for per-domain ACLs
 - table creation with declarative JSON schemas
-- [global secondary
-    indexes](https://github.com/wikimedia/restbase-mod-table-cassandra/blob/master/doc/SecondaryIndexes.md)
-    - index entries written in batch with main data write, superseded entries
-        removed from indexes asynchronously / eventually consistent
-        - support for strongly consistent reads at the cost of extra cross-checks
-            with the main data table (not implemented yet)
-    - range queries
-    - projections
 - limited automatic schema migrations
-- multiple retention policies for limiting the MVCC history
 - paging
 
 [spec]: https://github.com/wikimedia/restbase-mod-table-spec
 
 
 ### TODO
-- Secondary index refinements:
-    - queries for columns not projected into the secondary index
-    - full index rebuilds
-    - [sharded ordered range
-        indexes](https://phabricator.wikimedia.org/T112031)
 - Possibly, some amount of [transaction support](https://github.com/wikimedia/restbase-mod-table-cassandra/blob/master/doc/Transactions.md)
 - [Leverage Cassandra 3 materialized
     views](https://phabricator.wikimedia.org/T111746) where it makes sense,

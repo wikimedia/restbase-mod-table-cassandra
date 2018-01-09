@@ -22,15 +22,7 @@ var testTable0a = {
         { attribute: 'title', type: 'hash' },
         { attribute: 'rev', type: 'range', order: 'desc' },
         { attribute: 'tid', type: 'range', order: 'desc' }
-    ],
-    secondaryIndexes: {
-        by_rev : [
-            { attribute: 'rev', type: 'hash' },
-            { attribute: 'tid', type: 'range', order: 'desc' },
-            { attribute: 'title', type: 'range', order: 'asc' },
-            { attribute: 'comment', type: 'proj' }
-        ]
-    }
+    ]
 };
 
 // Same as testTable0a, but with a different definition ordering.
@@ -46,14 +38,6 @@ var testTable0b = {
         tags: 'set<string>'
     },
     domain: 'restbase.cassandra.test.local',
-    secondaryIndexes: {
-        by_rev : [
-            { attribute: 'rev', type: 'hash' },
-            { attribute: 'tid', type: 'range', order: 'desc' },
-            { attribute: 'title', type: 'range', order: 'asc' },
-            { attribute: 'comment', type: 'proj' }
-        ]
-    },
     index: [
         { attribute: 'title', type: 'hash' },
         { attribute: 'rev', type: 'range', order: 'desc' },
@@ -80,8 +64,8 @@ describe('DB utilities', function() {
 
         var exp = /TTL\((.+)\) as "_ttl_(.+)"/;
 
-        // There should be 8 non-ttl attributes total.
-        assert(projs.filter(function(v) { return !exp.test(v); }).length === 8);
+        // There should be 7 non-ttl attributes total.
+        assert(projs.filter(function(v) { return !exp.test(v); }).length === 7);
 
         var matching = [];
         projs.filter(function(v) { return exp.test(v); }).forEach(
@@ -93,10 +77,10 @@ describe('DB utilities', function() {
             }
         );
 
-        // matching should include _del, author, and comment only; should only
+        // matching should include, author, and comment only; should only
         // include non-index, and non-collection attributes.
-        assert(matching.length === 3, 'incorrect number of TTL\'d attributes');
-        assert.deepEqual(matching.sort(), ["_del", "author", "comment"]);
+        assert(matching.length === 2, 'incorrect number of TTL\'d attributes');
+        assert.deepEqual(matching.sort(), ["author", "comment"]);
     });
 
     it('builds SELECTS with an included LIMIT', function() {
@@ -109,46 +93,5 @@ describe('DB utilities', function() {
         };
         var cql = dbu.buildGetQuery(req, { limit: 42 }).cql;
         assert(cql.toLowerCase().includes('limit 42'), 'missing limit clause');
-    });
-});
-
-describe('Schema validation', function() {
-    it('rejects invalid revision retention policy schema', function() {
-        var policies = [
-            {
-                type: 'bogus'    // Invalid
-            },
-            {
-                type: 'latest',
-                count: 1,
-                grace_ttl: 5     // Invalid
-            },
-            {
-                type: 'latest',
-                count: 0,        // Invalid
-                grace_ttl: 86400
-            }
-        ];
-
-        policies.forEach(function(policy) {
-            var schema = { revisionRetentionPolicy: policy };
-            assert.throws(
-                dbu.validateAndNormalizeSchema.bind(null, schema),
-                Error,
-                'Validated an invalid schema');
-        });
-    });
-
-    it('defaults revision retention policy to \'all\'', function() {
-        var schemaInfo = dbu.makeSchemaInfo(
-                dbu.validateAndNormalizeSchema({
-                        attributes: {
-                            foo: 'int'
-                        },
-                        index: [
-                            { attribute: 'foo', type: 'hash' }
-                        ]
-                    }));
-        assert.deepEqual('all', schemaInfo.revisionRetentionPolicy.type);
     });
 });
