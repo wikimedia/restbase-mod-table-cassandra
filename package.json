@@ -1,14 +1,14 @@
 {
   "name": "restbase-mod-table-cassandra",
   "description": "RESTBase table storage on Cassandra",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "license": "Apache-2.0",
   "dependencies": {
-    "bluebird": "^3.4.6",
-    "cassandra-driver": "3.2.1",
-    "core-js": "^2.4.1",
-    "extend": "^3.0.0",
-    "js-yaml": "^3.6.1",
+    "bluebird": "^3.5.1",
+    "cassandra-driver": "3.5.0",
+    "core-js": "^2.5.7",
+    "extend": "^3.0.1",
+    "js-yaml": "^3.12.0",
     "json-stable-stringify": "^1.0.1",
     "restbase-mod-table-spec": "^1.1.0"
   },
@@ -22,14 +22,15 @@
     "coveralls": "cat ./coverage/lcov.info | coveralls"
   },
   "devDependencies": {
-    "coveralls": "^2.11.14",
+    "coveralls": "^3.0.2",
     "istanbul": "^0.4.5",
-    "mocha": "^3.1.0",
-    "mocha-jshint": "^2.3.1",
-    "mocha-jscs": "^5.0.1",
-    "mocha-lcov-reporter": "^1.2.0",
-    "preq": "^0.4.10",
-    "mocha-eslint":"^3.0.1",
-    "eslint-config-node-services": "^1.0.3"
+    "mocha": "^5.2.0",
+    "mocha-lcov-reporter": "^1.3.0",
+    "preq": "^0.5.6",
+    "mocha-eslint": "^4.1.0",
+    "eslint-config-node-services": "^2.2.5",
+    "eslint-config-wikimedia": "^0.5.0",
+    "eslint-plugin-jsdoc": "^3.7.1",
+    "eslint-plugin-json": "^1.2.0"
   }
 }

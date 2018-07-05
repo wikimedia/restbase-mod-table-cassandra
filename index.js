@@ -80,11 +80,11 @@ class RBCassandra {
         }
         const domain = req.params.domain;
         return this.store.get(domain, req.body)
-        .then((res) => ({
+        .then(res => ({
             status: res.items.length ? 200 : 404,
             body: res
         }))
-        .catch((e) => ({
+        .catch(e => ({
             status: 500,
 
             body: {
@@ -110,7 +110,7 @@ class RBCassandra {
             // created
             status: 201
         })
-        .catch((e) => ({
+        .catch(e => ({
             status: 500,
 
             body: {
@@ -135,7 +135,7 @@ class RBCassandra {
             // deleted
             status: 204
         })
-        .catch((e) => ({
+        .catch(e => ({
             status: 500,
 
             body: {
@@ -159,7 +159,7 @@ class RBCassandra {
             // done
             status: 204
         })
-        .catch((e) => ({
+        .catch(e => ({
             status: 500,
 
             body: {
@@ -179,11 +179,11 @@ class RBCassandra {
     getTableSchema(rb, req) {
         const domain = req.params.domain;
         return this.store.getTableSchema(domain, req.params.table)
-        .then((res) => ({
+        .then(res => ({
             status: 200,
             body: res.schema
         }))
-        .catch((e) => ({
+        .catch(e => ({
             status: 500,
             body: {
                 type: 'schema_query_error',
@@ -218,7 +218,7 @@ class RBCassandra {
 
 /**
  * Factory
- * @param options
+ * @param {Object} options
  * @return {Promise<registration>} with registration being the registration
  * object
  */
