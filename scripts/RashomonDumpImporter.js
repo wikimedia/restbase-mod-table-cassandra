@@ -1,6 +1,6 @@
 #!/usr/bin/env node
-/*jslint node: true */
-"use strict";
+/* jslint node: true */
+'use strict';
 /**
  * Rashomon write test.
  */
@@ -10,7 +10,7 @@ var dumpReader = require('./dumpReader.js'),
 	FormData = require('form-data'),
 	http = require('http');
 
-function testWrites () {
+function testWrites() {
 	var reader = new dumpReader.DumpReader(),
 		totalSize = 0,
 		revisions = 0,
@@ -21,7 +21,7 @@ function testWrites () {
 		maxConcurrency = 50;
 	http.globalAgent = false;
 
-	reader.on( 'revision', function ( revision ) {
+	reader.on('revision', function (revision) {
 
 		// Up to 50 retries
 		var retries = 50,
@@ -34,7 +34,7 @@ function testWrites () {
 		var timestamp = new Date(revision.timestamp).toISOString(),
 			name = encodeURIComponent(revision.page.title.replace(/ /g, '_'));
 
-		function handlePostResponse (err, response, body) {
+		function handlePostResponse(err, response, body) {
 			if (err || response.statusCode !== 200) {
 				if (!err) {
 					err = response.statusCode + ' ' + body;
@@ -53,7 +53,7 @@ function testWrites () {
 			totalSize += revision.text.length;
 			revisions++;
 			var interval = 1000;
-			if(revisions % interval === 0) {
+			if (revisions % interval === 0) {
 
 				var newIntervalDate = new Date(),
 					rate = interval / (newIntervalDate - intervalDate) * 1000,
@@ -70,11 +70,11 @@ function testWrites () {
 			}
 		}
 
-		function doPost () {
+		function doPost() {
 			var form = new FormData(),
 				reqOptions = {
 					method: 'POST',
-					uri: 'http://localhost:8000/enwiki/page/' + name + '?rev/',
+					uri: 'http://localhost:8000/enwiki/page/' + name + '?rev/'
 				};
 			form.append('_timestamp', timestamp);
 			form.append('_rev', revision.id);
@@ -86,7 +86,7 @@ function testWrites () {
 		// send it off
 		doPost();
 	});
-	reader.on('end', function() {
+	reader.on('end', function () {
 		console.log('####################');
 		var delta = Math.round((new Date() - startDate) / 1000);
 		console.log(revisions + ' revisions in ' + delta +
@@ -96,7 +96,7 @@ function testWrites () {
 		process.exit();
 	});
 
-	process.stdin.on('data', reader.push.bind(reader) );
+	process.stdin.on('data', reader.push.bind(reader));
 	process.stdin.setEncoding('utf8');
 	process.stdin.resume();
 }

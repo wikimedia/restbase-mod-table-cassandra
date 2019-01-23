@@ -1,4 +1,4 @@
-"use strict";
+'use strict';
 
 /*
  * Cassandra-backed table storage service
@@ -80,11 +80,11 @@ class RBCassandra {
         }
         const domain = req.params.domain;
         return this.store.get(domain, req.body)
-        .then(res => ({
+        .then((res) => ({
             status: res.items.length ? 200 : 404,
             body: res
         }))
-        .catch(e => ({
+        .catch((e) => ({
             status: 500,
 
             body: {
@@ -95,7 +95,7 @@ class RBCassandra {
                 req: {
                     uri: req.uri,
                     headers: req.headers,
-                    body: req.body && JSON.stringify(req.body).slice(0,200)
+                    body: req.body && JSON.stringify(req.body).slice(0, 200)
                 }
             }
         }));
@@ -110,7 +110,7 @@ class RBCassandra {
             // created
             status: 201
         })
-        .catch(e => ({
+        .catch((e) => ({
             status: 500,
 
             body: {
@@ -121,7 +121,7 @@ class RBCassandra {
                 req: {
                     uri: req.uri,
                     headers: req.headers,
-                    body: req.body && JSON.stringify(req.body).slice(0,200)
+                    body: req.body && JSON.stringify(req.body).slice(0, 200)
                 }
             }
         }));
@@ -135,7 +135,7 @@ class RBCassandra {
             // deleted
             status: 204
         })
-        .catch(e => ({
+        .catch((e) => ({
             status: 500,
 
             body: {
@@ -146,7 +146,7 @@ class RBCassandra {
                 req: {
                     uri: req.uri,
                     headers: req.headers,
-                    body: req.body && JSON.stringify(req.body).slice(0,200)
+                    body: req.body && JSON.stringify(req.body).slice(0, 200)
                 }
             }
         }));
@@ -159,7 +159,7 @@ class RBCassandra {
             // done
             status: 204
         })
-        .catch(e => ({
+        .catch((e) => ({
             status: 500,
 
             body: {
@@ -170,7 +170,7 @@ class RBCassandra {
                 req: {
                     uri: req.uri,
                     headers: req.headers,
-                    body: req.body && JSON.stringify(req.body).slice(0,200)
+                    body: req.body && JSON.stringify(req.body).slice(0, 200)
                 }
             }
         }));
@@ -179,11 +179,11 @@ class RBCassandra {
     getTableSchema(rb, req) {
         const domain = req.params.domain;
         return this.store.getTableSchema(domain, req.params.table)
-        .then(res => ({
+        .then((res) => ({
             status: 200,
             body: res.schema
         }))
-        .catch(e => ({
+        .catch((e) => ({
             status: 500,
             body: {
                 type: 'schema_query_error',
@@ -193,7 +193,7 @@ class RBCassandra {
                 req: {
                     uri: req.uri,
                     headers: req.headers,
-                    body: req.body && JSON.stringify(req.body).slice(0,200)
+                    body: req.body && JSON.stringify(req.body).slice(0, 200)
                 }
             }
         }));
@@ -215,7 +215,6 @@ class RBCassandra {
     }
 }
 
-
 /**
  * Factory
  * @param {Object} options
@@ -228,4 +227,3 @@ function makeRBCassandra(options) {
 }
 
 module.exports = makeRBCassandra;
-
