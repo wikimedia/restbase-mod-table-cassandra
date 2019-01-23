@@ -55,7 +55,7 @@ var opts = {
 var exp_method = false;
 var exp_data = false;
 var exp_fname = false;
-args.forEach(function (arg, index, array) {
+args.forEach((arg, index, array) => {
     switch (arg) {
         case '-h':
             usage();
@@ -106,10 +106,10 @@ makeClient({
         hosts: ['localhost']
     }
 })
-.then(function (db) {
+.then((db) => {
     DB = db;
     return router.makeRouter();
-}).then(function (r_obj) {
+}).then( (r_obj) => {
     var req = {
         url: opts.path,
         method: opts.method
@@ -119,9 +119,9 @@ makeClient({
     }
     console.log('#~> REQ : %s', util.inspect(req));
     return r_obj.request(req);
-}).then(function (response) {
+}).then((response) => {
     console.log('#~> RESP: %s', util.inspect(response));
     process.exit();
-}).catch(function (err) {
+}).catch((err) => {
     console.log('#~> ERR : %s', util.inspect(err));
 });

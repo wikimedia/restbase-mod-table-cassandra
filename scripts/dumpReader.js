@@ -12,7 +12,7 @@ util.inherits(DumpReader, events.EventEmitter);
 /**
  * @param {Stream} stream input stream to read XML from
  */
-DumpReader.prototype.makeParser = function () {
+DumpReader.prototype.makeParser = () => {
 
 	var self = this,
 		stack = [{}],
@@ -21,7 +21,7 @@ DumpReader.prototype.makeParser = function () {
 
 	function flip(arr) {
 		var obj = {};
-		arr.forEach(function (val) {
+		arr.forEach((val) => {
 			obj[val] = true;
 		});
 		return obj;
@@ -31,7 +31,7 @@ DumpReader.prototype.makeParser = function () {
 		ignoreNodes = flip(['mediawiki', 'siteinfo', 'upload', 'thread']),
 		parser = new libxml.SaxPushParser();
 	this.parser = parser;
-	parser.on('startElementNS', function (elem, attrs, prefix, uri, namespaces) {
+	parser.on('startElementNS', (elem, attrs, prefix, uri, namespaces) => {
 		// console.warn( 'elem: ' + elem );
 		if (elem in ignoreNodes) {
 			/* jshint noempty: false */ // we know this is empty!
@@ -53,7 +53,7 @@ DumpReader.prototype.makeParser = function () {
 		}
 	});
 
-	parser.on('endElementNS', function (elem, prefix, uri) {
+	parser.on('endElementNS', (elem, prefix, uri) => {
 		// ping something!
 		if (elem === 'mediawiki') {
 			self.complete = true;
@@ -76,26 +76,26 @@ DumpReader.prototype.makeParser = function () {
 		}
 	});
 
-	parser.on('characters', function (chars) {
+	parser.on('characters', (chars) => {
 		buffer += chars;
 	});
-	parser.on('cdata', function (cdata) {
+	parser.on('cdata', (cdata) => {
 		buffer += cdata;
 	});
-	parser.on('endDocument', function () {
+	parser.on('endDocument', () => {
 		// This doesn't seem to run...?
 		self.complete = true;
 		// stream.pause();
 		self.emit('end', {});
 	});
-	parser.on('error', function (err) {
+	parser.on('error', (err) => {
 		self.emit('error', err);
 		// Should we.... stop reading now or what?
 	});
 
 };
 
-DumpReader.prototype.push = function (chunk) {
+DumpReader.prototype.push = (chunk) => {
 	// console.log( 'dr read' + chunk );
 	this.parser.push(chunk);
 };

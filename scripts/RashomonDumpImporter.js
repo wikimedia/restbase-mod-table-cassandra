@@ -21,7 +21,7 @@ function testWrites() {
 		maxConcurrency = 50;
 	http.globalAgent = false;
 
-	reader.on('revision', function (revision) {
+	reader.on('revision', (revision) => {
 
 		// Up to 50 retries
 		var retries = 50,
@@ -86,7 +86,7 @@ function testWrites() {
 		// send it off
 		doPost();
 	});
-	reader.on('end', function () {
+	reader.on('end', () => {
 		console.log('####################');
 		var delta = Math.round((new Date() - startDate) / 1000);
 		console.log(revisions + ' revisions in ' + delta +

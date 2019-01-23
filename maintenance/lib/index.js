@@ -27,5 +27,5 @@ function getConfig(config) {
 }
 
 module.exports = {
-    getConfig: getConfig
+    getConfig
 };
