@@ -103,18 +103,18 @@ module.exports.DumpReader = DumpReader;
 
 if (module === require.main) {
 	var reader = new DumpReader();
-	reader.on('end', function () {
+	reader.on('end', () => {
 		console.log('done!');
 		process.exit();
 	});
-	reader.on('error', function (err) {
+	reader.on('error', (err) => {
 		console.log('error!', err);
 		process.exit(1);
 	});
-	reader.on('page', function (page) {
+	reader.on('page', (page) => {
 		console.log('page', page);
 	});
-	reader.on('revision', function (revision) {
+	reader.on('revision', (revision) => {
 		revision.text = revision.text.substr(0, 40);
 		console.log('revision', revision);
 	});

@@ -22,33 +22,33 @@ var testTable0 = {
     ],
 };
 
-describe('Table creation', function() {
+describe('Table creation', () => {
     var db;
-    before(function() {
+    before(() => {
         return makeClient({
-            log: function(level, info) {
+            log: (level, info) => {
                 if (/^error|fatal/.test(level)) {
                     console.log(level, info);
                 }
             },
             conf: yaml.safeLoad(fs.readFileSync(__dirname + '/../utils/test_client.conf.yaml'))
         })
-        .then(function(newDb) {
+        .then((newDb) => {
             db = newDb;
             return db.createTable('restbase.cassandra.test.local', testTable0);
         })
-        .then(function(response) {
+        .then((response) => {
             assert.ok(response, 'undefined response');
             assert.deepEqual(response.status, 201);
         });
     });
-    after(function() {
+    after(() => {
         db.dropTable('restbase.cassandra.test.local', testTable0.table);
     });
 
-    it('updates Cassandra replication', function() {
+    it('updates Cassandra replication', () => {
         return db._getReplication('restbase.cassandra.test.local', testTable0.table)
-        .then(function(response) {
+        .then((response) => {
             assert.ok(response, 'undefined response');
             assert.strictEqual(Object.keys(response).length, 1, 'incorrect number of results');
 
@@ -56,10 +56,10 @@ describe('Table creation', function() {
             db.conf.datacenters.push('new_dc');
             return db.updateReplicationIfNecessary('restbase.cassandra.test.local', testTable0.table);
         })
-        .then(function() {
+        .then(() => {
             return db._getReplication('restbase.cassandra.test.local', testTable0.table);
         })
-        .then(function(response) {
+        .then((response) => {
             assert.ok(response, 'undefined response');
             assert.strictEqual(Object.keys(response).length, 2, 'incorrect number of results');
             assert.ok(response.new_dc, 'additional datacenter not present');

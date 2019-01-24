@@ -32,7 +32,7 @@ if (argv.h) {
 }
 
 var conf = getConfig(argv.config);
-var db = new DB({}, { conf: conf, log: function () {} });
+var db = new DB({}, { conf: conf, log: () => {} });
 console.log(db.keyspaceName(argv.domain, argv.table));
 
 process.exit(0);

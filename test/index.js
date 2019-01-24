@@ -8,7 +8,7 @@ describe('Functional', () => {
     const dbConstructor = require('../index.js');
     require('restbase-mod-table-spec').test(() => dbConstructor({
         conf: conf,
-        log: function () {
+        log: () => {
         }
     }));
 });
