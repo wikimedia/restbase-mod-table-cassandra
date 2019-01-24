@@ -12,7 +12,7 @@ util.inherits(DumpReader, events.EventEmitter);
 /**
  * @param {Stream} stream input stream to read XML from
  */
-DumpReader.prototype.makeParser = function() {
+DumpReader.prototype.makeParser = () => {
 
 	var self = this,
 		stack = [{}],
@@ -21,23 +21,22 @@ DumpReader.prototype.makeParser = function() {
 
 	function flip(arr) {
 		var obj = {};
-		arr.forEach(function(val) {
+		arr.forEach((val) => {
 			obj[val] = true;
 		});
 		return obj;
 	}
 	var textNodes = flip(['id', 'text', 'title', 'minor', 'comment', 'username', 'timestamp']),
 		boolNodes = flip(['minor', 'redirect']),
-		ignoreNodes = flip(['mediawiki', 'siteinfo', 'upload', 'thread'] ),
+		ignoreNodes = flip(['mediawiki', 'siteinfo', 'upload', 'thread']),
 		parser = new libxml.SaxPushParser();
 	this.parser = parser;
-	parser.on('startElementNS', function(elem, attrs, prefix, uri, namespaces) {
-		//console.warn( 'elem: ' + elem );
+	parser.on('startElementNS', (elem, attrs, prefix, uri, namespaces) => {
+		// console.warn( 'elem: ' + elem );
 		if (elem in ignoreNodes) {
-			/* jshint noempty: false */ // we know this is empty!
 			// ...
 		} else if (elem === 'page') {
-			//console.warn( 'starting page' );
+			// console.warn( 'starting page' );
 			stack = [];
 			workspace = {};
 		} else if (elem === 'revision') {
@@ -53,11 +52,11 @@ DumpReader.prototype.makeParser = function() {
 		}
 	});
 
-	parser.on( 'endElementNS', function(elem, prefix, uri) {
+	parser.on('endElementNS', (elem, prefix, uri) => {
 		// ping something!
 		if (elem === 'mediawiki') {
 			self.complete = true;
-			//stream.pause();
+			// stream.pause();
 			self.emit('end', {});
 		} else if (elem === 'page') {
 			self.emit('page', workspace);
@@ -76,53 +75,52 @@ DumpReader.prototype.makeParser = function() {
 		}
 	});
 
-	parser.on( 'characters', function(chars) {
+	parser.on('characters', (chars) => {
 		buffer += chars;
 	});
-	parser.on( 'cdata', function(cdata) {
+	parser.on('cdata', (cdata) => {
 		buffer += cdata;
 	});
-	parser.on( 'endDocument', function() {
+	parser.on('endDocument', () => {
 		// This doesn't seem to run...?
 		self.complete = true;
-		//stream.pause();
+		// stream.pause();
 		self.emit('end', {});
 	});
-	parser.on( 'error', function(err) {
+	parser.on('error', (err) => {
 		self.emit('error', err);
 		// Should we.... stop reading now or what?
 	});
 
 };
 
-DumpReader.prototype.push = function( chunk ) {
-	//console.log( 'dr read' + chunk );
-	this.parser.push( chunk );
+DumpReader.prototype.push = (chunk) => {
+	// console.log( 'dr read' + chunk );
+	this.parser.push(chunk);
 };
-
 
 module.exports.DumpReader = DumpReader;
 
 if (module === require.main) {
 	var reader = new DumpReader();
-	reader.on('end', function() {
+	reader.on('end', () => {
 		console.log('done!');
 		process.exit();
 	});
-	reader.on('error', function(err) {
+	reader.on('error', (err) => {
 		console.log('error!', err);
 		process.exit(1);
 	});
-	reader.on('page', function(page) {
+	reader.on('page', (page) => {
 		console.log('page', page);
 	});
-	reader.on('revision', function(revision) {
+	reader.on('revision', (revision) => {
 		revision.text = revision.text.substr(0, 40);
 		console.log('revision', revision);
 	});
 	console.log('Reading!');
 	process.stdin.setEncoding('utf8');
 
-	process.stdin.on('data', reader.push.bind(reader) );
+	process.stdin.on('data', reader.push.bind(reader));
 	process.stdin.resume();
 }

@@ -1,8 +1,5 @@
 "use strict";
 
-// mocha defines to avoid JSHint breakage
-/* global describe, it, before, beforeEach, after, afterEach */
-
 var assert = require('assert');
 var dbu = require('../../lib/dbutils');
 
@@ -45,9 +42,9 @@ var testTable0b = {
     ]
 };
 
-describe('DB utilities', function() {
+describe('DB utilities', () => {
 
-    it('builds SELECTs with included TTLs', function() {
+    it('builds SELECTs with included TTLs', () => {
         var req = {
             keyspace: 'keyspace',
             columnfamily: 'columnfamily',
@@ -60,16 +57,16 @@ describe('DB utilities', function() {
 
         assert(match.length === 2, 'result has no matching projection');
 
-        var projs = match[1].split(',').map(function(i) { return i.trim(); });
+        var projs = match[1].split(',').map((i) => { return i.trim(); });
 
         var exp = /TTL\((.+)\) as "_ttl_(.+)"/;
 
         // There should be 7 non-ttl attributes total.
-        assert(projs.filter(function(v) { return !exp.test(v); }).length === 7);
+        assert(projs.filter((v) => { return !exp.test(v); }).length === 7);
 
         var matching = [];
-        projs.filter(function(v) { return exp.test(v); }).forEach(
-            function(v) {
+        projs.filter((v) => { return exp.test(v); }).forEach(
+            (v) => {
                 var v1 = v.match(exp)[1];
                 var v2 = v.match(exp)[2];
                 assert.deepEqual(v1, dbu.cassID(v2));
@@ -83,7 +80,7 @@ describe('DB utilities', function() {
         assert.deepEqual(matching.sort(), ["author", "comment"]);
     });
 
-    it('builds SELECTS with an included LIMIT', function() {
+    it('builds SELECTS with an included LIMIT', () => {
         var req = {
             keyspace: 'keyspace',
             columnfamily: 'columnfamily',

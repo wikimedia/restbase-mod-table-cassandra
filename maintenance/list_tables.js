@@ -1,5 +1,4 @@
-"use strict";
-
+'use strict';
 
 const align     = require('string-align');
 const P         = require('bluebird');
@@ -32,7 +31,6 @@ const yargs = require('yargs')
     });
 
 const argv = yargs.argv;
-
 
 if (argv.h) {
     yargs.showHelp();

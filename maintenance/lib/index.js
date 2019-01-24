@@ -1,15 +1,13 @@
-"use strict";
-
+'use strict';
 
 var fs   = require('fs');
 var yaml = require('js-yaml');
-
 
 /**
  * Return the table section of a RESTBase config.
  *
  * @param  {string}  config  - Path to a RESTBase YAML configuration file.
- * @return {object}  table section of configuration.
+ * @return {Object}  table section of configuration.
  */
 function getConfig(config) {
     // Read a RESTBase configuration from a (optional) path argument, an (optional) CONFIG
@@ -29,5 +27,5 @@ function getConfig(config) {
 }
 
 module.exports = {
-    getConfig: getConfig,
+    getConfig
 };
