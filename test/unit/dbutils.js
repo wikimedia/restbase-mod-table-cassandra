@@ -1,8 +1,5 @@
 "use strict";
 
-// mocha defines to avoid JSHint breakage
-/* global describe, it, before, beforeEach, after, afterEach */
-
 var assert = require('assert');
 var dbu = require('../../lib/dbutils');
 

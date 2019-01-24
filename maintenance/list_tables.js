@@ -90,7 +90,6 @@ return client.execute('SELECT keyspace_name,table_name FROM system_schema.tables
         for (const i of tuples) {
             const keyspace = i[0];
             const table = i[1];
-            // eslint-disable-next-line no-console
             console.log(align(keyspace, 50, 'left'), '|', table);
         }
     })
