@@ -1,7 +1,7 @@
 language: node_js
 node_js:
   - "6"
-  - "8"
+  - "10"
 
 sudo: false
 
@@ -12,7 +12,7 @@ notifications:
 addons:
   apt:
     packages:
-    - oracle-java8-set-default
+    - openjdk-8-jre-headless
 
 before_install:
   - wget https://archive.apache.org/dist/cassandra/3.11.2/apache-cassandra-3.11.2-bin.tar.gz -P ../
