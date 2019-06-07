@@ -1,4 +1,4 @@
-extends: 
+extends:
   - 'wikimedia/server'
 
 plugins:
@@ -14,11 +14,13 @@ rules:
   computed-property-spacing:
     - error
     - never
-  indent: 
+  indent:
     - error
     - 4
     - SwitchCase: 1
-      MemberExpression: 'off'    
+      MemberExpression: 'off'
+      FunctionExpression:
+        parameters: 'first'
   no-multi-spaces:
     - off
   no-underscore-dangle:

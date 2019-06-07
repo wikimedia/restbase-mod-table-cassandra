@@ -47,17 +47,18 @@ describe('Table creation', () => {
     });
 
     it('updates Cassandra replication', () => {
-        return db._getReplication('restbase.cassandra.test.local', testTable0.table)
+        const keyspace = db.keyspaceName('restbase.cassandra.test.local', testTable0.table);
+        return db._getReplication(keyspace)
         .then((response) => {
             assert.ok(response, 'undefined response');
             assert.strictEqual(Object.keys(response).length, 1, 'incorrect number of results');
 
             // Add one datacenter, and update.
             db.conf.datacenters.push('new_dc');
-            return db.updateReplicationIfNecessary('restbase.cassandra.test.local', testTable0.table);
+            return db.updateReplicationIfNecessary(keyspace);
         })
         .then(() => {
-            return db._getReplication('restbase.cassandra.test.local', testTable0.table);
+            return db._getReplication(keyspace);
         })
         .then((response) => {
             assert.ok(response, 'undefined response');
