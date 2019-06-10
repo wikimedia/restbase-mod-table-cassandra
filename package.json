@@ -6,7 +6,6 @@
   "dependencies": {
     "bluebird": "^3.5.2",
     "cassandra-driver": "3.5.0",
-    "core-js": "^2.5.7",
     "extend": "^3.0.2",
     "fast-json-stable-stringify": "^2.0.0",
     "js-yaml": "^3.12.0",
