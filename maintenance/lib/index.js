@@ -12,7 +12,7 @@ var yaml = require('js-yaml');
 function getConfig(config) {
     // Read a RESTBase configuration from a (optional) path argument, an (optional) CONFIG
     // env var, or from /etc/restbase/config.yaml
-    var conf;
+    let conf;
 
     if (config) {
         conf = config;
@@ -22,8 +22,9 @@ function getConfig(config) {
         conf = '/etc/restbase/config.yaml';
     }
 
-    var confObj = yaml.safeLoad(fs.readFileSync(conf));
-    return confObj.default_project['x-modules'][0].options.table;
+    const confObj = yaml.safeLoad(fs.readFileSync(conf));
+    const sysDef = confObj.default_project['x-modules'][0].spec.paths['/{api:sys}'];
+    return sysDef['x-modules'][2].spec.paths['/table']['x-modules'][0].options.conf;
 }
 
 module.exports = {
