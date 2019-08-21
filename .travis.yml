@@ -14,14 +14,17 @@ addons:
     packages:
     - openjdk-8-jre-headless
 
+env:
+  - CASSANDRA_VERSION=3.11.2
+
 before_install:
-  - wget https://archive.apache.org/dist/cassandra/3.11.2/apache-cassandra-3.11.2-bin.tar.gz -P ../
-  - tar -xzf ../apache-cassandra-3.11.2-bin.tar.gz -C ../
-  - export JAVA_HOME="/usr/lib/jvm/java-8-oracle"
-  - mkdir -p ../apache-cassandra-3.11.2/logs
-  - echo "-Xms512m" >> ../apache-cassandra-3.11.2/conf/jvm.options
-  - echo "-Xmx1g" >> ../apache-cassandra-3.11.2/conf/jvm.options
-  - sed -i -e 's/^-XX:+UseNUMA/#-XX:+UseNUMA/' ../apache-cassandra-3.11.2/conf/jvm.options
-  - bash ../apache-cassandra-3.11.2/bin/cassandra > /dev/null
+  - wget https://archive.apache.org/dist/cassandra/${CASSANDRA_VERSION}/apache-cassandra-${CASSANDRA_VERSION}-bin.tar.gz -P ../
+  - tar -xzf ../apache-cassandra-${CASSANDRA_VERSION}-bin.tar.gz -C ../
+  - export JAVA_HOME="/usr/lib/jvm/java-8-openjdk-amd64"
+  - mkdir -p ../apache-cassandra-${CASSANDRA_VERSION}/logs
+  - echo "-Xms512m" >> ../apache-cassandra-${CASSANDRA_VERSION}/conf/jvm.options
+  - echo "-Xmx1g" >> ../apache-cassandra-${CASSANDRA_VERSION}/conf/jvm.options
+  - sed -i -e 's/^-XX:+UseNUMA/#-XX:+UseNUMA/' ../apache-cassandra-${CASSANDRA_VERSION}/conf/jvm.options
+  - bash ../apache-cassandra-${CASSANDRA_VERSION}/bin/cassandra > /dev/null
 
 script: npm run-script coverage && (npm run-script coveralls || exit 0)
