@@ -73,15 +73,15 @@ describe('Configuration migration', () => {
     });
 
     it('disallows decreasing versions', () => {
-        // Migrate version (from 1) to 2.
-        db.conf.version = 2;
+        // Migrate version (from 1) to 4.
+        db.conf.version = 4;
         return db.createTable('restbase.cassandra.test.local', testTable0)
         .then((response) => {
             assert.ok(response, 'undefined response');
             assert.deepEqual(response.status, 201);
 
-            // Attempt to downgrade version (from 2) to 1
-            db.conf.version = 1;
+            // Attempt to downgrade version (from 4) to 3
+            db.conf.version = 3;
             return db.createTable('restbase.cassandra.test.local', testTable0)
             .then((response) => {
                 // A successful response means a downgrade happened (this is wrong).

@@ -26,5 +26,6 @@ before_install:
   - echo "-Xmx1g" >> ../apache-cassandra-${CASSANDRA_VERSION}/conf/jvm.options
   - sed -i -e 's/^-XX:+UseNUMA/#-XX:+UseNUMA/' ../apache-cassandra-${CASSANDRA_VERSION}/conf/jvm.options
   - bash ../apache-cassandra-${CASSANDRA_VERSION}/bin/cassandra > /dev/null
+  - sleep 10
 
 script: npm run-script coverage && (npm run-script coveralls || exit 0)
